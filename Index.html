@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101828">
+<title>SuperPay | Payment Dashboard</title>
+<style>
+:root{--navy:#101828;--blue:#3659e3;--bg:#f5f7fb;--muted:#667085;--line:#eaecf0;--green:#079455}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:Inter,Arial,sans-serif;color:#182230}
+button,input{font:inherit}
+.app{display:flex;min-height:100vh}
+.sidebar{width:250px;background:var(--navy);color:#fff;padding:26px 17px;position:fixed;inset:0 auto 0 0;display:flex;flex-direction:column;z-index:5}
+.brand{font-size:25px;font-weight:800;letter-spacing:-1px;padding:4px 13px 35px}
+.brand span{color:#8ea5ff}
+.nav-label{font-size:10px;color:#98a2b3;font-weight:700;letter-spacing:1.4px;padding:0 13px 12px}
+.nav{display:grid;gap:6px}
+.nav button{border:0;background:transparent;color:#c5ccda;text-align:left;padding:12px 13px;border-radius:9px;cursor:pointer;font-size:14px}
+.nav button:hover,.nav button.active{background:#26365a;color:#fff}
+.nav button .ico{display:inline-block;width:27px}
+.side-bottom{margin-top:auto;color:#98a2b3;font-size:11px;padding:15px 12px;line-height:1.7}
+.main{margin-left:250px;width:calc(100% - 250px);min-width:0}
+.topbar{height:76px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 34px;position:sticky;top:0;z-index:3}
+.topbar h2{font-size:18px;margin:0}
+.user{display:flex;align-items:center;gap:11px;font-size:13px;font-weight:600}
+.avatar{width:36px;height:36px;border-radius:50%;background:#e9edff;color:#3659e3;display:grid;place-items:center;font-weight:800}
+.content{padding:30px 34px;max-width:1450px;margin:auto}
+.welcome{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:25px}
+h1{font-size:25px;margin:0 0 7px;letter-spacing:-.6px}
+.sub{color:var(--muted);font-size:13px}
+.btn{border:0;border-radius:8px;padding:11px 16px;font-weight:650;cursor:pointer;font-size:13px}
+.primary{background:var(--blue);color:white}
+.primary:hover{background:#2948c7}
+.light{background:#fff;border:1px solid var(--line);color:#344054}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px;margin-bottom:22px}
+.card{background:#fff;border:1px solid var(--line);border-radius:13px;padding:20px;min-width:0}
+.stat-label{font-size:12px;color:var(--muted);margin-bottom:14px}
+.stat-value{font-size:25px;font-weight:750;letter-spacing:-.7px}
+.stat-foot{font-size:11px;color:var(--muted);margin-top:10px}
+.stat-foot b{color:var(--green)}
+.columns{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;margin-bottom:20px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:19px;gap:10px}
+.card-head h3{font-size:15px;margin:0}
+.card-head small{font-size:11px;color:var(--muted)}
+.chart{height:190px;display:flex;align-items:end;gap:12px;padding:10px 4px 0;border-bottom:1px solid var(--line);background:repeating-linear-gradient(to bottom,transparent 0,transparent 46px,#f0f2f6 47px)}
+.bar-wrap{height:100%;flex:1;display:flex;align-items:end;justify-content:center;position:relative}
+.bar{width:min(28px,75%);border-radius:5px 5px 0 0;background:#9eafff}
+.bar:nth-child(odd){background:#4767e8}
+.chart-labels{display:flex;justify-content:space-around;color:var(--muted);font-size:10px;padding-top:10px}
+.activity{display:grid;gap:19px}
+.activity-row{display:flex;align-items:center;gap:12px}
+.activity-icon{width:36px;height:36px;border-radius:10px;background:#eef2ff;color:#3659e3;display:grid;place-items:center}
+.activity-row strong{font-size:12px;display:block;margin-bottom:4px}
+.activity-row small{font-size:11px;color:var(--muted)}
+.activity-row .amount{margin-left:auto;font-size:12px;font-weight:700}
+.table-card{padding:0;overflow:hidden}
+.table-title{padding:20px 20px 15px}
+.table-scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:620px;text-align:left}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#667085;background:#fafbfc}
+td,th{padding:14px 19px;border-top:1px solid #f0f1f4;font-size:12px}
+td{color:#344054}
+.status{display:inline-block;padding:5px 9px;border-radius:20px;font-size:10px;font-weight:700;background:#ecfdf3;color:#027a48}
+.status.pending{background:#fffaeb;color:#b54708}
+.status.failed{background:#fef3f2;color:#b42318}
+.page{display:none}
+.page.active{display:block}
+.section-card{background:#fff;border:1px solid var(--line);border-radius:13px;padding:22px;margin-bottom:18px}
+.section-card h3{font-size:15px;margin:0 0 17px}
+.empty{padding:35px;text-align:center;color:var(--muted);font-size:13px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:15px}
+.form-row input{padding:12px;border:1px solid #d0d5dd;border-radius:8px;min-width:170px;flex:1}
+.notice{font-size:11px;color:#667085;line-height:1.6;margin-top:18px}
+.menu-toggle{display:none;background:none;border:0;font-size:22px}
+.modal-bg{display:none;position:fixed;inset:0;background:#10182880;z-index:10;align-items:center;justify-content:center;padding:16px}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:430px}
+.modal h3{margin:0 0 8px}
+.modal p{font-size:12px;color:var(--muted);line-height:1.5}
+.modal label{display:block;font-size:12px;font-weight:650;margin:15px 0 7px}
+.modal input{width:100%;padding:12px;border:1px solid #d0d5dd;border-radius:8px}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px}
+.link-result{display:none;background:#f0f5ff;padding:12px;border-radius:8px;margin-top:14px;font-size:12px;word-break:break-all}
+@media(max-width:1050px){.stats{grid-template-columns:repeat(2,1fr)}.columns{grid-template-columns:1fr}}
+@media(max-width:700px){
+.sidebar{transform:translateX(-100%);transition:.25s}
+.sidebar.open{transform:translateX(0)}
+.main{margin-left:0;width:100%}
+.topbar{height:65px;padding:0 17px}
+.menu-toggle{display:block}
+.content{padding:22px 15px}
+.welcome{align-items:flex-start;flex-direction:column}
+.stats{gap:10px}
+.card{padding:15px}
+.stat-value{font-size:21px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar">
+  <div class="brand">Super<span>Pay</span></div>
+  <div class="nav-label">MAIN MENU</div>
+  <nav class="nav">
+    <button class="active" data-page="overview"><span class="ico">▦</span>Overview</button>
+    <button data-page="transactions"><span class="ico">⇄</span>Transactions</button>
+    <button data-page="links"><span class="ico">↗</span>Payment Links</button>
+    <button data-page="payouts"><span class="ico">↙</span>Payouts</button>
+    <button data-page="customers"><span class="ico">♙</span>Customers</button>
+    <button data-page="reports"><span class="ico">▤</span>Reports</button>
+  </nav>
+  <div class="nav-label" style="margin-top:28px">PREFERENCES</div>
+  <nav class="nav">
+    <button data-page="settings"><span class="ico">⚙</span>Settings</button>
+  </nav>
+  <div class="side-bottom">SuperPay<br>Payment Management</div>
+</aside>
+
+<main class="main">
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:13px">
+    <button class="menu-toggle" id="menuToggle" aria-label="Open menu">☰</button>
+    <h2 id="pageTitle">Overview</h2>
+  </div>
+  <div class="user"><div class="avatar">SP</div><span>SuperPay Account</span></div>
+</header>
+
+<div class="content">
+<section class="page active" id="overview">
+  <div class="welcome">
+    <div><h1>Good day!</h1><div class="sub">Here is your payment activity overview.</div></div>
+    <button class="btn primary" onclick="openModal()">＋ Create Payment Link</button>
+  </div>
+  <div class="stats">
+    <div class="card"><div class="stat-label">Total Payments</div><div class="stat-value">₹2,48,500</div><div class="stat-foot"><b>↑ 12.8%</b> &nbsp; compared to last month</div></div>
+    <div class="card"><div class="stat-label">Successful Transactions</div><div class="stat-value">1,284</div><div class="stat-foot"><b>↑ 8.4%</b> &nbsp; compared to last month</div></div>
+    <div class="card"><div class="stat-label">Pending Payments</div><div class="stat-value">₹12,400</div><div class="stat-foot">Awaiting payment confirmation</div></div>
+    <div class="card"><div class="stat-label">Total Customers</div><div class="stat-value">856</div><div class="stat-foot"><b>↑ 5.2%</b> &nbsp; compared to last month</div></div>
+  </div>
+  <div class="columns">
+    <div class="card">
+      <div class="card-head"><h3>Payment Overview</h3><small>Last 7 months</small></div>
+      <div class="chart">
+        <div class="bar-wrap"><div class="bar" style="height:42%"></div></div>
+        <div class="bar-wrap"><div class="bar" style="height:62%"></div></div>
+        <div class="bar-wrap"><div class="bar" style="height:50%"></div></div>
+        <div class="bar-wrap"><div class="bar" style="height:76%"></div></div>
+        <div class="bar-wrap"><div class="bar" style="height:60%"></div></div>
+        <div class="bar-wrap"><div class="bar" style="height:88%"></div></div>
+        <div class="bar-wrap"><div class="bar" style="height:72%"></div></div>
+      </div>
+      <div class="chart-labels"><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Recent Activity</h3><small>Latest updates</small></div>
+      <div class="activity">
+        <div class="activity-row"><div class="activity-icon">₹</div><div><strong>Payment received</strong><small>Customer payment</small></div><div class="amount">₹2,500</div></div>
+        <div class="activity-row"><div class="activity-icon">↗</div><div><strong>Payment link created</strong><small>New payment request</small></div><div class="amount">Today</div></div>
+        <div class="activity-row"><div class="activity-icon">↙</div><div><strong>Payout requested</strong><small>Settlement request</small></div><div class="amount">₹8,000</div></div>
+        <div class="activity-row"><div class="activity-icon">✓</div><div><strong>Payment completed</strong><small>Order payment</small></div><div class="amount">₹1,200</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="card table-card">
+    <div class="table-title card-head"><h3>Recent Transactions</h3><button class="btn light" onclick="showPage('transactions')">View All</button></div>
+    <div class="table-scroll"><table><thead><tr><th>Transaction ID</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody id="recentRows"></tbody></table></div>
+  </div>
+  <p class="notice">Dashboard figures and transaction entries shown here are illustrative interface content. They do not represent verified funds or actual payment activity.</p>
+</section>
+
+<section class="page" id="transactions">
+  <div class="welcome"><div><h1>Transactions</h1><div class="sub">Review payment activity and transaction records.</div></div></div>
+  <div class="card table-card"><div class="table-scroll"><table><thead><tr><th>Transaction ID</th><th>Customer</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody id="allRows"></tbody></table></div></div>
+</section>
+
+<section class="page" id="links">
+  <div class="welcome"><div><h1>Payment Links</h1><div class="sub">Create and manage payment requests.</div></div><button class="btn primary" onclick="openModal()">＋ Create Link</button></div>
+  <div class="section-card"><h3>Your Payment Links</h3><div id="linkList" class="empty">No payment links created yet. Select “Create Link” to add one.</div></div>
+  <p class="notice">Links created here are local interface entries only. They do not collect payments.</p>
+</section>
+
+<section class="page" id="payouts">
+  <div class="welcome"><div><h1>Payouts</h1><div class="sub">Manage settlement and payout requests.</div></div></div>
+  <div class="section-card"><h3>Payout Summary</h3><div class="stats"><div><div class="stat-label">Total Settled</div><div class="stat-value">₹85,000</div></div><div><div class="stat-label">Pending Requests</div><div class="stat-value">₹8,000</div></div></div><p class="notice">Payout figures are illustrative. No bank transfer or payout is initiated from this page.</p></div>
+</section>
+
+<section class="page" id="customers">
+  <div class="welcome"><div><h1>Customers</h1><div class="sub">Customer relationship overview.</div></div></div>
+  <div class="section-card"><h3>Customer Overview</h3><div class="stat-value">856</div><div class="sub">Total customer profiles</div><p class="notice">Customer records can be connected to a secure backend when one is configured.</p></div>
+</section>
+
+<section class="page" id="reports">
+  <div class="welcome"><div><h1>Reports</h1><div class="sub">Review your payment performance.</div></div></div>
+  <div class="section-card"><h3>Monthly Summary</h3><p class="sub">Payment activity overview</p><div class="stat-value">₹2,48,500</div><p class="notice">Displayed figures are illustrative and are not financial statements.</p></div>
+</section>
+
+<section class="page" id="settings">
+  <div class="welcome"><div><h1>Settings</h1><div class="sub">Manage your account preferences.</div></div></div>
+  <div class="section-card"><h3>Business Profile</h3><label class="stat-label">Business Name</label><input value="SuperPay" readonly style="display:block;padding:12px;border:1px solid #d0d5dd;border-radius:8px;width:100%;max-width:400px"><p class="notice">Account and gateway settings require a secure backend and verified merchant configuration.</p></div>
+</section>
+</div>
+</main>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>Create Payment Link</h3>
+    <p>Enter a title and amount to create a payment link entry.</p>
+    <label for="linkTitle">Payment Title</label>
+    <input id="linkTitle" placeholder="e.g. Order Payment">
+    <label for="linkAmount">Amount (INR)</label>
+    <input id="linkAmount" type="number" min="1" step="0.01" placeholder="Enter amount">
+    <div class="link-result" id="linkResult"></div>
+    <div class="modal-actions"><button class="btn light" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="createLink()">Create Link</button></div>
+  </div>
+</div>
+
+<script>
+const sampleTransactions=[
+ {id:"SP-100284",customer:"Aarav Sharma",date:"16 Nov 2026",amount:"₹2,500",status:"Successful"},
+ {id:"SP-100283",customer:"Priya Verma",date:"15 Nov 2026",amount:"₹1,200",status:"Successful"},
+ {id:"SP-100282",customer:"Rahul Mehta",date:"15 Nov 2026",amount:"₹4,800",status:"Pending"},
+ {id:"SP-100281",customer:"Neha Patel",date:"14 Nov 2026",amount:"₹950",status:"Successful"},
+ {id:"SP-100280",customer:"Kabir Singh",date:"14 Nov 2026",amount:"₹3,000",status:"Failed"}
+];
+function statusClass(s){return s==="Pending"?"pending":s==="Failed"?"failed":""}
+function transactionRow(t){return `<tr><td>${t.id}</td><td>${t.customer}</td><td>${t.date}</td><td>${t.amount}</td><td><span class="status ${statusClass(t.status)}">${t.status}</span></td></tr>`}
+document.getElementById("recentRows").innerHTML=sampleTransactions.slice(0,4).map(transactionRow).join("");
+document.getElementById("allRows").innerHTML=sampleTransactions.map(transactionRow).join("");
+
+const titles={overview:"Overview",transactions:"Transactions",links:"Payment Links",payouts:"Payouts",customers:"Customers",reports:"Reports",settings:"Settings"};
+function showPage(name){
+ document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+ document.getElementById(name).classList.add("active");
+ document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===name));
+ document.getElementById("pageTitle").textContent=titles[name]||"Overview";
+ document.getElementById("sidebar").classList.remove("open");
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+document.querySelectorAll(".nav button").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
+document.getElementById("menuToggle").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
+
+function openModal(){
+ document.getElementById("linkTitle").value="";
+ document.getElementById("linkAmount").value="";
+ document.getElementById("linkResult").style.display="none";
+ document.getElementById("modalBg").classList.add("show");
+}
+function closeModal(){document.getElementById("modalBg").classList.remove("show")}
+document.getElementById("modalBg").addEventListener("click",e=>{if(e.target.id==="modalBg")closeModal()});
+
+function createLink(){
+ const title=document.getElementById("linkTitle").value.trim();
+ const amount=Number(document.getElementById("linkAmount").value);
+ if(!title||!Number.isFinite(amount)||amount<=0){alert("Please enter a title and a valid amount.");return}
+ const reference="SP-LINK-"+Date.now().toString().slice(-8);
+ const entry=document.createElement("div");
+ entry.style.cssText="padding:14px 0;border-bottom:1px solid #eaecf0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px";
+ const left=document.createElement("div");
+ const strong=document.createElement("strong");strong.textContent=title;
+ const small=document.createElement("div");small.style.cssText="color:#667085;font-size:11px;margin-top:5px";small.textContent=reference;
+ left.append(strong,small);
+ const right=document.createElement("strong");right.textContent="₹"+amount.toLocaleString("en-IN",{minimumFractionDigits:2});
+ entry.append(left,right);
+ const list=document.getElementById("linkList");
+ if(list.classList.contains("empty")){list.textContent="";list.classList.remove("empty")}
+ list.prepend(entry);
+ const result=document.getElementById("linkResult");
+ result.textContent="Link entry created: "+reference+" (not a live payment URL).";
+ result.style.display="block";
+ setTimeout(closeModal,1800);
+}
+</script>
+</body>
+</html>
