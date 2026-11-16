@@ -1,0 +1,250 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101828">
+<title>SuperPay | Admin Panel</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f6fa;color:#182230}
+button,input,select{font:inherit}
+.sidebar{position:fixed;inset:0 auto 0 0;width:245px;background:#101828;color:white;padding:25px 16px;z-index:5}
+.brand{font-size:25px;font-weight:800;padding:5px 12px 35px}
+.brand span{color:#8da5ff}
+.nav-title{font-size:10px;color:#98a2b3;padding:12px}
+.nav{display:grid;gap:5px}
+.nav button{border:0;background:transparent;color:#cbd2df;text-align:left;padding:13px;border-radius:8px;cursor:pointer;font-size:13px}
+.nav button.active,.nav button:hover{background:#293858;color:white}
+.nav button span{display:inline-block;width:28px}
+.sidebar-foot{position:absolute;bottom:22px;left:28px;color:#98a2b3;font-size:11px}
+.main{margin-left:245px;min-height:100vh}
+.top{height:72px;background:white;border-bottom:1px solid #e7eaf0;display:flex;align-items:center;justify-content:space-between;padding:0 30px;position:sticky;top:0;z-index:3}
+.top h2{font-size:18px;margin:0}
+.admin{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:bold}
+.avatar{width:35px;height:35px;border-radius:50%;background:#e9edff;color:#3659e3;display:grid;place-items:center}
+.content{padding:28px;max-width:1400px;margin:auto}
+.page{display:none}.page.active{display:block}
+.heading{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:22px}
+h1{font-size:24px;margin:0 0 7px}
+.sub{font-size:12px;color:#667085}
+.btn{border:0;border-radius:8px;padding:11px 15px;font-size:12px;font-weight:bold;cursor:pointer}
+.primary{background:#3659e3;color:white}.secondary{background:white;border:1px solid #dfe3eb;color:#344054}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:20px}
+.card{background:white;border:1px solid #e7eaf0;border-radius:12px;padding:19px;min-width:0}
+.stat-label{font-size:12px;color:#667085;margin-bottom:13px}
+.stat-value{font-size:25px;font-weight:750}
+.stat-note{font-size:10px;color:#667085;margin-top:9px}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:17px;margin-bottom:20px}
+.card h3{font-size:14px;margin:0 0 17px}
+.chart{height:160px;display:flex;align-items:end;gap:13px;border-bottom:1px solid #eaecf0;padding:0 8px}
+.bar{flex:1;max-width:48px;background:#7890ef;border-radius:5px 5px 0 0}
+.months{display:flex;justify-content:space-around;color:#667085;font-size:10px;padding-top:9px}
+.table-card{padding:0;overflow:hidden}
+.table-head{padding:19px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.table-head h3{margin:0}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{text-align:left;padding:14px 17px;border-top:1px solid #edf0f4;font-size:11px}
+th{background:#fafbfc;color:#667085;font-size:10px;text-transform:uppercase}
+.status{display:inline-block;padding:5px 9px;border-radius:20px;background:#ecfdf3;color:#027a48;font-size:10px;font-weight:bold}
+.pending{background:#fffaeb;color:#b54708}.failed{background:#fef3f2;color:#b42318}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:15px}
+.toolbar input,.toolbar select,.field input,.field select{padding:11px;border:1px solid #d0d5dd;border-radius:8px;background:white;font-size:12px}
+.toolbar input{flex:1;min-width:180px}
+.panel{background:white;border:1px solid #e7eaf0;border-radius:12px;padding:20px;margin-bottom:17px}
+.panel h3{font-size:14px;margin:0 0 16px}
+.field{display:grid;gap:7px;margin-bottom:14px;max-width:440px}
+.field label{font-size:11px;font-weight:bold;color:#475467}
+.field input,.field select{width:100%}
+.notice{font-size:11px;line-height:1.6;color:#667085;margin-top:18px}
+.menu{display:none;border:0;background:none;font-size:22px;cursor:pointer}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.small-btn{padding:7px 9px;border:1px solid #d0d5dd;border-radius:6px;background:white;font-size:10px;cursor:pointer}
+@media(max-width:1050px){.stats{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media(max-width:700px){
+.sidebar{transform:translateX(-100%);transition:.2s}
+.sidebar.open{transform:translateX(0)}
+.main{margin-left:0}.top{padding:0 15px;height:65px}
+.menu{display:block}.content{padding:20px 13px}
+.heading{align-items:flex-start;flex-direction:column}
+.stats{gap:9px}.card{padding:14px}.stat-value{font-size:21px}
+}
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+ <div class="brand">Super<span>Pay</span></div>
+ <div class="nav-title">ADMINISTRATION</div>
+ <nav class="nav">
+  <button class="active" data-page="dashboard"><span>▦</span>Dashboard</button>
+  <button data-page="users"><span>♙</span>Users</button>
+  <button data-page="transactions"><span>⇄</span>Transactions</button>
+  <button data-page="payments"><span>↗</span>Payment Links</button>
+  <button data-page="payouts"><span>↙</span>Payout Requests</button>
+  <button data-page="reports"><span>▤</span>Reports</button>
+  <button data-page="settings"><span>⚙</span>Settings</button>
+ </nav>
+ <div class="sidebar-foot">SuperPay Admin Console</div>
+</aside>
+
+<main class="main">
+ <header class="top">
+  <div style="display:flex;align-items:center;gap:12px">
+   <button class="menu" id="menu">☰</button>
+   <h2 id="title">Admin Dashboard</h2>
+  </div>
+  <div class="admin"><div class="avatar">AD</div><span>Administrator</span></div>
+ </header>
+
+ <div class="content">
+  <section class="page active" id="dashboard">
+   <div class="heading">
+    <div><h1>Admin Dashboard</h1><div class="sub">Platform overview and management</div></div>
+    <button class="btn secondary" onclick="alert('Dashboard data refreshed in this interface.')">↻ Refresh</button>
+   </div>
+   <div class="stats">
+    <div class="card"><div class="stat-label">Total Users</div><div class="stat-value">856</div><div class="stat-note">Registered accounts</div></div>
+    <div class="card"><div class="stat-label">Transactions</div><div class="stat-value">1,284</div><div class="stat-note">Illustrative records</div></div>
+    <div class="card"><div class="stat-label">Payment Volume</div><div class="stat-value">₹2,48,500</div><div class="stat-note">Illustrative amount</div></div>
+    <div class="card"><div class="stat-label">Pending Requests</div><div class="stat-value">12</div><div class="stat-note">Requires review</div></div>
+   </div>
+   <div class="grid2">
+    <div class="card">
+     <h3>Platform Activity</h3>
+     <div class="chart">
+      <div class="bar" style="height:35%"></div><div class="bar" style="height:60%"></div>
+      <div class="bar" style="height:48%"></div><div class="bar" style="height:78%"></div>
+      <div class="bar" style="height:55%"></div><div class="bar" style="height:90%"></div>
+      <div class="bar" style="height:70%"></div>
+     </div>
+     <div class="months"><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span></div>
+    </div>
+    <div class="card">
+     <h3>Admin Quick Actions</h3>
+     <div style="display:grid;gap:10px">
+      <button class="btn secondary" onclick="go('users')">Manage Users →</button>
+      <button class="btn secondary" onclick="go('transactions')">Review Transactions →</button>
+      <button class="btn secondary" onclick="go('payouts')">Review Payout Requests →</button>
+      <button class="btn secondary" onclick="go('settings')">Platform Settings →</button>
+     </div>
+    </div>
+   </div>
+   <div class="card table-card">
+    <div class="table-head"><h3>Recent Transactions</h3><button class="btn secondary" onclick="go('transactions')">View All</button></div>
+    <div class="table-wrap"><table><thead><tr><th>Transaction ID</th><th>Customer</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead><tbody id="dashRows"></tbody></table></div>
+   </div>
+   <p class="notice">All figures and records on this page are illustrative interface data. They are not verified financial records or actual payment activity.</p>
+  </section>
+
+  <section class="page" id="users">
+   <div class="heading"><div><h1>User Management</h1><div class="sub">Review registered user records.</div></div><button class="btn primary" onclick="alert('User creation requires a connected backend.')">＋ Add User</button></div>
+   <div class="toolbar"><input id="userSearch" placeholder="Search name or email..." oninput="filterTable('userSearch','userRows')"></div>
+   <div class="card table-card"><div class="table-wrap"><table><thead><tr><th>User ID</th><th>Name</th><th>Email</th><th>Joined</th><th>Status</th><th>Action</th></tr></thead><tbody id="userRows">
+    <tr><td>USR-1001</td><td>Aarav Sharma</td><td>aarav@example.com</td><td>12 Nov 2026</td><td><span class="status">Active</span></td><td><button class="small-btn" onclick="alert('Connect backend to manage user accounts.')">Manage</button></td></tr>
+    <tr><td>USR-1002</td><td>Priya Verma</td><td>priya@example.com</td><td>10 Nov 2026</td><td><span class="status">Active</span></td><td><button class="small-btn" onclick="alert('Connect backend to manage user accounts.')">Manage</button></td></tr>
+    <tr><td>USR-1003</td><td>Rahul Mehta</td><td>rahul@example.com</td><td>08 Nov 2026</td><td><span class="status pending">Review</span></td><td><button class="small-btn" onclick="alert('Connect backend to manage user accounts.')">Manage</button></td></tr>
+   </tbody></table></div></div>
+  </section>
+
+  <section class="page" id="transactions">
+   <div class="heading"><div><h1>Transactions</h1><div class="sub">Review transaction records.</div></div></div>
+   <div class="toolbar"><input id="txSearch" placeholder="Search transaction or customer..." oninput="filterTable('txSearch','txRows')"><select id="txFilter" onchange="filterStatus()"><option value="">All statuses</option><option>Successful</option><option>Pending</option><option>Failed</option></select></div>
+   <div class="card table-card"><div class="table-wrap"><table><thead><tr><th>Transaction ID</th><th>Customer</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead><tbody id="txRows"></tbody></table></div></div>
+  </section>
+
+  <section class="page" id="payments">
+   <div class="heading"><div><h1>Payment Links</h1><div class="sub">Review payment link entries.</div></div></div>
+   <div class="card table-card"><div class="table-wrap"><table><thead><tr><th>Reference</th><th>Title</th><th>Amount</th><th>State</th></tr></thead><tbody id="adminLinks"><tr><td colspan="4">No payment link records are connected.</td></tr></tbody></table></div></div>
+   <p class="notice">Payment link entries created on the merchant page are stored only in that page's browser session. A shared database is needed to show them here.</p>
+  </section>
+
+  <section class="page" id="payouts">
+   <div class="heading"><div><h1>Payout Requests</h1><div class="sub">Review payout request records.</div></div></div>
+   <div class="card table-card"><div class="table-wrap"><table><thead><tr><th>Request ID</th><th>Account</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th></tr></thead><tbody>
+    <tr><td>PO-2001</td><td>Business account A</td><td>₹8,000</td><td>16 Nov 2026</td><td><span class="status pending">Pending</span></td><td><button class="small-btn" onclick="alert('Payout review requires a secure backend and authorized workflow.')">Review</button></td></tr>
+    <tr><td>PO-2002</td><td>Business account B</td><td>₹4,500</td><td>15 Nov 2026</td><td><span class="status">Completed</span></td><td>—</td></tr>
+   </tbody></table></div></div>
+   <p class="notice">No payout can be approved or transferred from this static page.</p>
+  </section>
+
+  <section class="page" id="reports">
+   <div class="heading"><div><h1>Reports</h1><div class="sub">Platform reporting overview.</div></div><button class="btn secondary" onclick="window.print()">Print Report</button></div>
+   <div class="stats">
+    <div class="card"><div class="stat-label">Illustrative Payment Volume</div><div class="stat-value">₹2,48,500</div></div>
+    <div class="card"><div class="stat-label">Illustrative Transactions</div><div class="stat-value">1,284</div></div>
+    <div class="card"><div class="stat-label">Illustrative Users</div><div class="stat-value">856</div></div>
+    <div class="card"><div class="stat-label">Pending Requests</div><div class="stat-value">12</div></div>
+   </div>
+   <div class="panel"><h3>Reporting Information</h3><p class="sub">Connect a backend database and payment provider to generate accurate transaction, settlement, and user reports.</p></div>
+  </section>
+
+  <section class="page" id="settings">
+   <div class="heading"><div><h1>Platform Settings</h1><div class="sub">Configure platform information.</div></div></div>
+   <div class="panel">
+    <h3>General Information</h3>
+    <div class="field"><label>Platform Name</label><input value="SuperPay"></div>
+    <div class="field"><label>Support Email</label><input type="email" placeholder="support@yourdomain.com"></div>
+    <div class="field"><label>Default Currency</label><select><option>INR - Indian Rupee</option><option>USD - US Dollar</option></select></div>
+    <button class="btn primary" onclick="alert('This static interface does not save platform settings. Connect a secure backend to save changes.')">Save Settings</button>
+   </div>
+   <div class="panel">
+    <h3>Payment Gateway</h3>
+    <p class="sub">No payment gateway is connected.</p>
+    <p class="notice">Gateway credentials must be stored securely on a server. Never enter secret API keys into this HTML page.</p>
+   </div>
+   <div class="panel">
+    <h3>Security</h3>
+    <p class="sub">Admin authentication, roles, audit logs, and access controls must be implemented on a secure server before public use.</p>
+   </div>
+  </section>
+ </div>
+</main>
+
+<script>
+const records=[
+ {id:"SP-100284",name:"Aarav Sharma",amount:"₹2,500",date:"16 Nov 2026",status:"Successful"},
+ {id:"SP-100283",name:"Priya Verma",amount:"₹1,200",date:"15 Nov 2026",status:"Successful"},
+ {id:"SP-100282",name:"Rahul Mehta",amount:"₹4,800",date:"15 Nov 2026",status:"Pending"},
+ {id:"SP-100281",name:"Neha Patel",amount:"₹950",date:"14 Nov 2026",status:"Successful"},
+ {id:"SP-100280",name:"Kabir Singh",amount:"₹3,000",date:"14 Nov 2026",status:"Failed"}
+];
+function row(r){
+ let cls=r.status==="Pending"?"pending":r.status==="Failed"?"failed":"";
+ return `<tr><td>${r.id}</td><td>${r.name}</td><td>${r.amount}</td><td>${r.date}</td><td><span class="status ${cls}">${r.status}</span></td></tr>`;
+}
+document.getElementById("dashRows").innerHTML=records.slice(0,4).map(row).join("");
+document.getElementById("txRows").innerHTML=records.map(row).join("");
+
+const pageTitles={dashboard:"Admin Dashboard",users:"User Management",transactions:"Transactions",payments:"Payment Links",payouts:"Payout Requests",reports:"Reports",settings:"Platform Settings"};
+function go(id){
+ document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+ document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===id));
+ document.getElementById("title").textContent=pageTitles[id];
+ document.getElementById("sidebar").classList.remove("open");
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+document.querySelectorAll(".nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.page)));
+document.getElementById("menu").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
+
+function filterTable(inputId,tableId){
+ let q=document.getElementById(inputId).value.toLowerCase();
+ document.querySelectorAll("#"+tableId+" tr").forEach(tr=>{
+  tr.style.display=tr.innerText.toLowerCase().includes(q)?"":"none";
+ });
+}
+function filterStatus(){
+ let value=document.getElementById("txFilter").value;
+ let q=document.getElementById("txSearch").value.toLowerCase();
+ document.querySelectorAll("#txRows tr").forEach(tr=>{
+  let matchesStatus=!value||tr.innerText.includes(value);
+  let matchesSearch=tr.innerText.toLowerCase().includes(q);
+  tr.style.display=matchesStatus&&matchesSearch?"":"none";
+ });
+}
+</script>
+</body>
+  </html>
+  
