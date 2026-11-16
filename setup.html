@@ -1,0 +1,83 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SuperPay Database Setup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f5f9;
+      padding: 30px 16px;
+      text-align: center;
+    }
+    .box {
+      max-width: 420px;
+      margin: 50px auto;
+      padding: 25px;
+      background: white;
+      border-radius: 14px;
+    }
+    input, button {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 14px;
+      margin-top: 12px;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    input { border: 1px solid #ccc; }
+    button {
+      background: #185adb;
+      color: white;
+      border: 0;
+    }
+    #result { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>SuperPay Database Setup</h2>
+    <p>अपना SETUP_SECRET डालें</p>
+    <input id="secret" type="password"
+      placeholder="Secret code" autocomplete="off">
+    <button id="run">Create Database Tables</button>
+    <p id="result"></p>
+  </div>
+
+  <script>
+    document.getElementById("run").onclick = async () => {
+      const secret = document.getElementById("secret").value;
+      const result = document.getElementById("result");
+      const button = document.getElementById("run");
+
+      if (!secret) {
+        result.textContent = "Secret code डालें";
+        return;
+      }
+
+      button.disabled = true;
+      result.textContent = "Database setup चल रहा है...";
+
+      try {
+        const response = await fetch("/api/setup-db", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + secret
+          }
+        });
+
+        const data = await response.json();
+        result.textContent = data.message ||
+          (data.ok ? "Setup successful" : "Setup failed");
+      } catch (error) {
+        result.textContent = "Connection error. फिर कोशिश करें।";
+      } finally {
+        document.getElementById("secret").value = "";
+        button.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
