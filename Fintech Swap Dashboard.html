@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paykassma Swap & Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0b0f19',
+                            800: '#111827',
+                            700: '#1f2937',
+                            600: '#374151',
+                        },
+                        emerald: {
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+    </style>
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen flex flex-col">
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform translate-x-full transition-transform duration-300 bg-dark-700 border border-emerald-500/30 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
+        <div id="toast-icon" class="text-emerald-400 text-lg"><i class="fa-solid fa-circle-check"></i></div>
+        <div>
+            <h4 id="toast-title" class="font-semibold text-sm">Success</h4>
+            <p id="toast-msg" class="text-xs text-gray-400">Action completed successfully.</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="flex h-screen overflow-hidden">
+
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-dark-800 border-r border-dark-700 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 flex flex-col justify-between">
+            <div>
+                <!-- Brand Header -->
+                <div class="h-16 flex items-center px-6 border-b border-dark-700 space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-shuffle text-dark-900 font-bold"></i>
+                    </div>
+                    <span class="text-xl font-bold tracking-wide bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">Paykassma</span>
+                </div>
+
+                <!-- Nav Links -->
+                <nav class="p-4 space-y-1.5">
+                    <button onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" data-tab="dashboard">
+                        <i class="fa-solid fa-chart-pie w-5"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="switchTab('swap')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-gray-400 hover:bg-dark-700 hover:text-white" data-tab="swap">
+                        <i class="fa-solid fa-right-left w-5"></i>
+                        <span>Instant Swap</span>
+                    </button>
+                    <button onclick="switchTab('wallets')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-gray-400 hover:bg-dark-700 hover:text-white" data-tab="wallets">
+                        <i class="fa-solid fa-wallet w-5"></i>
+                        <span>Wallets</span>
+                    </button>
+                    <button onclick="switchTab('history')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-gray-400 hover:bg-dark-700 hover:text-white" data-tab="history">
+                        <i class="fa-solid fa-clock-rotate-left w-5"></i>
+                        <span>Transactions</span>
+                    </button>
+                    <button onclick="switchTab('settings')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-gray-400 hover:bg-dark-700 hover:text-white" data-tab="settings">
+                        <i class="fa-solid fa-gear w-5"></i>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Sidebar Footer / User Profile snippet -->
+            <div class="p-4 border-t border-dark-700">
+                <div class="flex items-center justify-between bg-dark-900/50 p-3 rounded-xl border border-dark-700">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
+                            JD
+                        </div>
+                        <div class="overflow-hidden">
+                            <h4 class="text-sm font-semibold truncate">John Doe</h4>
+                            <p class="text-xs text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-circle text-[8px]"></i> Verified</p>
+                        </div>
+                    </div>
+                    <button onclick="showToast('Logged out successfully', 'info')" class="text-gray-400 hover:text-red-400 transition-colors p-2" title="Logout">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col lg:pl-64 h-full overflow-y-auto">
+            
+            <!-- Top Header -->
+            <header class="h-16 bg-dark-800/80 backdrop-blur-md border-b border-dark-700 sticky top-0 z-30 flex items-center justify-between px-6">
+                <div class="flex items-center space-x-4">
+                    <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 hover:text-white text-xl">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h1 id="page-title" class="text-lg font-bold tracking-tight">Dashboard Overview</h1>
+                </div>
+
+                <!-- Right Header Actions -->
+                <div class="flex items-center space-x-4">
+                    <!-- Live Ticker badge -->
+                    <div class="hidden sm:flex items-center space-x-2 bg-dark-900/60 px-3 py-1.5 rounded-full border border-dark-700 text-xs text-gray-300">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>BTC: <span class="text-emerald-400 font-semibold">$68,420.50</span></span>
+                        <span class="text-gray-600">|</span>
+                        <span>ETH: <span class="text-emerald-400 font-semibold">$3,540.20</span></span>
+                    </div>
+
+                    <!-- Quick Deposit Button -->
+                    <button onclick="openModal('depositModal')" class="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-dark-900 font-semibold text-sm px-4 py-2 rounded-xl shadow-lg shadow-emerald-500/20 transition-all transform hover:-translate-y-0.5">
+                        <i class="fa-solid fa-plus mr-1.5"></i> Deposit
+                    </button>
+
+                    <!-- Notifications Dropdown toggle -->
+                    <button onclick="showToast('No new notifications', 'info')" class="w-10 h-10 rounded-xl bg-dark-700/50 hover:bg-dark-700 border border-dark-600 flex items-center justify-center text-gray-300 transition-colors relative">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full"></span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dynamic Views Container -->
+            <main class="flex-1 p-6 space-y-6 max-w-7xl w-full mx-auto">
+
+                <!-- TAB 1: DASHBOARD -->
+                <div id="tab-dashboard" class="tab-content space-y-6">
+                    <!-- Welcome Banner & Total Balance -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-gradient-to-br from-dark-800 to-dark-800/60 border border-dark-700 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between">
+                            <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                            <div>
+                                <span class="text-xs uppercase tracking-wider text-emerald-400 font-semibold">Total Portfolio Balance</span>
+                                <div class="flex items-baseline space-x-3 mt-2">
+                                    <h2 id="total-balance-display" class="text-4xl font-extrabold tracking-tight">$14,850.24</h2>
+                                    <span class="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20"><i class="fa-solid fa-arrow-trend-up mr-1"></i>+4.8% today</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-8 pt-6 border-t border-dark-700">
+                                <div>
+                                    <p class="text-xs text-gray-400">USD Balance</p>
+                                    <p id="bal-usd" class="text-lg font-bold mt-0.5">$5,420.00</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-400">Crypto Value</p>
+                                    <p id="bal-crypto" class="text-lg font-bold mt-0.5">$8,130.24</p>
+                                </div>
+                                <div class="col-span-2 sm:col-span-1">
+                                    <p class="text-xs text-gray-400">Euro Account</p>
+                                    <p id="bal-eur" class="text-lg font-bold mt-0.5">€1,300.00</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions Widget -->
+                        <div class="bg-dark-800 border border-dark-700 rounded-2xl p-6 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-base font-semibold mb-1">Quick Actions</h3>
+                                <p class="text-xs text-gray-400 mb-4">Perform fast swaps & transfers</p>
+                                <div class="space-y-2.5">
+                                    <button onclick="switchTab('swap')" class="w-full bg-dark-700 hover:bg-dark-600 border border-dark-600 text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between transition-colors">
+                                        <span class="flex items-center space-x-3">
+                                            <i class="fa-solid fa-right-left text-emerald-400"></i>
+                                            <span>Exchange Currencies</span>
+                                        </span>
+                                        <i class="fa-solid fa-chevron-right text-xs text-gray-500"></i>
+                                    </button>
+                                    <button onclick="openModal('depositModal')" class="w-full bg-dark-700 hover:bg-dark-600 border border-dark-600 text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between transition-colors">
+                                        <span class="flex items-center space-x-3">
+                                            <i class="fa-solid fa-arrow-down-long text-teal-400"></i>
+                                            <span>Add Funds / Deposit</span>
+                                        </span>
+                                        <i class="fa-solid fa-chevron-right text-xs text-gray-500"></i>
+                                    </button>
+                                    <button onclick="openModal('withdrawModal')" class="w-full bg-dark-700 hover:bg-dark-600 border border-dark-600 text-left px-4 py-3 rounded-xl text-sm font-medium flex items-center justify-between transition-colors">
+                                        <span class="flex items-center space-x-3">
+                                            <i class="fa-solid fa-arrow-up-long text-amber-400"></i>
+                                            <span>Withdraw to Bank</span>
+                                        </span>
+                                        <i class="fa-solid fa-chevron-right text-xs text-gray-500"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Wallets Grid -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base font-semibold">Your Wallets</h3>
+                            <button onclick="switchTab('wallets')" class="text-xs text-emerald-400 hover:underline">View All</button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- USD Wallet -->
+                            <div class="bg-dark-800 border border-dark-700 p-5 rounded-2xl flex flex-col justify-between hover:border-emerald-500/40 transition-all">
+                                <div class="flex items-center justify-between">
+                                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-lg">$</div>
+                                    <span class="text-xs bg-dark-700 px-2 py-0.5 rounded text-gray-400">Fiat</span>
+                                </div>
+                                <div class="mt-4">
+                                    <p class="text-xs text-gray-400">US Dollar</p>
+                                    <h4 id="dash-usd" class="text-xl font-bold mt-0.5">$5,420.00</h4>
+                                </div>
+                            </div>
+                            <!-- EUR Wallet -->
+                            <div class="bg-dark-800 border border-dark-700 p-5 rounded-2xl flex flex-col justify-between hover:border-emerald-500/40 transition-all">
+                                <div class="flex items-center justify-between">
+                                    <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-lg">€</div>
+                                    <span class="text-xs bg-dark-700 px-2 py-0.5 rounded text-gray-400">Fiat</span>
+                                </div>
+                                <div class="mt-4">
+                                    <p class="text-xs text-gray-400">Euro</p>
+                                    <h4 id="dash-eur" class="text-xl font-bold mt-0.5">€1,300.00</h4>
+                                </div>
+                            </div>
+                            <!-- BTC Wallet -->
+                            <div class="bg-dark-800 border border-dark-700 p-5 rounded-2xl flex flex-col justify-between hover:border-emerald-500/40 transition-all">
+                                <div class="flex items-center justify-between">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-sm"><i class="fa-brands fa-bitcoin"></i></div>
+                                    <span class="text-xs bg-dark-700 px-2 py-0.5 rounded text-gray-400">Crypto</span>
+                                </div>
+                                <div class="mt-4">
+                                    <p class="text-xs text-gray-400">Bitcoin</p>
+                                    <h4 id="dash-btc" class="text-xl font-bold mt-0.5">0.084 BTC</h4>
+                                </div>
+                            </div>
+                            <!-- ETH Wallet -->
+                            <div class="bg-dark-800 border border-dark-700 p-5 rounded-2xl flex flex-col justify-between hover:border-emerald-500/40 transition-all">
+                                <div class="flex items-center justify-between">
+                                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-sm"><i class="fa-brands fa-ethereum"></i></div>
+                                    <span class="text-xs bg-dark-700 px-2 py-0.5 rounded text-gray-400">Crypto</span>
+                                </div>
+                                <div class="mt-4">
+                                    <p class="text-xs text-gray-400">Ethereum</p>
+                                    <h4 id="dash-eth" class="text-xl font-bold mt-0.5">1.45 ETH</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions Preview -->
+                    <div class="bg-dark-800 border border-dark-700 rounded-2xl p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base font-semibold">Recent Transactions</h3>
+                            <button onclick="switchTab('history')" class="text-xs text-emerald-400 hover:underline">View All History</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-dark-700 text-xs text-gray-400 uppercase">
+                                        <th class="py-3 px-4 font-semibold">Type</th>
+                                        <th class="py-3 px-4 font-semibold">Details</th>
+                                        <th class="py-3 px-4 font-semibold">Amount</th>
+                                        <th class="py-3 px-4 font-semibold">Status</th>
+                                        <th class="py-3 px-4 font-semibold">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-tx-table" class="divide-y divide-dark-700 text-sm">
+                                    <!-- Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: INSTANT SWAP -->
+                <div id="tab-swap" class="tab-content hidden max-w-xl mx-auto space-y-6">
+                    <div class="bg-dark-800 border border-dark-700 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 class="text-xl font-bold">Instant Currency Swap</h2>
+                                <p class="text-xs text-gray-400 mt-0.5">Convert fiat & crypto instantly with zero hidden fees</p>
+                            </div>
+                            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg">Rate locked (30s)</span>
+                        </div>
+
+                        <form id="swap-form" onsubmit="executeSwap(event)" class="space-y-4">
+                            <!-- From Field -->
+                            <div class="bg-dark-900 border border-dark-700 rounded-xl p-4 focus-within:border-emerald-500 transition-colors">
+                                <div class="flex justify-between text-xs text-gray-400 mb-2">
+                                    <span>You Send</span>
+                                    <span>Balance: <span id="swap-from-bal" class="text-gray-200">5,420.00 USD</span></span>
+                                </div>
+                                <div class="flex items-center justify-between space-x-4">
+                                    <input type="number" id="swap-amount-from" value="150" step="any" min="1" oninput="calculateSwap()" class="bg-transparent text-2xl font-bold w-full focus:outline-none text-white">
+                                    <select id="swap-currency-from" onchange="updateFromBalance(); calculateSwap();" class="bg-dark-700 text-white font-medium py-2 px-3 rounded-lg border border-dark-600 focus:outline-none">
+                                        <option value="USD" selected>USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="BTC">BTC</option>
+                                        <option value="ETH">ETH</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Swap Switch Button -->
+                            <div class="flex justify-center -my-2 relative z-10">
+                                <button type="button" onclick="reverseSwap()" class="w-10 h-10 rounded-xl bg-dark-700 hover:bg-emerald-500 hover:text-dark-900 border border-dark-600 flex items-center justify-center text-emerald-400 transition-all shadow-lg">
+                                    <i class="fa-solid fa-arrow-down-up"></i>
+                                </button>
+                            </div>
+
+                            <!-- To Field -->
+                            <div class="bg-dark-900 border border-dark-700 rounded-xl p-4">
+                                <div class="flex justify-between text-xs text-gray-400 mb-2">
+                                    <span>You Get (Estimated)</span>
+                                    <span>Estimated Fee: <span class="text-emerald-400">0.00 USD</span></span>
+                                </div>
+                                <div class="flex items-center justify-between space-x-4">
+                                    <input type="text" id="swap-amount-to" readonly class="bg-transparent text-2xl font-bold w-full focus:outline-none text-emerald-400">
+                                    <select id="swap-currency-to" onchange="calculateSwap()" class="bg-dark-700 text-white font-medium py-2 px-3 rounded-lg border border-dark-600 focus:outline-none">
+                                        <option value="USD">USD</option>
+                                        <option value="EUR" selected>EUR</option>
+                                        <option value="BTC">BTC</option>
+                                        <option value="ETH">ETH</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Conversion Rate detail -->
+                            <div class="flex justify-between text-xs text-gray-400 px-1 pt-2">
+                                <span>Exchange Rate</span>
+                                <span id="swap-rate-display" class="font-medium text-gray-300">1 USD = 0.92 EUR</span>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-dark-900 font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
+                                Complete Swap Now
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- TAB 3: WALLETS -->
+                <div id="tab-wallets" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold">Your Digital & Fiat Wallets</h2>
+                            <p class="text-xs text-gray-400">Manage all your multi-currency balances in one place</p>
+                        </div>
+                        <button onclick="openModal('depositModal')" class="bg-emerald-500 hover:bg-emerald-600 text-dark-900 font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Create / Topup Wallet</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="wallets-grid-container">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- TAB 4: TRANSACTIONS HISTORY -->
+                <div id="tab-history" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold">Transaction History</h2>
+                            <p class="text-xs text-gray-400">Review all historical deposits, withdrawals and swaps</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <input type="text" id="tx-search" oninput="filterTransactions()" placeholder="Search transactions..." class="bg-dark-800 border border-dark-700 text-sm px-4 py-2 rounded-xl focus:outline-none focus:border-emerald-500 text-white">
+                            <select id="tx-filter" onchange="filterTransactions()" class="bg-dark-800 border border-dark-700 text-sm px-3 py-2 rounded-xl text-gray-300 focus:outline-none">
+                                <option value="ALL">All Status</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Failed">Failed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-dark-700 text-xs text-gray-400 uppercase bg-dark-900/40">
+                                        <th class="py-3.5 px-6 font-semibold">Reference ID</th>
+                                        <th class="py-3.5 px-6 font-semibold">Type</th>
+                                        <th class="py-3.5 px-6 font-semibold">Details</th>
+                                        <th class="py-3.5 px-6 font-semibold">Amount</th>
+                                        <th class="py-3.5 px-6 font-semibold">Status</th>
+                                        <th class="py-3.5 px-6 font-semibold">Date</th>
+                                        <th class="py-3.5 px-6 font-semibold text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="full-tx-table" class="divide-y divide-dark-700 text-sm">
+                                    <!-- Injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: SETTINGS -->
+                <div id="tab-settings" class="tab-content hidden max-w-2xl mx-auto space-y-6">
+                    <div class="bg-dark-800 border border-dark-700 rounded-2xl p-6 space-y-6">
+                        <div>
+                            <h2 class="text-xl font-bold">Account Settings</h2>
+                            <p class="text-xs text-gray-400">Update your profile details and security preferences</p>
+                        </div>
+
+                        <div class="space-y-4 pt-4 border-t border-dark-700">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Full Name</label>
+                                    <input type="text" value="John Doe" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Email Address</label>
+                                    <input type="email" value="john.doe@example.com" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Phone Number</label>
+                                <input type="text" value="+1 (555) 234-5678" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                            </div>
+                            <div class="pt-4 flex items-center justify-between border-t border-dark-700">
+                                <div>
+                                    <h4 class="text-sm font-semibold">Two-Factor Authentication (2FA)</h4>
+                                    <p class="text-xs text-gray-400">Secure your account with Google Authenticator</p>
+                                </div>
+                                <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-semibold">Enabled</span>
+                            </div>
+                            <div class="pt-4 flex justify-end">
+                                <button onclick="showToast('Settings updated successfully', 'success')" class="bg-emerald-500 hover:bg-emerald-600 text-dark-900 font-semibold px-6 py-2.5 rounded-xl text-sm transition-all">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL: DEPOSIT -->
+    <div id="depositModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-md w-full p-6 space-y-6 relative animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold">Deposit Funds</h3>
+                <button onclick="closeModal('depositModal')" class="text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleDeposit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Select Wallet</label>
+                    <select id="deposit-currency" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white">
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="EUR">EUR - Euro</option>
+                        <option value="BTC">BTC - Bitcoin</option>
+                        <option value="ETH">ETH - Ethereum</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Deposit Amount</label>
+                    <input type="number" id="deposit-amount" min="1" step="any" placeholder="0.00" required class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Payment Method</label>
+                    <select class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white">
+                        <option>Bank Transfer (SEPA / Wire)</option>
+                        <option>Credit / Debit Card</option>
+                        <option>Crypto Blockchain Transfer</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-dark-900 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/20">
+                    Proceed to Deposit
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: WITHDRAW -->
+    <div id="withdrawModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-md w-full p-6 space-y-6 relative animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold">Withdraw Funds</h3>
+                <button onclick="closeModal('withdrawModal')" class="text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleWithdraw(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Select Source Wallet</label>
+                    <select id="withdraw-currency" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white">
+                        <option value="USD">USD (Available: $5,420.00)</option>
+                        <option value="EUR">EUR (Available: €1,300.00)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Withdraw Amount</label>
+                    <input type="number" id="withdraw-amount" min="1" step="any" placeholder="0.00" required class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Destination Bank Account / IBAN</label>
+                    <input type="text" placeholder="US44BOFA... or IBAN" required class="w-full bg-dark-900 border border-dark-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 text-white">
+                </div>
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-dark-900 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-amber-500/20">
+                    Confirm Withdrawal
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: TRANSACTION DETAILS -->
+    <div id="txDetailsModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-md w-full p-6 space-y-6 relative">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold">Transaction Receipt</h3>
+                <button onclick="closeModal('txDetailsModal')" class="text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="tx-details-body" class="space-y-3 text-sm">
+                <!-- Injected via JS -->
+            </div>
+            <button onclick="closeModal('txDetailsModal')" class="w-full bg-dark-700 hover:bg-dark-600 text-white font-semibold py-2.5 rounded-xl text-sm">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Mock State Data
+        const state = {
+            balances: {
+                USD: 5420.00,
+                EUR: 1300.00,
+                BTC: 0.084,
+                ETH: 1.45
+            },
+            exchangeRates: {
+                USD: { USD: 1, EUR: 0.92, BTC: 0.0000146, ETH: 0.00028 },
+                EUR: { USD: 1.09, EUR: 1, BTC: 0.0000159, ETH: 0.00031 },
+                BTC: { USD: 68420, EUR: 62800, BTC: 1, ETH: 19.3 },
+                ETH: { USD: 3540, EUR: 3250, BTC: 0.051, ETH: 1 }
+            },
+            transactions: [
+                { id: 'TX-98421', type: 'Deposit', details: 'Wire Transfer from Bank', amount: '+$1,500.00 USD', status: 'Completed', date: 'Oct 24, 2026 14:22' },
+                { id: 'TX-98420', type: 'Swap', details: 'Converted 0.5 ETH to USD', amount: '+$1,770.00 USD', status: 'Completed', date: 'Oct 23, 2026 09:15' },
+                { id: 'TX-98419', type: 'Withdrawal', details: 'Payout to Chase Bank ****4821', amount: '-$500.00 USD', status: 'Pending', date: 'Oct 22, 2026 18:40' },
+                { id: 'TX-98418', type: 'Swap', details: 'Converted 200 USD to EUR', amount: '+€184.00 EUR', status: 'Completed', date: 'Oct 20, 2026 11:05' },
+                { id: 'TX-98417', type: 'Deposit', details: 'Crypto deposit (BTC)', amount: '+0.05 BTC', status: 'Completed', date: 'Oct 18, 2026 16:50' }
+            ]
+        };
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-emerald-500/10', 'text-emerald-400', 'border', 'border-emerald-500/20');
+                btn.classList.add('text-gray-400', 'hover:bg-dark-700', 'hover:text-white');
+            });
+
+            const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-emerald-500/10', 'text-emerald-400', 'border', 'border-emerald-500/20');
+                activeBtn.classList.remove('text-gray-400', 'hover:bg-dark-700', 'hover:text-white');
+            }
+
+            const titles = {
+                dashboard: 'Dashboard Overview',
+                swap: 'Instant Currency Exchange',
+                wallets: 'Digital & Fiat Wallets',
+                history: 'Transaction History',
+                settings: 'Account Settings'
+            };
+            document.getElementById('page-title').innerText = titles[tabId] || 'Dashboard';
+
+            // Close mobile sidebar if open
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            
+            // Refresh content if needed
+            if(tabId === 'wallets') renderWallets();
+            if(tabId === 'history') filterTransactions();
+        }
+
+        // Toggle Sidebar for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Modals
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+            document.getElementById(modalId).classList.add('flex');
+        }
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+            document.getElementById(modalId).classList.remove('flex');
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const title = document.getElementById('toast-title');
+            const msg = document.getElementById('toast-msg');
+            const icon = document.getElementById('toast-icon');
+
+            title.innerText = type === 'success' ? 'Success' : 'Notification';
+            msg.innerText = message;
+            icon.innerHTML = type === 'success' 
+                ? '<i class="fa-solid fa-circle-check text-emerald-400"></i>' 
+                : '<i class="fa-solid fa-circle-info text-blue-400"></i>';
+
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3500);
+        }
+
+        // Update Balances UI
+        function updateUI() {
+            document.getElementById('bal-usd').innerText = `$${state.balances.USD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('bal-eur').innerText = `€${state.balances.EUR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            // Total crypto approx calculation in USD
+            const cryptoVal = (state.balances.BTC * 68420) + (state.balances.ETH * 3540);
+            document.getElementById('bal-crypto').innerText = `$${cryptoVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            const totalUSD = state.balances.USD + (state.balances.EUR * 1.09) + cryptoVal;
+            document.getElementById('total-balance-display').innerText = `$${totalUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+            document.getElementById('dash-usd').innerText = `$${state.balances.USD.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('dash-eur').innerText = `€${state.balances.EUR.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('dash-btc').innerText = `${state.balances.BTC} BTC`;
+            document.getElementById('dash-eth').innerText = `${state.balances.ETH} ETH`;
+
+            renderRecentTransactions();
+        }
+
+        // Render Recent Transactions
+        function renderRecentTransactions() {
+            const tbody = document.getElementById('recent-tx-table');
+            tbody.innerHTML = state.transactions.slice(0, 4).map(tx => `
+                <tr class="hover:bg-dark-700/50 transition-colors">
+                    <td class="py-3 px-4 font-medium flex items-center space-x-2">
+                        <span class="w-8 h-8 rounded-lg bg-dark-700 flex items-center justify-center text-xs text-emerald-400">
+                            <i class="fa-solid ${tx.type === 'Deposit' ? 'fa-arrow-down' : tx.type === 'Withdrawal' ? 'fa-arrow-up' : 'fa-right-left'}"></i>
+                        </span>
+                        <span>${tx.type}</span>
+                    </td>
+                    <td class="py-3 px-4 text-gray-400 text-xs">${tx.details}</td>
+                    <td class="py-3 px-4 font-semibold ${tx.amount.startsWith('+') ? 'text-emerald-400' : 'text-gray-200'}">${tx.amount}</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-medium ${tx.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+                            ${tx.status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-xs text-gray-500">${tx.date}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Render Wallets View
+        function renderWallets() {
+            const container = document.getElementById('wallets-grid-container');
+            container.innerHTML = `
+                <div class="bg-dark-800 border border-dark-700 rounded-2xl p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xl">$</div>
+                            <span class="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">Active</span>
+                        </div>
+                        <h3 class="text-lg font-bold mt-4">US Dollar Wallet</h3>
+                        <p class="text-2xl font-extrabold mt-1">$${state.balances.USD.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                    </div>
+                    <div class="flex space-x-2 mt-6 pt-4 border-t border-dark-700">
+                        <button onclick="openModal('depositModal')" class="flex-1 bg-dark-700 hover:bg-dark-600 text-xs font-semibold py-2 rounded-xl">Deposit</button>
+                        <button onclick="openModal('withdrawModal')" class="flex-1 bg-dark-700 hover:bg-dark-600 text-xs font-semibold py-2 rounded-xl">Withdraw</button>
+                    </div>
+                </div>
+                <div class="bg-dark-800 border border-dark-700 rounded-2xl p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-xl">€</div>
+                            <span class="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">Active</span>
+                        </div>
+                        <h3 class="text-lg font-bold mt-4">Euro Wallet</h3>
+                        <p class="text-2xl font-extrabold mt-1">€${state.balances.EUR.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                    </div>
+                    <div class="flex space-x-2 mt-6 pt-4 border-t border-dark-700">
+                        <button onclick="openModal('depositModal')" class="flex-1 bg-dark-700 hover:bg-dark-600 text-xs font-semibold py-2 rounded-xl">Deposit</button>
+                        <button onclick="openModal('withdrawModal')" class="flex-1 bg-dark-700 hover:bg-dark-600 text-xs font-semibold py-2 rounded-xl">Withdraw</button>
+                    </div>
+                </div>
+                <div class="bg-dark-800 border border-dark-700 rounded-2xl p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold"><i class="fa-brands fa-bitcoin text-lg"></i></div>
+                            <span class="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">Active</span>
+                        </div>
+                        <h3 class="text-lg font-bold mt-4">Bitcoin Wallet</h3>
+                        <p class="text-2xl font-extrabold mt-1">${state.balances.BTC} BTC</p>
+                    </div>
+                    <div class="flex space-x-2 mt-6 pt-4 border-t border-dark-700">
+                        <button onclick="openModal('depositModal')" class="flex-1 bg-dark-700 hover:bg-dark-600 text-xs font-semibold py-2 rounded-xl">Receive</button>
+                        <button onclick="switchTab('swap')" class="flex-1 bg-dark-700 hover:bg-dark-600 text-xs font-semibold py-2 rounded-xl">Swap</button>
+                    </div>
+                </div>
+                <div class="bg-dark-800 border border-dark-700 rounded-2xl p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold"><i class="fa-brands fa-ethereum text-lg"></i></div>
+                            <span class="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">Active</span>
+                        </div>
+                        <h3 class="text-lg font-bold mt-4">Ethereum Wallet</h3>
+                        <p class="text-2xl font-extrabold mt-1">${state.balances.ETH} ETH</p>
+                    </div>
+                    <div class="flex space-x-2 mt-6 pt-4 border-t border-dark-700">
+                        <button onclick="openModal('depositModal')" class="flex-1 bg-dark-700 hover:bg-dark-600 text-xs font-semibold py-2 rounded-xl">Receive</button>
+                        <button onclick="switchTab('swap')" class="flex-1 bg-dark-700 hover:bg-dark-600 text-xs font-semibold py-2 rounded-xl">Swap</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render Full Transactions History
+        function filterTransactions() {
+            const query = document.getElementById('tx-search').value.toLowerCase();
+            const statusFilter = document.getElementById('tx-filter').value;
+            const tbody = document.getElementById('full-tx-table');
+
+            const filtered = state.transactions.filter(tx => {
+                const matchesQuery = tx.id.toLowerCase().includes(query) || tx.details.toLowerCase().includes(query) || tx.type.toLowerCase().includes(query);
+                const matchesStatus = statusFilter === 'ALL' || tx.status === statusFilter;
+                return matchesQuery && matchesStatus;
+            });
+
+            tbody.innerHTML = filtered.map(tx => `
+                <tr class="hover:bg-dark-700/50 transition-colors">
+                    <td class="py-4 px-6 font-mono text-xs text-emerald-400">${tx.id}</td>
+                    <td class="py-4 px-6 font-medium">${tx.type}</td>
+                    <td class="py-4 px-6 text-gray-400 text-xs">${tx.details}</td>
+                    <td class="py-4 px-6 font-semibold ${tx.amount.startsWith('+') ? 'text-emerald-400' : 'text-gray-200'}">${tx.amount}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-medium ${tx.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : tx.status === 'Pending' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}">
+                            ${tx.status}
+                        </span>
+                    </td>
+                    <td class="py-4 px-6 text-xs text-gray-500">${tx.date}</td>
+                    <td class="py-4 px-6 text-right">
+                        <button onclick="viewTxDetails('${tx.id}')" class="text-xs bg-dark-700 hover:bg-dark-600 px-3 py-1.5 rounded-lg font-medium text-gray-300">Details</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function viewTxDetails(id) {
+            const tx = state.transactions.find(t => t.id === id);
+            if(!tx) return;
+            const body = document.getElementById('tx-details-body');
+            body.innerHTML = `
+                <div class="flex justify-between py-2 border-b border-dark-700"><span class="text-gray-400">Reference ID:</span><span class="font-mono text-emerald-400">${tx.id}</span></div>
+                <div class="flex justify-between py-2 border-b border-dark-700"><span class="text-gray-400">Type:</span><span class="font-semibold">${tx.type}</span></div>
+                <div class="flex justify-between py-2 border-b border-dark-700"><span class="text-gray-400">Description:</span><span>${tx.details}</span></div>
+                <div class="flex justify-between py-2 border-b border-dark-700"><span class="text-gray-400">Amount:</span><span class="font-bold">${tx.amount}</span></div>
+                <div class="flex justify-between py-2 border-b border-dark-700"><span class="text-gray-400">Status:</span><span class="text-emerald-400">${tx.status}</span></div>
+                <div class="flex justify-between py-2"><span class="text-gray-400">Timestamp:</span><span>${tx.date}</span></div>
+            `;
+            openModal('txDetailsModal');
+        }
+
+        // Swap Calculator Logic
+        function calculateSwap() {
+            const fromCurr = document.getElementById('swap-currency-from').value;
+            const toCurr = document.getElementById('swap-currency-to').value;
+            const amount = parseFloat(document.getElementById('swap-amount-from').value) || 0;
+
+            const rate = state.exchangeRates[fromCurr][toCurr];
+            const converted = amount * rate;
+
+            document.getElementById('swap-amount-to').value = converted > 10 ? converted.toFixed(2) : converted.toFixed(6);
+            document.getElementById('swap-rate-display').innerText = `1 ${fromCurr} = ${rate > 10 ? rate.toFixed(2) : rate.toFixed(6)} ${toCurr}`;
+        }
+
+        function updateFromBalance() {
+            const fromCurr = document.getElementById('swap-currency-from').value;
+            const bal = state.balances[fromCurr] || 0;
+            document.getElementById('swap-from-bal').innerText = `${bal} ${fromCurr}`;
+        }
+
+        function reverseSwap() {
+            const fromSelect = document.getElementById('swap-currency-from');
+            const toSelect = document.getElementById('swap-currency-to');
+            const temp = fromSelect.value;
+            fromSelect.value = toSelect.value;
+            toSelect.value = temp;
+            updateFromBalance();
+            calculateSwap();
+        }
+
+        function executeSwap(e) {
+            e.preventDefault();
+            const fromCurr = document.getElementById('swap-currency-from').value;
+            const toCurr = document.getElementById('swap-currency-to').value;
+            const amount = parseFloat(document.getElementById('swap-amount-from').value);
+            const converted = parseFloat(document.getElementById('swap-amount-to').value);
+
+            if(state.balances[fromCurr] < amount) {
+                showToast(`Insufficient ${fromCurr} balance!`, 'info');
+                return;
+            }
+
+            state.balances[fromCurr] -= amount;
+            state.balances[toCurr] = (state.balances[toCurr] || 0) + converted;
+
+            const newTx = {
+                id: 'TX-' + Math.floor(10000 + Math.random() * 90000),
+                type: 'Swap',
+                details: `Converted ${amount} ${fromCurr} to ${toCurr}`,
+                amount: `+${converted > 10 ? converted.toFixed(2) : converted.toFixed(4)} ${toCurr}`,
+                status: 'Completed',
+                date: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            };
+
+            state.transactions.unshift(newTx);
+            updateUI();
+            updateFromBalance();
+            showToast(`Successfully swapped ${amount} ${fromCurr} for ${toCurr}!`, 'success');
+        }
+
+        // Deposit Handler
+        function handleDeposit(e) {
+            e.preventDefault();
+            const curr = document.getElementById('deposit-currency').value;
+            const amount = parseFloat(document.getElementById('deposit-amount').value);
+
+            state.balances[curr] += amount;
+            state.transactions.unshift({
+                id: 'TX-' + Math.floor(10000 + Math.random() * 90000),
+                type: 'Deposit',
+                details: `Online deposit via payment gateway`,
+                amount: `+${amount} ${curr}`,
+                status: 'Completed',
+                date: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            });
+
+            closeModal('depositModal');
+            updateUI();
+            showToast(`Successfully deposited ${amount} ${curr}!`, 'success');
+        }
+
+        // Withdraw Handler
+        function handleWithdraw(e) {
+            e.preventDefault();
+            const curr = document.getElementById('withdraw-currency').value;
+            const amount = parseFloat(document.getElementById('withdraw-amount').value);
+
+            if(state.balances[curr] < amount) {
+                showToast('Insufficient funds for withdrawal', 'info');
+                return;
+            }
+
+            state.balances[curr] -= amount;
+            state.transactions.unshift({
+                id: 'TX-' + Math.floor(10000 + Math.random() * 90000),
+                type: 'Withdrawal',
+                details: `Bank Wire Payout`,
+                amount: `-${amount} ${curr}`,
+                status: 'Pending',
+                date: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            });
+
+            closeModal('withdrawModal');
+            updateUI();
+            showToast(`Withdrawal request submitted successfully!`, 'success');
+        }
+
+        // Initial setup on load
+        window.onload = function() {
+            updateUI();
+            calculateSwap();
+            updateFromBalance();
+        };
+    </script>
+</body>
+</html>
