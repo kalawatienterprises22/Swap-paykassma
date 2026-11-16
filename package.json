@@ -1,0 +1,9 @@
+{
+  "name": "superpay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SuperPay merchant and admin dashboard",
+  "dependencies": {
+    "pg": "^8.16.3"
+  }
+}
