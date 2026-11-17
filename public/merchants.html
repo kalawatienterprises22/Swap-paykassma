@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SuperPay - Merchant Management</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#172033;font-family:Arial,sans-serif}
+    header{background:#101827;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    header a{color:#dbeafe;text-decoration:none;margin-right:14px}main{max-width:1100px;margin:auto;padding:20px}
+    .panel{background:#fff;border-radius:12px;padding:18px;margin:16px 0;box-shadow:0 2px 8px #0000000d}
+    .formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+    input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;margin-top:6px}
+    label{font-size:13px;font-weight:bold;color:#475569}
+    button{border:0;border-radius:8px;padding:11px 15px;background:#175bd5;color:white;font-weight:bold;cursor:pointer}
+    button.secondary{background:#64748b}button.danger{background:#dc3545}button:disabled{opacity:.55}
+    .tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;padding:12px;border-bottom:1px solid #e2e8f0;font-size:14px}
+    th{color:#64748b;font-size:12px;text-transform:uppercase}.status{font-weight:bold}.active{color:#15803d}.suspended{color:#b91c1c}
+    #message{min-height:22px;color:#475569}.toprow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    #search{max-width:300px}.small{font-size:12px;color:#64748b}
+  </style>
+</head>
+<body>
+<header>
+  <strong>SuperPay Admin</strong>
+  <nav><a href="/dashboard.html">Dashboard</a><button class="secondary" id="logout">Logout</button></nav>
+</header>
+<main>
+  <div class="toprow"><h2>Merchant Management</h2><span id="total" class="small"></span></div>
+  <section class="panel">
+    <h3>Add New Merchant</h3>
+    <p class="small">New merchant accounts are created as ACTIVE. Password must be at least 12 characters.</p>
+    <form id="createForm">
+      <div class="formgrid">
+        <label>Merchant / Business Name<input name="display_name" required minlength="2" maxlength="80" placeholder="Business name"></label>
+        <label>Merchant User ID<input name="user_id" required minlength="4" maxlength="32" pattern="[A-Za-z0-9_-]+" placeholder="e.g. shop_001"></label>
+        <label>Email (optional)<input name="email" type="email" maxlength="254" placeholder="merchant@example.com"></label>
+        <label>Initial Password<input name="password" type="password" required minlength="12" maxlength="72" autocomplete="new-password" placeholder="At least 12 characters"></label>
+      </div>
+      <p style="margin-bottom:0"><button id="createButton" type="submit">Create Merchant</button></p>
+    </form>
+  </section>
+  <section class="panel">
+    <div class="toprow"><h3>All Merchants</h3><input id="search" type="search" placeholder="Search name, ID or email"></div>
+    <p id="message" role="status">Loading merchants...</p>
+    <div class="tablewrap">
+      <table><thead><tr><th>Business</th><th>User ID</th><th>Email</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
+      <tbody id="merchantRows"></tbody></table>
+    </div>
+  </section>
+</main>
+<script>
+  const token = sessionStorage.getItem("superpay_token");
+  const savedUser = sessionStorage.getItem("superpay_user");
+  const message = document.getElementById("message");
+  const rows = document.getElementById("merchantRows");
+  const search = document.getElementById("search");
+  let merchants = [];
+
+  function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");window.location.replace("/login.html");}
+  document.getElementById("logout").addEventListener("click",logout);
+
+  async function api(url, options={}){
+    const response=await fetch(url,{...options,headers:{...(options.headers||{}),"Authorization":"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{})}});
+    const data=await response.json().catch(()=>({ok:false,message:"Invalid server response"}));
+    if(response.status===401||response.status===403){logout();throw new Error("Please sign in again");}
+    if(!response.ok||!data.ok)throw new Error(data.message||"Request failed");
+    return data;
+  }
+
+  function render(){
+    rows.replaceChildren();
+    document.getElementById("total").textContent=merchants.length+" merchant(s)";
+    if(!merchants.length){message.textContent="No merchants found.";return;}
+    message.textContent="";
+    merchants.forEach(m=>{
+      const tr=document.createElement("tr");
+      const values=[m.display_name,m.user_id,m.email||"—",m.status,new Date(m.created_at).toLocaleDateString()];
+      values.forEach((value,index)=>{const td=document.createElement("td");td.textContent=value;if(index===3)td.className="status "+(value==="ACTIVE"?"active":"suspended");tr.appendChild(td);});
+      const action=document.createElement("td");
+      const button=document.createElement("button");
+      button.className=m.status==="ACTIVE"?"danger":"secondary";
+      button.textContent=m.status==="ACTIVE"?"Suspend":"Activate";
+      button.addEventListener("click",()=>changeStatus(m.id,m.status==="ACTIVE"?"SUSPENDED":"ACTIVE"));
+      action.appendChild(button);tr.appendChild(action);rows.appendChild(tr);
+    });
+  }
+
+  async function load(){
+    message.textContent="Loading merchants...";
+    try{const data=await api("/api/admin/merchants?q="+encodeURIComponent(search.value.trim()));merchants=data.merchants;render();}
+    catch(error){message.textContent=error.message;}
+  }
+
+  async function changeStatus(id,status){
+    if(!confirm("Are you sure you want to "+(status==="SUSPENDED"?"suspend":"activate")+" this merchant?"))return;
+    try{await api("/api/admin/merchants",{method:"PATCH",body:JSON.stringify({id,status})});message.textContent="Merchant status updated.";await load();}
+    catch(error){message.textContent=error.message;}
+  }
+
+  document.getElementById("createForm").addEventListener("submit",async event=>{
+    event.preventDefault();
+    const form=event.currentTarget;
+    const payload=Object.fromEntries(new FormData(form).entries());
+    const button=document.getElementById("createButton");
+    button.disabled=true;message.textContent="Creating merchant...";
+    try{
+      const data=await api("/api/admin/merchants",{method:"POST",body:JSON.stringify(payload)});
+      form.reset();message.textContent="Merchant "+data.merchant.user_id+" created successfully.";await load();
+    }catch(error){message.textContent=error.message;}
+    finally{button.disabled=false;}
+  });
+
+  let searchTimer;
+  search.addEventListener("input",()=>{clearTimeout(searchTimer);searchTimer=setTimeout(load,300);});
+  try{
+    const user=JSON.parse(savedUser||"null");
+    if(!token||!user||user.role!=="SUPER_ADMIN")logout();
+    else load();
+  }catch{logout();}
+</script>
+</body>
+</html>
