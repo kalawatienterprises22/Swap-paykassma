@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SuperPay - Daily Exchange Rates</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#172033;font-family:Arial,sans-serif}
+    header{background:#101827;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    header a{color:#dbeafe;text-decoration:none;margin-right:14px}main{max-width:1000px;margin:auto;padding:20px}
+    .panel{background:#fff;border-radius:12px;padding:18px;margin:16px 0;box-shadow:0 2px 8px #0000000d}
+    .rate-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center;margin:10px 0}
+    input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px}
+    button{border:0;border-radius:8px;padding:11px 15px;background:#175bd5;color:white;font-weight:bold;cursor:pointer}
+    button.secondary{background:#64748b}button.danger{background:#dc3545}button:disabled{opacity:.55}
+    .muted{color:#64748b;font-size:13px}#message{min-height:22px;color:#475569}
+    table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid #e2e8f0;font-size:14px}
+    th{font-size:12px;color:#64748b;text-transform:uppercase}.history{overflow-x:auto}
+    @media(max-width:520px){.rate-row{grid-template-columns:1fr 1fr}.rate-row button{grid-column:1/-1}}
+  </style>
+</head>
+<body>
+<header><strong>SuperPay Admin</strong><nav><a href="/dashboard.html">Dashboard</a><button class="secondary" id="logout">Logout</button></nav></header>
+<main>
+  <h2>Daily Exchange Rates</h2>
+  <p class="muted">Set how many INR equal 1 unit of each foreign currency. Example: 1 USD = 83.50 INR.</p>
+  <section class="panel">
+    <h3>Current Rates</h3>
+    <div id="rateRows"></div>
+    <p><button type="button" class="secondary" id="addRate">+ Add Currency</button></p>
+    <p id="message" role="status">Loading rates...</p>
+    <button id="save" type="button">Save Exchange Rates</button>
+    <p class="muted" id="updated"></p>
+  </section>
+  <section class="panel">
+    <h3>Rate Update History</h3>
+    <div class="history"><table><thead><tr><th>Date & Time</th><th>Previous Rates</th><th>New Rates</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+    <p class="muted" id="historyMessage"></p>
+  </section>
+</main>
+<script>
+  const token=sessionStorage.getItem("superpay_token");
+  const savedUser=sessionStorage.getItem("superpay_user");
+  const rateRows=document.getElementById("rateRows");
+  const message=document.getElementById("message");
+  let rates=[];
+  function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace("/login.html");}
+  document.getElementById("logout").addEventListener("click",logout);
+  async function api(url,options={}){
+    const response=await fetch(url,{...options,headers:{...(options.headers||{}),"Authorization":"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{})}});
+    const data=await response.json().catch(()=>({ok:false,message:"Invalid server response"}));
+    if(response.status===401||response.status===403){logout();throw new Error("Please sign in again");}
+    if(!response.ok||!data.ok)throw new Error(data.message||"Request failed");
+    return data;
+  }
+  function addRow(currency="",rate=""){
+    const row=document.createElement("div");row.className="rate-row";
+    const code=document.createElement("input");code.placeholder="Currency (e.g. USD)";code.maxLength=3;code.value=currency;code.setAttribute("aria-label","Currency code");
+    const value=document.createElement("input");value.type="number";value.min="0.00000001";value.step="any";value.placeholder="INR rate";value.value=rate;value.setAttribute("aria-label","Rate in INR");
+    const remove=document.createElement("button");remove.type="button";remove.className="danger";remove.textContent="Remove";remove.addEventListener("click",()=>row.remove());
+    row.append(code,value,remove);rateRows.appendChild(row);
+  }
+  function readRows(){
+    return [...rateRows.querySelectorAll(".rate-row")].map(row=>({currency:row.children[0].value.trim().toUpperCase(),rate:row.children[1].value}));
+  }
+  function renderHistory(history){
+    const body=document.getElementById("historyRows");body.replaceChildren();
+    document.getElementById("historyMessage").textContent=history.length?"Showing latest "+history.length+" updates.":"No rate updates yet.";
+    history.forEach(item=>{
+      const tr=document.createElement("tr");
+      const date=document.createElement("td");date.textContent=new Date(item.created_at).toLocaleString();tr.appendChild(date);
+      for(const key of ["old_rates","new_rates"]){
+        const td=document.createElement("td");const list=item.details?.[key]||[];
+        td.textContent=list.map(x=>x.currency+" : "+x.rate+" INR").join(", ")||"—";tr.appendChild(td);
+      }
+      body.appendChild(tr);
+    });
+  }
+  async function load(){
+    try{
+      const data=await api("/api/admin/exchange-rates");
+      rates=data.rates||[];rateRows.replaceChildren();
+      rates.forEach(item=>addRow(item.currency,item.rate));
+      if(!rates.length){addRow("USD","");addRow("EUR","");addRow("AED","");}
+      document.getElementById("updated").textContent=data.updated_at?"Last updated: "+new Date(data.updated_at).toLocaleString():"Rates not set yet.";
+      renderHistory(data.history||[]);message.textContent="Rates loaded.";
+    }catch(error){message.textContent=error.message;}
+  }
+  document.getElementById("addRate").addEventListener("click",()=>{if(rateRows.children.length>=30){message.textContent="Maximum 30 currencies allowed.";return;}addRow();});
+  document.getElementById("save").addEventListener("click",async()=>{
+    const values=readRows();
+    if(!values.length||values.some(x=>!x.currency||!x.rate)){message.textContent="Please fill every currency and rate.";return;}
+    const save=document.getElementById("save");save.disabled=true;message.textContent="Saving rates...";
+    try{await api("/api/admin/exchange-rates",{method:"POST",body:JSON.stringify({rates:values})});message.textContent="Exchange rates saved successfully.";await load();}
+    catch(error){message.textContent=error.message;}
+    finally{save.disabled=false;}
+  });
+  try{const user=JSON.parse(savedUser||"null");if(!token||!user||user.role!=="SUPER_ADMIN")logout();else load();}catch{logout();}
+</script>
+</body>
+</html>
