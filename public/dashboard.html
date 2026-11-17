@@ -107,6 +107,67 @@
       sessionStorage.removeItem("superpay_user");
       window.location.replace("/login.html");
     });
-  </script>
+  
+const token = sessionStorage.getItem("superpay_token");
+const savedUser = sessionStorage.getItem("superpay_user");
+
+const welcome = document.getElementById("welcome");
+const status = document.getElementById("status");
+const numbers = document.querySelectorAll(".number");
+
+if (!token || !savedUser) {
+  window.location.replace("/login.html");
+} else {
+  try {
+    const user = JSON.parse(savedUser);
+
+    if (user.role !== "SUPER_ADMIN") {
+      throw new Error("Not an admin");
+    }
+
+    welcome.textContent = "Welcome, " + user.role;
+    status.textContent = "Loading dashboard data...";
+
+    fetch("/api/dashboard", {
+      method: "GET",
+      headers: {
+        "Authorization": "Bearer " + token
+      }
+    })
+    .then(async response => {
+      const data = await response.json();
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Session expired or access denied");
+      }
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "Dashboard data unavailable");
+      }
+
+      numbers[0].textContent = data.stats.merchants;
+      numbers[1].textContent = data.stats.transactions;
+      numbers[2].textContent = data.stats.deposits;
+      numbers[3].textContent = data.stats.withdrawals;
+
+      status.textContent = "Dashboard data loaded successfully.";
+    })
+    .catch(error => {
+      status.textContent = error.message;
+    });
+
+  } catch {
+    sessionStorage.removeItem("superpay_token");
+    sessionStorage.removeItem("superpay_user");
+    window.location.replace("/login.html");
+  }
+}
+
+document.getElementById("logout").addEventListener("click", () => {
+  sessionStorage.removeItem("superpay_token");
+  sessionStorage.removeItem("superpay_user");
+  window.location.replace("/login.html");
+});
+    
 </body>
 </html>
