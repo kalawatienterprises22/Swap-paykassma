@@ -55,14 +55,15 @@ module.exports = async (req,res) => {
     }
   }
 
+  if(actor.role==="MERCHANT") return sendJson(res,403,{ok:false,message:"Merchant payment entries require a verified payment notification; manual balance changes are disabled"});
   const {merchant_id,type,amount,reference,description}=req.body||{};
-  const allowed=actor.role==="MERCHANT"?["PAYMENT"]:["DEPOSIT","PAYMENT","MANUAL_CREDIT","MANUAL_DEBIT"];
+  const allowed=["DEPOSIT","PAYMENT","MANUAL_CREDIT","MANUAL_DEBIT"];
   const value=Number(amount);
   if(!allowed.includes(type)||!Number.isFinite(value)||value<=0||value>100000000000||
      typeof reference!=="string"||reference.trim().length<4||reference.trim().length>120){
     return sendJson(res,400,{ok:false,message:"Enter a valid type, amount and unique reference (at least 4 characters)"});
   }
-  const target=actor.role==="MERCHANT"?actor.sub:merchant_id;
+  const target=merchant_id;
   if(typeof target!=="string"||!/^[0-9a-f-]{36}$/i.test(target)){
     return sendJson(res,400,{ok:false,message:"Select a valid merchant"});
   }
