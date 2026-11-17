@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SuperPay Admin Login</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #101827;
+    }
+    .card {
+      width: 100%;
+      max-width: 400px;
+      padding: 30px;
+      background: white;
+      border-radius: 16px;
+    }
+    h1 { color: #175bd5; }
+    input, button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 15px;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    input { border: 1px solid #ccc; }
+    button {
+      border: 0;
+      color: white;
+      background: #175bd5;
+      font-weight: bold;
+    }
+    #message { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>SuperPay</h1>
+    <p>Super Admin Login</p>
+
+    <form id="loginForm">
+      <input id="userId" type="text"
+        placeholder="User ID" autocomplete="username" required>
+
+      <input id="password" type="password"
+        placeholder="Password" autocomplete="current-password" required>
+
+      <button id="loginButton" type="submit">Login</button>
+    </form>
+
+    <p id="message" role="status"></p>
+  </main>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    const message = document.getElementById("message");
+    const button = document.getElementById("loginButton");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      message.textContent = "Please wait...";
+
+      try {
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: document.getElementById("userId").value.trim(),
+            password: document.getElementById("password").value
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          message.textContent = data.message || "Login failed";
+          return;
+        }
+
+        sessionStorage.setItem("superpay_token", data.token);
+        sessionStorage.setItem("superpay_user", JSON.stringify(data.user));
+
+        message.textContent = "Login successful! Dashboard is not yet connected.";
+        form.reset();
+
+      } catch {
+        message.textContent = "Connection error. Please try again.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
