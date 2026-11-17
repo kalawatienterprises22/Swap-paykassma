@@ -87,13 +87,32 @@
     }catch(error){message.textContent=error.message;}
   }
   document.getElementById("addRate").addEventListener("click",()=>{if(rateRows.children.length>=30){message.textContent="Maximum 30 currencies allowed.";return;}addRow();});
-  document.getElementById("save").addEventListener("click",async()=>{
-    const values=readRows();
-    if(!values.length||values.some(x=>!x.currency||!x.rate)){message.textContent="Please fill every currency and rate.";return;}
-    const save=document.getElementById("save");save.disabled=true;message.textContent="Saving rates...";
-    try{await api("/api/admin/exchange-rates",{method:"POST",body:JSON.stringify({rates:values})});message.textContent="Exchange rates saved successfully.";await load();}
-    catch(error){message.textContent=error.message;}
-    finally{save.disabled=false;}
+  const saveButton=document.getElementById("save");
+  saveButton.addEventListener("click",async()=>{
+    message.textContent="Save button clicked. Checking rates...";
+    saveButton.disabled=true;
+    saveButton.textContent="Saving...";
+    try{
+      const values=readRows();
+      if(!values.length||values.some(x=>!x.currency||!x.rate)){
+        throw new Error("Please fill currency code and INR rate in every row before saving.");
+      }
+      if(values.some(x=>!Number.isFinite(Number(x.rate))||Number(x.rate)<=0)){
+        throw new Error("Each INR rate must be a number greater than zero.");
+      }
+      const result=await api("/api/admin/exchange-rates",{method:"POST",body:JSON.stringify({rates:values})});
+      message.textContent="Saved successfully. Reloading saved rates...";
+      rates=result.rates||[];
+      rateRows.replaceChildren();
+      rates.forEach(item=>addRow(item.currency,item.rate));
+      document.getElementById("updated").textContent=result.updated_at?"Last updated: "+new Date(result.updated_at).toLocaleString():"";
+      await load();
+    }catch(error){
+      message.textContent="Save failed: "+(error?.message||"Please try again.");
+    }finally{
+      saveButton.disabled=false;
+      saveButton.textContent="Save Exchange Rates";
+    }
   });
   try{const user=JSON.parse(savedUser||"null");if(!token||!user||user.role!=="SUPER_ADMIN")logout();else load();}catch{logout();}
 </script>
