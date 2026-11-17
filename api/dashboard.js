@@ -40,7 +40,7 @@ module.exports = async (req, res) => {
 
     const [merchants, transactions, deposits, withdrawals] =
       await Promise.all([
-        pool.query("SELECT COUNT(*)::int AS total FROM merchants"),
+        pool.query("SELECT COUNT(*)::int AS total FROM sp_users WHERE role = 'MERCHANT'"),
         pool.query("SELECT COUNT(*)::int AS total FROM transactions"),
         pool.query("SELECT COUNT(*)::int AS total FROM sp_deposits"),
         pool.query("SELECT COUNT(*)::int AS total FROM withdrawals")
