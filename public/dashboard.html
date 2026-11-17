@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SuperPay Admin Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      color: #172033;
+    }
+    header {
+      background: #101827;
+      color: white;
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    main { padding: 20px; max-width: 1100px; margin: auto; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 15px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px #00000010;
+    }
+    .number { font-size: 28px; font-weight: bold; color: #175bd5; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 15px;
+      color: white;
+      background: #dc3545;
+      font-weight: bold;
+    }
+    #status { color: #667085; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>SuperPay Admin</strong>
+    <button id="logout">Logout</button>
+  </header>
+
+  <main>
+    <h2>Dashboard Overview</h2>
+    <p id="welcome">Checking login...</p>
+    <p id="status"></p>
+
+    <section class="grid">
+      <div class="card">
+        <h3>Total Merchants</h3>
+        <div class="number">—</div>
+        <p>Awaiting dashboard API</p>
+      </div>
+      <div class="card">
+        <h3>Transactions</h3>
+        <div class="number">—</div>
+        <p>Awaiting dashboard API</p>
+      </div>
+      <div class="card">
+        <h3>Deposits</h3>
+        <div class="number">—</div>
+        <p>Awaiting dashboard API</p>
+      </div>
+      <div class="card">
+        <h3>Withdrawals</h3>
+        <div class="number">—</div>
+        <p>Awaiting dashboard API</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const token = sessionStorage.getItem("superpay_token");
+    const savedUser = sessionStorage.getItem("superpay_user");
+
+    if (!token || !savedUser) {
+      window.location.replace("/login.html");
+    } else {
+      try {
+        const user = JSON.parse(savedUser);
+        if (user.role !== "SUPER_ADMIN") {
+          throw new Error("Not an admin");
+        }
+        document.getElementById("welcome").textContent =
+          "Welcome, " + user.role;
+        document.getElementById("status").textContent =
+          "Login session found. Dashboard data API is not connected yet.";
+      } catch {
+        sessionStorage.removeItem("superpay_token");
+        sessionStorage.removeItem("superpay_user");
+        window.location.replace("/login.html");
+      }
+    }
+
+    document.getElementById("logout").addEventListener("click", () => {
+      sessionStorage.removeItem("superpay_token");
+      sessionStorage.removeItem("superpay_user");
+      window.location.replace("/login.html");
+    });
+  </script>
+</body>
+</html>
