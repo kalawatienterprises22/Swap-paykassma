@@ -10,7 +10,7 @@ const ALLOWED_PACKAGES = new Set([
 ]);
 
 module.exports = async (req, res) => {
-  if (!allowMethods(req, res, ["POST"])) return;
+  if (!allowMethods(req, res, ["GET", "POST"])) return;
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) return sendJson(res, 401, { ok: false, message: "Authentication required" });
@@ -27,6 +27,19 @@ module.exports = async (req, res) => {
 
   const body = req.body || {};
   const pool = getPool();
+
+  if (req.method === "GET") {
+    try {
+      const current = await pool.query(
+        "SELECT source_package, enabled, updated_at FROM sp_merchant_notification_sources WHERE merchant_id=$1",
+        [actor.sub]
+      );
+      return sendJson(res, 200, { ok: true, source: current.rows[0] || null });
+    } catch (error) {
+      console.error("Notification source read error:", error.message);
+      return sendJson(res, 500, { ok: false, message: "Unable to read notification source settings" });
+    }
+  }
 
   // A merchant may enable exactly one payment app at a time.
   if (body.action === "configure_source") {
