@@ -80,9 +80,35 @@ module.exports = async (req, res) => {
       return sendJson(res, 201, { ok: true, merchant: result.rows[0] });
     }
 
-    const { id, status } = req.body || {};
-    if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id) || !["ACTIVE", "SUSPENDED"].includes(status)) {
-      return sendJson(res, 400, { ok: false, message: "Invalid merchant or status" });
+    const { id, status, action, password } = req.body || {};
+    if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) {
+      return sendJson(res, 400, { ok: false, message: "Invalid merchant" });
+    }
+
+    if (action === "reset_password") {
+      if (typeof password !== "string" || password.length < 12 || password.length > 72) {
+        return sendJson(res, 400, { ok: false, message: "New password must be 12-72 characters" });
+      }
+      const passwordHash = await bcrypt.hash(password, 12);
+      const result = await pool.query(
+        `UPDATE sp_users SET password_hash = $1, updated_at = now()
+         WHERE id = $2 AND role = 'MERCHANT'
+         RETURNING id, user_id, email, display_name, status, created_at`,
+        [passwordHash, id]
+      );
+      if (!result.rows.length) {
+        return sendJson(res, 404, { ok: false, message: "Merchant not found" });
+      }
+      await pool.query(
+        `INSERT INTO sp_audit_logs (actor_id, action, target_type, target_id, details)
+         VALUES ($1, 'MERCHANT_PASSWORD_RESET', 'MERCHANT', $2, $3)`,
+        [admin.sub, id, JSON.stringify({ user_id: result.rows[0].user_id })]
+      );
+      return sendJson(res, 200, { ok: true, merchant: result.rows[0] });
+    }
+
+    if (!["ACTIVE", "SUSPENDED"].includes(status)) {
+      return sendJson(res, 400, { ok: false, message: "Invalid merchant status" });
     }
     const result = await pool.query(
       `UPDATE sp_users SET status = $1, updated_at = now()
