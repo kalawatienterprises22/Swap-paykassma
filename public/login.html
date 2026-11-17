@@ -90,7 +90,7 @@
 
         message.textContent = "Login successful!";
 
-window.location.href = "/dashboard.html";
+window.location.href = data.user.role === "SUPER_ADMIN" ? "/dashboard.html" : "/balances.html";
         form.reset();
 
       } catch {
