@@ -1,6 +1,6 @@
-const { getPool } = require("../_lib/db");
-const { sendJson, allowMethods } = require("../_lib/http");
-const { verifyToken } = require("../_lib/auth");
+const { getPool } = require("./_lib/db");
+const { sendJson, allowMethods } = require("./_lib/http");
+const { verifyToken } = require("./_lib/auth");
 
 function authenticate(req,res) {
   const h=req.headers.authorization||"";
