@@ -82,7 +82,14 @@
       button.className=m.status==="ACTIVE"?"danger":"secondary";
       button.textContent=m.status==="ACTIVE"?"Suspend":"Activate";
       button.addEventListener("click",()=>changeStatus(m.id,m.status==="ACTIVE"?"SUSPENDED":"ACTIVE"));
-      action.appendChild(button);tr.appendChild(action);rows.appendChild(tr);
+      action.appendChild(button);
+      const resetButton=document.createElement("button");
+      resetButton.className="secondary";
+      resetButton.style.marginLeft="6px";
+      resetButton.textContent="Reset Password";
+      resetButton.addEventListener("click",()=>resetPassword(m.id,m.user_id));
+      action.appendChild(resetButton);
+      tr.appendChild(action);rows.appendChild(tr);
     });
   }
 
@@ -90,6 +97,17 @@
     message.textContent="Loading merchants...";
     try{const data=await api("/api/admin/merchants?q="+encodeURIComponent(search.value.trim()));merchants=data.merchants;render();}
     catch(error){message.textContent=error.message;}
+  }
+
+  async function resetPassword(id,userId){
+    const password=prompt("Enter a new password for "+userId+" (at least 12 characters):");
+    if(password===null)return;
+    if(password.length<12||password.length>72){message.textContent="Password must be 12-72 characters.";return;}
+    if(!confirm("Reset the password for "+userId+"?"))return;
+    try{
+      await api("/api/admin/merchants",{method:"PATCH",body:JSON.stringify({id,action:"reset_password",password})});
+      message.textContent="Password reset successfully for "+userId+". Give the new password securely to the merchant.";
+    }catch(error){message.textContent=error.message;}
   }
 
   async function changeStatus(id,status){
