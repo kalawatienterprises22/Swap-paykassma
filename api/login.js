@@ -1,3 +1,4 @@
+
 const bcrypt = require("bcryptjs");
 const { getPool } = require("./_lib/db");
 const { sendJson, allowMethods } = require("./_lib/http");
@@ -9,7 +10,12 @@ module.exports = async (req, res) => {
   try {
     const { user_id, password } = req.body || {};
 
-    if (!user_id || !password) {
+    if (
+      typeof user_id !== "string" ||
+      typeof password !== "string" ||
+      !user_id.trim() ||
+      !password
+    ) {
       return sendJson(res, 400, {
         ok: false,
         message: "User ID and password are required"
@@ -17,7 +23,7 @@ module.exports = async (req, res) => {
     }
 
     const result = await getPool().query(
-      `SELECT id, user_id, password_hash, role, is_active
+      `SELECT id, user_id, password_hash, role, status
        FROM sp_users
        WHERE LOWER(user_id) = LOWER($1)
        LIMIT 1`,
@@ -33,7 +39,7 @@ module.exports = async (req, res) => {
 
     const user = result.rows[0];
 
-    if (!user.is_active) {
+    if (user.status !== "ACTIVE") {
       return sendJson(res, 403, {
         ok: false,
         message: "Account is inactive"
@@ -64,6 +70,7 @@ module.exports = async (req, res) => {
         role: user.role
       }
     });
+
   } catch (error) {
     console.error("Login error:", error.message);
 
