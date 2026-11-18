@@ -111,7 +111,7 @@ module.exports = async (req, res) => {
     if (req.method === "GET") {
 
       if(actor.role==="SUPER_ADMIN"&&req.query?.action==="pending_signups"){
-        const pending=await pool.query("SELECT u.id,u.user_id,u.display_name,u.email,u.created_at,o.phone,o.full_address,o.telegram_username,o.telegram_verified_at FROM sp_users u JOIN sp_merchant_onboarding o ON o.merchant_id=u.id WHERE u.role='MERCHANT' AND u.status='SUSPENDED' ORDER BY u.created_at DESC LIMIT 200");
+        const pending=await pool.query("SELECT u.id,u.user_id,u.display_name,u.email,u.created_at,o.phone,o.full_address,o.telegram_username,o.telegram_verified_at FROM sp_users u JOIN sp_merchant_onboarding o ON o.merchant_id=u.id WHERE u.role='MERCHANT' AND u.status='SUSPENDED' AND o.review_status='PENDING' ORDER BY u.created_at DESC LIMIT 200");
         return sendJson(res,200,{ok:true,signups:pending.rows});
       }
       if (actor.role === "ADMIN" && req.query?.action === "referral_link") {
@@ -208,10 +208,11 @@ module.exports = async (req, res) => {
       const client=await pool.connect();
       try{
         await client.query("BEGIN");
-        const q=await client.query("SELECT u.id,u.user_id,o.telegram_chat_id,o.telegram_verified_at FROM sp_users u JOIN sp_merchant_onboarding o ON o.merchant_id=u.id WHERE u.id=$1 AND u.role='MERCHANT' AND u.status='SUSPENDED' FOR UPDATE OF u,o",[id]);
+        const q=await client.query("SELECT u.id,u.user_id,o.telegram_chat_id,o.telegram_verified_at FROM sp_users u JOIN sp_merchant_onboarding o ON o.merchant_id=u.id WHERE u.id=$1 AND u.role='MERCHANT' AND u.status='SUSPENDED' AND o.review_status='PENDING' FOR UPDATE OF u,o",[id]);
         if(!q.rowCount){await client.query("ROLLBACK");return sendJson(res,404,{ok:false,message:"Pending Merchant signup not found"});}
         const m=q.rows[0];
         if(action==="reject_signup"){
+          await client.query("UPDATE sp_merchant_onboarding SET review_status='REJECTED' WHERE merchant_id=$1",[id]);
           await client.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_SIGNUP_REJECTED','MERCHANT',$2,'{}')",[actor.sub,id]);
           if(m.telegram_chat_id) await telegramCall("sendMessage",{chat_id:m.telegram_chat_id,text:"Your SuperPay Merchant registration was not approved. Please contact your referring Admin."});
           await client.query("COMMIT");return sendJson(res,200,{ok:true,message:"Signup rejected."});
@@ -222,6 +223,7 @@ module.exports = async (req, res) => {
         const setupUrl="https://swappaykassma.vercel.app/merchant-set-password.html?token="+setupToken;
         await telegramCall("sendMessage",{chat_id:m.telegram_chat_id,text:"Congratulations! Your SuperPay Merchant account is approved.\\nMerchant ID: "+m.user_id+"\\nLogin: https://swappaykassma.vercel.app/login.html\\nCreate your password using this one-time link (valid 24 hours):\\n"+setupUrl});
         await client.query("UPDATE sp_users SET status='ACTIVE',updated_at=now() WHERE id=$1",[id]);
+        await client.query("UPDATE sp_merchant_onboarding SET review_status='APPROVED' WHERE merchant_id=$1",[id]);
         await client.query("INSERT INTO sp_notifications(user_id,title,message,category) VALUES($1,'Merchant account approved','Your account is active. Password setup details were sent to your connected Telegram.','MERCHANT_SIGNUP')",[id]);
         await client.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_SIGNUP_APPROVED','MERCHANT',$2,'{}')",[actor.sub,id]);
         await client.query("COMMIT");return sendJson(res,200,{ok:true,message:"Merchant approved. Telegram message sent automatically."});
