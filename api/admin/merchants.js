@@ -23,7 +23,38 @@ function authenticate(req, res) {
 
 module.exports = async (req, res) => {
   if (!allowMethods(req, res, ["GET", "POST", "PATCH"])) return;
-  const actor = authenticate(req, res);
+
+    // Public referral registration: the referral code permanently assigns the new Merchant
+    // to the referring Admin. The submitted parent ID is never trusted.
+    if (req.method === "POST" && req.body?.action === "register_referral") {
+      const pool = getPool();
+      const { referral_code, user_id, display_name, email, password } = req.body || {};
+      const code = String(referral_code || "").trim();
+      const accountId = typeof user_id === "string" ? user_id.trim() : "";
+      const name = typeof display_name === "string" ? display_name.trim() : "";
+      const accountEmail = typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
+      if (!/^[A-Za-z0-9_-]{20,100}$/.test(code)) return sendJson(res, 400, { ok: false, message: "Invalid referral link" });
+      if (!/^[a-zA-Z0-9_-]{4,32}$/.test(accountId)) return sendJson(res, 400, { ok: false, message: "User ID must be 4-32 characters" });
+      if (name.length < 2 || name.length > 80) return sendJson(res, 400, { ok: false, message: "Name must be 2-80 characters" });
+      if (accountEmail && (accountEmail.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(accountEmail))) return sendJson(res, 400, { ok: false, message: "Enter a valid email address" });
+      if (typeof password !== "string" || password.length < 12 || password.length > 72) return sendJson(res, 400, { ok: false, message: "Password must be 12-72 characters" });
+      const referral = await pool.query(
+        "SELECT r.admin_id,a.user_id AS admin_user_id FROM sp_admin_referrals r JOIN sp_users a ON a.id=r.admin_id WHERE r.code=$1 AND r.active=TRUE AND a.role='ADMIN' AND a.status='ACTIVE'",
+        [code]
+      );
+      if (!referral.rowCount) return sendJson(res, 404, { ok: false, message: "This referral link is invalid or inactive" });
+      const passwordHash = await bcrypt.hash(password, 12);
+      const created = await pool.query(
+        "INSERT INTO sp_users(id,user_id,email,password_hash,display_name,role,status,parent_admin_id) VALUES($1,$2,$3,$4,$5,'MERCHANT','ACTIVE',$6) RETURNING id,user_id,display_name,role,status",
+        [crypto.randomUUID(), accountId, accountEmail, passwordHash, name, referral.rows[0].admin_id]
+      );
+      await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REFERRED_SIGNUP','MERCHANT',$2,$3)",
+        [referral.rows[0].admin_id, created.rows[0].id, JSON.stringify({ merchant_user_id: accountId, referral_admin_user_id: referral.rows[0].admin_user_id })]);
+      await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE role='SUPER_ADMIN' AND status='ACTIVE'",
+        [`Merchant ${accountId} joined through Admin ${referral.rows[0].admin_user_id} referral.`]);
+      return sendJson(res, 201, { ok: true, message: "Merchant account created. You can now sign in.", merchant: created.rows[0] });
+    }
+\n  const actor = authenticate(req, res);
   if (!actor) return;
 
   try {
@@ -38,7 +69,19 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === "GET") {
-      const search = String(req.query?.q || "").trim();
+
+      if (actor.role === "ADMIN" && req.query?.action === "referral_link") {
+        let referral = await pool.query("SELECT code FROM sp_admin_referrals WHERE admin_id=$1 AND active=TRUE", [actor.sub]);
+        if (!referral.rowCount) {
+          const code = crypto.randomBytes(24).toString("hex");
+          referral = await pool.query(
+            "INSERT INTO sp_admin_referrals(admin_id,code,active) VALUES($1,$2,TRUE) RETURNING code",
+            [actor.sub, code]
+          );
+        }
+        return sendJson(res, 200, { ok: true, referral_code: referral.rows[0].code });
+      }
+\n      const search = String(req.query?.q || "").trim();
       const requestedRole = String(req.query?.role || "MERCHANT").toUpperCase();
       if (!["MERCHANT", "ADMIN"].includes(requestedRole)) {
         return sendJson(res, 400, { ok: false, message: "Invalid account role" });
