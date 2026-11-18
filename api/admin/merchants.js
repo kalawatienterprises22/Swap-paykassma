@@ -294,6 +294,10 @@ module.exports = async (req, res) => {
   } catch (error) {
     if (error.code === "23505") return sendJson(res, 409, { ok: false, message: "User ID or email already exists" });
     console.error("Merchant API error:", error.message);
+    if (req.body?.action === "configure_telegram_webhook") {
+      const detail = String(error.message || "Unknown Telegram connection error").replace(/bot\d+:[A-Za-z0-9_-]+/g, "[hidden]").slice(0, 220);
+      return sendJson(res, 502, { ok: false, message: "Telegram connection failed: " + detail });
+    }
     return sendJson(res, 500, { ok: false, message: error.code === "42703" ? "Run the latest parent-admin migration in Neon SQL Editor first." : "Merchant operation failed" });
   }
 };
