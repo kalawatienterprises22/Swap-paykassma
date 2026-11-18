@@ -62,16 +62,16 @@ module.exports = async (req, res) => {
       await client.query(
         `INSERT INTO sp_merchant_notification_sources
           (merchant_id, source_package, enabled, updated_by, updated_at)
-         VALUES ($1,$2,TRUE,$1,now())
+         VALUES ($1,$2,TRUE,$3,now())
          ON CONFLICT (merchant_id) DO UPDATE
          SET source_package=EXCLUDED.source_package, enabled=TRUE,
              updated_by=EXCLUDED.updated_by, updated_at=now()`,
-        [targetMerchantId, sourcePackage]
+        [targetMerchantId, sourcePackage, actor.sub]
       );
       await client.query(
         `INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details)
-         VALUES($1,'NOTIFICATION_SOURCE_CHANGED','MERCHANT',$1,$2)`,
-        [actor.sub, JSON.stringify({ merchant_id: targetMerchantId, source_package: sourcePackage })]
+         VALUES($1,'NOTIFICATION_SOURCE_CHANGED','MERCHANT',$2,$3)`,
+        [actor.sub, targetMerchantId, JSON.stringify({ merchant_id: targetMerchantId, source_package: sourcePackage })]
       );
       await client.query("COMMIT");
       return sendJson(res, 200, { ok: true, source_package: sourcePackage, enabled: true });
@@ -83,6 +83,8 @@ module.exports = async (req, res) => {
       client.release();
     }
   }
+
+  if (actor.role !== "MERCHANT") return sendJson(res, 403, { ok: false, message: "Only merchant devices can submit payment notifications" });
 
   const sourcePackage = String(body.source_package || "");
   const notificationKey = String(body.notification_key || "");
