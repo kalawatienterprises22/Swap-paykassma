@@ -7,9 +7,12 @@ module.exports = async (req,res) => {
   if (!actor) return;
   if (req.method === "GET") {
     const id = String(req.query.userId || "").trim();
-    if (!id) return send(res,400,{ok:false,error:"userId is required"});
-    const r = await query("SELECT staff_user_id,belongs_to,status FROM sp_staff_verifications WHERE staff_user_id=$1",[id]);
-    return send(res,200,{ok:true,verification:r.rows[0] || null});
+    if (id) {
+      const r = await query("SELECT staff_user_id,belongs_to,status FROM sp_staff_verifications WHERE staff_user_id=$1",[id]);
+      return send(res,200,{ok:true,verification:r.rows[0] || null});
+    }
+    const r = await query("SELECT staff_user_id,belongs_to,status,created_at FROM sp_staff_verifications ORDER BY created_at DESC LIMIT 300");
+    return send(res,200,{ok:true,verifications:r.rows});
   }
   if (actor.role !== "SUPER_ADMIN" && actor.role !== "ADMIN") return send(res,403,{ok:false,error:"Access denied"});
   const { staffUserId, belongsTo, status = "ACTIVE" } = req.body || {};
