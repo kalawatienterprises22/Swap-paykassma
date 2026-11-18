@@ -45,14 +45,14 @@ module.exports = async (req, res) => {
       if (!referral.rowCount) return sendJson(res, 404, { ok: false, message: "This referral link is invalid or inactive" });
       const passwordHash = await bcrypt.hash(password, 12);
       const created = await pool.query(
-        "INSERT INTO sp_users(id,user_id,email,password_hash,display_name,role,status,parent_admin_id) VALUES($1,$2,$3,$4,$5,'MERCHANT','ACTIVE',$6) RETURNING id,user_id,display_name,role,status",
+        "INSERT INTO sp_users(id,user_id,email,password_hash,display_name,role,status,parent_admin_id) VALUES($1,$2,$3,$4,$5,'MERCHANT','SUSPENDED',$6) RETURNING id,user_id,display_name,role,status",
         [crypto.randomUUID(), accountId, accountEmail, passwordHash, name, referral.rows[0].admin_id]
       );
       await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REFERRED_SIGNUP','MERCHANT',$2,$3)",
         [referral.rows[0].admin_id, created.rows[0].id, JSON.stringify({ merchant_user_id: accountId, referral_admin_user_id: referral.rows[0].admin_user_id })]);
-      await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE role='SUPER_ADMIN' AND status='ACTIVE'",
-        [`Merchant ${accountId} joined through Admin ${referral.rows[0].admin_user_id} referral.`]);
-      return sendJson(res, 201, { ok: true, message: "Merchant account created. You can now sign in.", merchant: created.rows[0] });
+      await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE (id=$2 OR role='SUPER_ADMIN') AND status='ACTIVE'",
+        [`Merchant ${accountId} joined through Admin ${referral.rows[0].admin_user_id} referral. Approval is required before login.`, referral.rows[0].admin_id]);
+      return sendJson(res, 201, { ok: true, message: "Signup received. Super Admin approval is required before login.", merchant: created.rows[0] });
     }
 \n  const actor = authenticate(req, res);
   if (!actor) return;
