@@ -215,7 +215,7 @@ module.exports = async (req, res) => {
       if (!validCurrent) return sendJson(res, 400, { ok: false, message: "Current password is incorrect." });
       const nextHash = await bcrypt.hash(newPassword, 12);
       await pool.query("UPDATE sp_users SET password_hash=$1,updated_at=now() WHERE id=$2", [nextHash, actor.sub]);
-      await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'OWN_PASSWORD_CHANGED','USER',$1,'{}')", [actor.sub]);
+      await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'OWN_PASSWORD_CHANGED','USER',$1::text,'{}')", [actor.sub]);
       return sendJson(res, 200, { ok: true, message: "Your password was changed successfully." });
     }
 
