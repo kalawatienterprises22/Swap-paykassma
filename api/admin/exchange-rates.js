@@ -2,7 +2,7 @@ const { getPool } = require("../_lib/db");
 const { sendJson, allowMethods } = require("../_lib/http");
 const { verifyToken } = require("../_lib/auth");
 
-function getAdmin(req, res) {
+function getUser(req, res) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) {
@@ -11,8 +11,8 @@ function getAdmin(req, res) {
   }
   try {
     const user = verifyToken(token);
-    if (user.role !== "SUPER_ADMIN") {
-      sendJson(res, 403, { ok: false, message: "Super Admin access required" });
+    if (!["SUPER_ADMIN","ADMIN","MERCHANT"].includes(user.role)) {
+      sendJson(res, 403, { ok: false, message: "Access denied" });
       return null;
     }
     return user;
@@ -24,8 +24,11 @@ function getAdmin(req, res) {
 
 module.exports = async (req, res) => {
   if (!allowMethods(req, res, ["GET", "POST"])) return;
-  const admin = getAdmin(req, res);
-  if (!admin) return;
+  const actor = getUser(req, res);
+  if (!actor) return;
+  if (req.method === "POST" && actor.role !== "SUPER_ADMIN") {
+    return sendJson(res, 403, { ok: false, message: "Super Admin access required" });
+  }
 
   try {
     const pool = getPool();
@@ -73,12 +76,12 @@ module.exports = async (req, res) => {
        ON CONFLICT (key) DO UPDATE
        SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()
        RETURNING value, updated_at`,
-      [JSON.stringify({ base_currency: "INR", rates: cleanRates }), admin.sub]
+      [JSON.stringify({ base_currency: "INR", rates: cleanRates }), actor.sub]
     );
     await pool.query(
       `INSERT INTO sp_audit_logs (actor_id, action, target_type, target_id, details)
        VALUES ($1, 'EXCHANGE_RATES_UPDATED', 'SETTINGS', 'exchange_rates', $2::jsonb)`,
-      [admin.sub, JSON.stringify({ old_rates: oldRates, new_rates: cleanRates })]
+      [actor.sub, JSON.stringify({ old_rates: oldRates, new_rates: cleanRates })]
     );
     return sendJson(res, 200, { ok: true, rates: saved.rows[0].value.rates, updated_at: saved.rows[0].updated_at });
   } catch (error) {
