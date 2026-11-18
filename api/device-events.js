@@ -21,19 +21,19 @@ module.exports = async (req, res) => {
   } catch {
     return sendJson(res, 401, { ok: false, message: "Invalid or expired session" });
   }
-  if (!["MERCHANT", "SUPER_ADMIN"].includes(actor.role)) {
-    return sendJson(res, 403, { ok: false, message: "Merchant or Super Admin access required" });
+  if (!["MERCHANT", "ADMIN", "SUPER_ADMIN"].includes(actor.role)) {
+    return sendJson(res, 403, { ok: false, message: "Access denied" });
   }
 
   const body = req.body || {};
   const pool = getPool();
   let targetMerchantId = actor.sub;
-  if (actor.role === "SUPER_ADMIN") {
+  if (actor.role === "SUPER_ADMIN" || actor.role === "ADMIN") {
     targetMerchantId = String(req.method === "GET" ? req.query?.merchant_id || "" : body.merchant_id || "");
     if (!/^[0-9a-f-]{36}$/i.test(targetMerchantId)) {
       return sendJson(res, 400, { ok: false, message: "Select a valid merchant first" });
     }
-    const target = await pool.query("SELECT id FROM sp_users WHERE id=$1 AND role='MERCHANT'", [targetMerchantId]);
+    const target = await pool.query("SELECT id FROM sp_users WHERE id=$1 AND role='MERCHANT' AND ($2='SUPER_ADMIN' OR parent_admin_id=$3)", [targetMerchantId, actor.role, actor.sub]);
     if (!target.rows.length) return sendJson(res, 404, { ok: false, message: "Merchant not found" });
   }
 
