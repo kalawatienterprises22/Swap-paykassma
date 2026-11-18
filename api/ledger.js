@@ -16,6 +16,7 @@ module.exports = async (req,res) => {
   const pool=getPool();
 
   if(req.method==="GET"){
+    if(String(req.query?.portal||"")==="merchant" && actor.role!=="MERCHANT") return sendJson(res,403,{ok:false,message:"Merchant dashboard access is only available to Merchant accounts. Please use your role dashboard."});
     try{
       const scope = actor.role==="MERCHANT" ? "u.id=$1" : actor.role==="ADMIN" ? "u.parent_admin_id=$1" : "TRUE";
       const values=actor.role==="SUPER_ADMIN"?[]:[actor.sub];
