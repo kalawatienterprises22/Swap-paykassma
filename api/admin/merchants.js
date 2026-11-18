@@ -206,6 +206,7 @@ module.exports = async (req, res) => {
     }
 
     if (!["ACTIVE", "SUSPENDED"].includes(status)) return sendJson(res, 400, { ok: false, message: "Invalid account status" });
+    if (actor.role === "ADMIN" && status === "ACTIVE") return sendJson(res, 403, { ok: false, message: "Only Super Admin can approve or activate a Merchant" });
     const result = await pool.query(
       `UPDATE sp_users SET status=$1,updated_at=now()
        WHERE id=$2 AND role=$3${scope}
