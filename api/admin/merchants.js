@@ -78,6 +78,22 @@ module.exports = async (req, res) => {
       return sendJson(res,201,{ok:true,message:"Registration saved. Connect Telegram to finish verification.",bot_url:"https://t.me/superpay_notification_bot?start=link_"+linkToken,merchant:created.rows[0]});
     }
 
+    if(req.method==="POST"&&req.body?.action==="set_merchant_password"){
+      const pool=getPool();
+      const raw=String(req.body?.token||""), password=req.body?.password;
+      if(!/^[a-f0-9]{64}$/i.test(raw)||typeof password!=="string"||password.length<12||password.length>72) return sendJson(res,400,{ok:false,message:"Valid setup link and password (12-72 characters) required"});
+      const hash=crypto.createHash("sha256").update(raw).digest("hex"), client=await pool.connect();
+      try{
+        await client.query("BEGIN");
+        const found=await client.query("SELECT merchant_id FROM sp_merchant_onboarding WHERE setup_token_hash=$1 AND setup_expires_at>now() AND setup_used_at IS NULL FOR UPDATE",[hash]);
+        if(!found.rowCount){await client.query("ROLLBACK");return sendJson(res,400,{ok:false,message:"Setup link is invalid or expired"});}
+        const passwordHash=await bcrypt.hash(password,12);
+        await client.query("UPDATE sp_users SET password_hash=$1,updated_at=now() WHERE id=$2 AND role='MERCHANT' AND status='ACTIVE'",[passwordHash,found.rows[0].merchant_id]);
+        await client.query("UPDATE sp_merchant_onboarding SET setup_used_at=now(),setup_token_hash=NULL,setup_expires_at=NULL WHERE merchant_id=$1",[found.rows[0].merchant_id]);
+        await client.query("COMMIT");return sendJson(res,200,{ok:true,message:"Password created. You can now login."});
+      }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
+    }
+
   const actor = authenticate(req, res);
   if (!actor) return;
 
@@ -145,20 +161,7 @@ module.exports = async (req, res) => {
       await telegramCall("setWebhook",{url:"https://"+(req.headers.host||"swappaykassma.vercel.app")+"/api/admin/merchants",secret_token:telegramSecret(),allowed_updates:["message"],drop_pending_updates:true});
       return sendJson(res,200,{ok:true,message:"Telegram webhook connected successfully."});
     }
-    if(req.method==="POST"&&req.body?.action==="set_merchant_password"){
-      const raw=String(req.body?.token||""), password=req.body?.password;
-      if(!/^[a-f0-9]{64}$/i.test(raw)||typeof password!=="string"||password.length<12||password.length>72) return sendJson(res,400,{ok:false,message:"Valid setup link and password (12-72 characters) required"});
-      const hash=crypto.createHash("sha256").update(raw).digest("hex"), client=await pool.connect();
-      try{
-        await client.query("BEGIN");
-        const found=await client.query("SELECT merchant_id FROM sp_merchant_onboarding WHERE setup_token_hash=$1 AND setup_expires_at>now() AND setup_used_at IS NULL FOR UPDATE",[hash]);
-        if(!found.rowCount){await client.query("ROLLBACK");return sendJson(res,400,{ok:false,message:"Setup link is invalid or expired"});}
-        const passwordHash=await bcrypt.hash(password,12);
-        await client.query("UPDATE sp_users SET password_hash=$1,updated_at=now() WHERE id=$2 AND role='MERCHANT' AND status='ACTIVE'",[passwordHash,found.rows[0].merchant_id]);
-        await client.query("UPDATE sp_merchant_onboarding SET setup_used_at=now(),setup_token_hash=NULL,setup_expires_at=NULL WHERE merchant_id=$1",[found.rows[0].merchant_id]);
-        await client.query("COMMIT");return sendJson(res,200,{ok:true,message:"Password created. You can now login."});
-      }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
-    }
+
     if (req.method === "POST") {
       const { user_id, display_name, email, password } = req.body || {};
       const requestedRole = actor.role === "ADMIN" ? "MERCHANT" : String(req.body?.role || "MERCHANT").toUpperCase();
