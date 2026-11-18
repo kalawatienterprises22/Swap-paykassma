@@ -54,7 +54,8 @@ module.exports = async (req, res) => {
         [`Merchant ${accountId} joined through Admin ${referral.rows[0].admin_user_id} referral. Approval is required before login.`, referral.rows[0].admin_id]);
       return sendJson(res, 201, { ok: true, message: "Signup received. Super Admin approval is required before login.", merchant: created.rows[0] });
     }
-\n  const actor = authenticate(req, res);
+
+  const actor = authenticate(req, res);
   if (!actor) return;
 
   try {
@@ -81,7 +82,8 @@ module.exports = async (req, res) => {
         }
         return sendJson(res, 200, { ok: true, referral_code: referral.rows[0].code });
       }
-\n      const search = String(req.query?.q || "").trim();
+
+      const search = String(req.query?.q || "").trim();
       const requestedRole = String(req.query?.role || "MERCHANT").toUpperCase();
       if (!["MERCHANT", "ADMIN"].includes(requestedRole)) {
         return sendJson(res, 400, { ok: false, message: "Invalid account role" });
