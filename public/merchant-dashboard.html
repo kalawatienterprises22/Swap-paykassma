@@ -90,7 +90,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
 
   <section class="page" id="accounts">
    <div class="heading"><div><h1>Accounts</h1><div class="muted">Manage your payment and settlement accounts</div></div><button class="btn blue" onclick="openModal('account')">＋ Add Account</button></div>
-   <div class="card"><div class="toolbar"><input id="accountSearch" placeholder="Search account..." oninput="renderAccounts()"><select id="accountFilter" onchange="renderAccounts()"><option value="">All account types</option><option>UPI</option><option>Bank</option><option>Wallet</option></select></div><div class="tablewrap"><table><thead><tr><th>Account ID</th><th>Account Name</th><th>Type</th><th>Identifier</th><th>Status</th><th>Action</th></tr></thead><tbody id="accountRows"></tbody></table></div><p class="small">Account entries are stored locally in this browser. No bank account is connected.</p></div>
+   <div class="card"><div class="toolbar"><input id="accountSearch" placeholder="Search account..." oninput="renderAccounts()"><select id="accountFilter" onchange="renderAccounts()"><option value="">All account types</option><option>UPI</option><option>Bank</option><option>Wallet</option></select></div><div class="tablewrap"><table><thead><tr><th>Account ID</th><th>Account Name</th><th>Type</th><th>Identifier</th><th>Status</th><th>Action</th></tr></thead><tbody id="accountRows"></tbody></table></div><p class="small">Added accounts are sent to Super Admin for approval. Only approved accounts can be used.</p></div>
   </section>
 
   <section class="page" id="withdrawals">
@@ -195,14 +195,17 @@ async function openModal(mode){
  if(mode==="withdraw"){$("modalTitle").textContent="Withdrawal Request";$("modalFields").innerHTML='<div class="field"><label>Destination Account</label><select id="fAccount">'+accounts.map(a=>'<option value="'+a.id+'">'+a.name+' ('+a.type+')</option>').join("")+'</select></div><div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This saves a pending request locally. No money is transferred.</p>'}
 }
 function closeModal(){$("modal").classList.remove("show")}
-function submitModal(){
+async function submitModal(){
  if(modalMode==="account"){
   let name=$("fName").value.trim(),type=$("fType").value;
   const extra={};let missing=false;
   document.querySelectorAll("#customAccountFields [data-account-field]").forEach(el=>{if(el.required&&!el.value.trim())missing=true;extra[el.dataset.accountField]=el.value.trim()});
   if(!name)return alert("Please enter account name.");
   if(missing)return alert("Please fill all required fields.");
-  const provider=ACCOUNT_CATALOG.find(x=>x.id===type);accounts.push({id:id("ACC"),name,type:provider?.name||type,provider_id:type,details:extra,status:"Pending"});save("accounts",accounts);renderAccounts();
+  const provider=ACCOUNT_CATALOG.find(x=>x.id===type);const token=sessionStorage.getItem("superpay_token");const button=document.querySelector(".modalactions .blue");if(button)button.disabled=true;
+  try{const response=await fetch("/api/admin/provider-fields",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({action:"submit_account",account_name:name,provider_key:type,provider_label:provider?.name||type,account_details:extra})});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Account request failed");await loadLiveAccounts();alert("Account request sent to Super Admin for approval. Status: Pending.");}
+  catch(error){alert(error.message);if(button)button.disabled=false;return;}
+  finally{if(button)button.disabled=false;}
  }
  if(modalMode==="deposit"){
   let amount=Number($("fAmount").value);if(!amount||amount<=0)return alert("Enter a valid amount.");
@@ -232,6 +235,8 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
   let user=null; try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
   if(!token||!user||!["MERCHANT","ADMIN","SUPER_ADMIN"].includes(user.role)){location.replace("/login.html");return;}
   const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  async function loadLiveAccounts(){const token=sessionStorage.getItem("superpay_token");const response=await fetch("/api/admin/provider-fields",{headers:{Authorization:"Bearer "+token}});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Could not load account requests");accounts=(data.accounts||[]).map(a=>({id:a.id,name:a.account_name,type:a.provider_label,provider_id:a.provider_key,details:a.account_details||{},status:a.status==="APPROVED"?"Approved":a.status==="REJECTED"?"Rejected":"Pending"}));renderAccounts();}
+
   const logout=document.getElementById("merchantLogout");if(logout)logout.onclick=()=>{const role=user?.role;sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace(role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html")};
   try{
     const res=await fetch("/api/ledger",{headers:{Authorization:"Bearer "+token}});
@@ -254,7 +259,8 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
     const total=document.getElementById("sTransactions");if(total)total.textContent=money(debited);
     const title=document.querySelector(".logo");if(title)title.textContent="SuperPay — "+name;
     document.querySelectorAll("button").forEach(b=>{if(/^(Deposit|Withdraw|Request Withdrawal)$/i.test(b.textContent.trim())){b.disabled=true;b.title="This action is not connected to the live merchant backend yet";}});
-    const note=document.createElement("p");note.className="small";note.textContent="Live balance and ledger data loaded from SuperPay. Account management and withdrawal requests are not connected on this legacy screen yet.";document.querySelector(".content")?.prepend(note);
+    const note=document.createElement("p");note.className="small";note.textContent="Live balance and ledger data loaded from SuperPay. Account requests are sent to Super Admin for approval.";document.querySelector(".content")?.prepend(note);
+    await loadLiveAccounts();
   }catch(e){document.body.innerHTML="<main style='padding:24px;font-family:Arial'><h2>Merchant dashboard could not load</h2><p>"+String(e.message)+"</p><a href='/login.html'>Back to login</a></main>";}
 })();
 </script>
