@@ -203,7 +203,7 @@ async function submitModal(){
   if(!name)return alert("Please enter account name.");
   if(missing)return alert("Please fill all required fields.");
   const provider=ACCOUNT_CATALOG.find(x=>x.id===type);const token=sessionStorage.getItem("superpay_token");const button=document.querySelector(".modalactions .blue");if(button)button.disabled=true;
-  try{const response=await fetch("/api/admin/provider-fields",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({action:"submit_account",account_name:name,provider_key:type,provider_label:provider?.name||type,account_details:extra})});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Account request failed");await loadLiveAccounts();alert("Account request sent to Super Admin for approval. Status: Pending.");}
+  try{const response=await fetch("/api/admin/provider-fields",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({action:"submit_account",account_name:name,provider_key:type,provider_label:provider?.name||type,account_details:extra})});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Account request failed");await window.loadLiveAccounts();alert("Account request sent to Super Admin for approval. Status: Pending.");}
   catch(error){alert(error.message);if(button)button.disabled=false;return;}
   finally{if(button)button.disabled=false;}
  }
@@ -235,7 +235,7 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
   let user=null; try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
   if(!token||!user||!["MERCHANT","ADMIN","SUPER_ADMIN"].includes(user.role)){location.replace("/login.html");return;}
   const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  async function loadLiveAccounts(){const token=sessionStorage.getItem("superpay_token");const response=await fetch("/api/admin/provider-fields",{headers:{Authorization:"Bearer "+token}});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Could not load account requests");accounts=(data.accounts||[]).map(a=>({id:a.id,name:a.account_name,type:a.provider_label,provider_id:a.provider_key,details:a.account_details||{},status:a.status==="APPROVED"?"Approved":a.status==="REJECTED"?"Rejected":"Pending"}));renderAccounts();}
+  window.loadLiveAccounts=async function(){const token=sessionStorage.getItem("superpay_token");const response=await fetch("/api/admin/provider-fields",{headers:{Authorization:"Bearer "+token}});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Could not load account requests");accounts=(data.accounts||[]).map(a=>({id:a.id,name:a.account_name,type:a.provider_label,provider_id:a.provider_key,details:a.account_details||{},status:a.status==="APPROVED"?"Approved":a.status==="REJECTED"?"Rejected":"Pending"}));renderAccounts();}
 
   const logout=document.getElementById("merchantLogout");if(logout)logout.onclick=()=>{const role=user?.role;sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace(role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html")};
   try{
