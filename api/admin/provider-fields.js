@@ -17,7 +17,7 @@ module.exports=async(req,res)=>{
   if(req.method==="GET"){
    const r=await pool.query("SELECT provider_key, config, updated_at FROM sp_provider_configs ORDER BY provider_key");
    if(req._role==="SUPER_ADMIN"){
-    const users=await pool.query("SELECT id,user_id,display_name,role FROM sp_users WHERE role IN ('ADMIN','MERCHANT') AND status='ACTIVE' ORDER BY role,display_name");
+    const users=await pool.query("SELECT u.id,u.user_id,u.display_name,u.role,COALESCE(a.options,'[]'::jsonb) AS options FROM sp_users u LEFT JOIN sp_user_account_options a ON a.user_id=u.id WHERE u.role IN ('ADMIN','MERCHANT') AND u.status='ACTIVE' ORDER BY u.role,u.display_name");
     return sendJson(res,200,{ok:true,providers:r.rows,users:users.rows});
    }
    const a=await pool.query("SELECT options FROM sp_user_account_options WHERE user_id=$1",[req._adminId]);
