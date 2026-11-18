@@ -43,12 +43,12 @@
     document.getElementById("logout").addEventListener("click", () => {
       sessionStorage.removeItem("superpay_token");
       sessionStorage.removeItem("superpay_user");
-      window.location.replace("/login.html");
+      window.location.replace("/super-admin-login.html");
     });
 
     async function loadDashboard() {
       if (!token || !savedUser) {
-        window.location.replace("/login.html");
+        window.location.replace("/super-admin-login.html");
         return;
       }
       let user;
@@ -57,13 +57,13 @@
       } catch {
         sessionStorage.removeItem("superpay_token");
         sessionStorage.removeItem("superpay_user");
-        window.location.replace("/login.html");
+        window.location.replace("/super-admin-login.html");
         return;
       }
       if (user.role !== "SUPER_ADMIN") {
         sessionStorage.removeItem("superpay_token");
         sessionStorage.removeItem("superpay_user");
-        window.location.replace("/login.html");
+        window.location.replace("/super-admin-login.html");
         return;
       }
 
@@ -78,7 +78,7 @@
         if (response.status === 401 || response.status === 403) {
           sessionStorage.removeItem("superpay_token");
           sessionStorage.removeItem("superpay_user");
-          window.location.replace("/login.html");
+          window.location.replace("/super-admin-login.html");
           return;
         }
         if (!response.ok || !data.ok) {
