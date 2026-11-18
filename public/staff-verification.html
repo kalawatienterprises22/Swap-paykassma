@@ -6,10 +6,21 @@
 <section class="card"><h3>Verify Manager / Staff</h3><form id="verifyForm"><div class="grid"><label>Staff / Manager User ID<input id="staffUserId" required maxlength="120" placeholder="Enter User ID"></label><label>Belongs To / Manager Name<input id="belongsTo" required maxlength="120" placeholder="Manager / Admin name"></label><label>Verification Status<select id="verifyStatus"><option value="ACTIVE">Verified / Active</option><option value="REVOKED">Not Verified / Revoked</option></select></label></div><p><button type="submit" id="save">Save Verification</button></p></form><div id="msg" role="status"></div></section>
 <section class="card"><h3>Verification Records</h3><div class="tablewrap"><table><thead><tr><th>Staff / Manager User ID</th><th>Belongs To</th><th>Verification Status</th><th>Action</th></tr></thead><tbody id="rows"><tr><td colspan="4">Loading...</td></tr></tbody></table></div></section></main>
 <script>
-const token=sessionStorage.getItem("superpay_token");let user=null;try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
-const $=id=>document.getElementById(id);function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace(user?.role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html")}
+const token=sessionStorage.getItem("superpay_token");let user=null;
+try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
+function readTokenUser(value){
+  try{
+    const part=value.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+    const claims=JSON.parse(decodeURIComponent(Array.from(atob(part),c=>"%"+c.charCodeAt(0).toString(16).padStart(2,"0")).join("")));
+    return claims.role?{role:claims.role,user_id:claims.userId||"",id:claims.sub||""}:null;
+  }catch{return null}
+}
+if(!user&&token){user=readTokenUser(token);if(user)sessionStorage.setItem("superpay_user",JSON.stringify(user))}
+const $=id=>document.getElementById(id);
+function loginUrl(){return user?.role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html"}
+function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace(loginUrl())}
 $("logout").onclick=logout;
-if(!token||!user||!["SUPER_ADMIN","ADMIN"].includes(user.role))location.replace("/login.html");
+if(!token||!user||!["SUPER_ADMIN","ADMIN"].includes(user.role))location.replace(loginUrl());
 async function api(method="GET",body){const r=await fetch("/api/admin/staff-verify",{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},...(body?{body:JSON.stringify(body)}:{})});const raw=await r.text();let d;try{d=JSON.parse(raw)}catch{throw Error("Server response JSON नहीं है (HTTP "+r.status+"): "+raw.slice(0,180))}if(r.status===401||r.status===403){logout();throw Error(d.message||d.error||"Access denied")}if(!r.ok||!d.ok)throw Error(d.message||d.error||"Request failed");return d}
 async function load(){try{const d=await api();$("rows").innerHTML=(d.verifications||[]).map(v=>'<tr><td>'+esc(v.staff_user_id)+'</td><td>'+esc(v.belongs_to)+'</td><td>'+(v.status==="ACTIVE"?'Verified':'Revoked')+'</td><td><button class="secondary" data-edit="'+esc(v.staff_user_id)+'">Edit</button> <button class="danger" data-revoke="'+esc(v.staff_user_id)+'">Revoke</button></td></tr>').join("")||'<tr><td colspan="4">No manager verification records yet.</td></tr>';document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{const v=(d.verifications||[]).find(x=>x.staff_user_id===b.dataset.edit);$("staffUserId").value=v.staff_user_id;$("belongsTo").value=v.belongs_to;$("verifyStatus").value=v.status;window.scrollTo({top:0,behavior:"smooth"})});document.querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{const v=(d.verifications||[]).find(x=>x.staff_user_id===b.dataset.revoke);try{await api("POST",{staffUserId:v.staff_user_id,belongsTo:v.belongs_to,status:"REVOKED"});$("msg").textContent="Verification revoked.";load()}catch(e){$("msg").textContent=e.message}})}catch(e){$("rows").innerHTML='<tr><td colspan="4">'+esc(e.message)+'</td></tr>'}}
 function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
