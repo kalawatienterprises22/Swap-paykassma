@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SuperPay Admin Panel</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#172033;font:15px Arial,sans-serif}header{background:#101827;color:#fff;padding:17px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}header small{display:block;color:#cbd5e1;margin-top:5px}.wrap{max-width:1100px;margin:auto;padding:20px}.welcome{background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px #0000000b}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.tile{background:white;padding:19px;border-radius:13px;box-shadow:0 2px 8px #0000000b;display:flex;flex-direction:column;gap:10px}.tile h3{margin:0}.tile p{margin:0;color:#64748b;line-height:1.5;font-size:13px}.tile a,.btn{display:inline-block;background:#175bd5;color:white;text-decoration:none;border:0;border-radius:8px;padding:11px 14px;font-weight:bold;text-align:center;cursor:pointer}.secondary{background:#475569}.status{color:#64748b;font-size:13px;min-height:20px}@media(max-width:520px){.wrap{padding:12px}header{padding:14px}}
+</style></head><body>
+<header><div><strong>SuperPay · ADMIN PANEL</strong><small id="identity">Loading account…</small></div><button class="btn secondary" id="logout">Logout</button></header>
+<main class="wrap"><section class="welcome"><h2>Admin Dashboard</h2><p>अपने Merchant, Referral Link, Balance और Account Settings को यहाँ से manage करें।</p><div class="status" id="status" role="status">Checking your session…</div></section>
+<section class="grid">
+<article class="tile"><h3>👥 My Merchants</h3><p>अपने Merchant देखें, नया Merchant बनाएं और account status manage करें।</p><a href="/admin-merchants.html">Open Merchant Management</a></article>
+<article class="tile"><h3>🔗 Merchant Referral Link</h3><p>अपना referral registration link खोलें और WhatsApp या Telegram पर share करें।</p><a href="/admin-merchants.html#invitePanel">Open Referral Link</a></article>
+<article class="tile"><h3>💰 Balances & Ledger</h3><p>Merchant balance, deposits, deductions और ledger entries देखें।</p><a href="/balances.html">Open Balances</a></article>
+<article class="tile"><h3>⚙️ My Settings</h3><p>अपना account और login password सुरक्षित रूप से बदलें।</p><a href="/admin-settings.html">Open My Settings</a></article>
+</section></main>
+<script>
+const token=sessionStorage.getItem("superpay_token");let user=null;
+function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace("/login.html")}
+document.getElementById("logout").onclick=logout;
+try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null");if(!token||user?.role!=="ADMIN")logout();else{document.getElementById("identity").textContent=(user.display_name||user.user_id||"Admin")+" · "+(user.user_id||"");document.getElementById("status").textContent="Signed in as Admin. Your dashboard is ready.";}}catch{logout()}
+</script></body></html>
