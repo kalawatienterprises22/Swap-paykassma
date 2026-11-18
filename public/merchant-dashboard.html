@@ -168,18 +168,37 @@ function refreshStats(){
  $("statDeposit").textContent=money(dep);$("statWithdraw").textContent=money(wit);$("statCount").textContent=transactions.length;$("statSuccess").textContent=transactions.filter(t=>t.status==="Successful").length;
  $("sDeposit").textContent=money(dep);$("sAccountWithdrawal").textContent=money(wit);$("sTransactions").textContent=money(transactions.reduce((a,t)=>a+Number(t.amount),0));
 }
-function openModal(mode){
+let accountFieldConfigs={};
+async function loadAccountFieldConfigs(){
+ const token=sessionStorage.getItem("superpay_token");
+ const res=await fetch("/api/admin/provider-fields",{headers:{Authorization:"Bearer "+token}});
+ const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Could not load account fields");
+ accountFieldConfigs={};(data.providers||[]).forEach(p=>accountFieldConfigs[p.provider_key]=p.config?.fields||[]);
+}
+function renderAccountCustomFields(){
+ const type=$("fType").value.toUpperCase(),fields=accountFieldConfigs[type]||[];
+ $("customAccountFields").innerHTML=fields.map(f=>'<div class="field"><label>'+String(f.label).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+(f.required?' *':'')+'</label><input data-account-field="'+f.key+'" type="'+(f.type==="tel"?"tel":f.type==="email"?"email":f.type==="number"?"number":f.type==="date"?"date":"text")+'" '+(f.required?'required':'')+'></div>').join("")||'<p class="small">No extra fields configured for this account type.</p>';
+}
+async function openModal(mode){
  modalMode=mode;$("modal").classList.add("show");
- if(mode==="account"){$("modalTitle").textContent="Add Account";$("modalFields").innerHTML=`<div class="field"><label>Account Name</label><input id="fName" placeholder="Business account"></div><div class="field"><label>Account Type</label><select id="fType"><option>UPI</option><option>Bank</option><option>Wallet</option></select></div><div class="field"><label>UPI ID / Account Identifier</label><input id="fIdentifier" placeholder="Enter identifier"></div>`}
- if(mode==="deposit"){$("modalTitle").textContent="Deposit Record";$("modalFields").innerHTML=`<div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This creates a local record only. It does not add funds or contact a bank.</p>`}
- if(mode==="withdraw"){$("modalTitle").textContent="Withdrawal Request";$("modalFields").innerHTML=`<div class="field"><label>Destination Account</label><select id="fAccount">${accounts.map(a=>`<option value="${a.id}">${a.name} (${a.type})</option>`).join("")}</select></div><div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This saves a pending request locally. No money is transferred.</p>`}
+ if(mode==="account"){
+  $("modalTitle").textContent="Add Account";
+  try{await loadAccountFieldConfigs()}catch(e){alert(e.message);closeModal();return}
+  $("modalFields").innerHTML='<div class="field"><label>Account Name</label><input id="fName" placeholder="Business account" required></div><div class="field"><label>Account Type</label><select id="fType"><option value="UPI">UPI</option><option value="BANK">Bank</option><option value="WALLET">Wallet</option><option value="OTHER">Other</option></select></div><div id="customAccountFields"></div>';
+  $("fType").onchange=renderAccountCustomFields;renderAccountCustomFields();
+ }
+ if(mode==="deposit"){$("modalTitle").textContent="Deposit Record";$("modalFields").innerHTML='<div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This creates a local record only. It does not add funds or contact a bank.</p>'}
+ if(mode==="withdraw"){$("modalTitle").textContent="Withdrawal Request";$("modalFields").innerHTML='<div class="field"><label>Destination Account</label><select id="fAccount">'+accounts.map(a=>'<option value="'+a.id+'">'+a.name+' ('+a.type+')</option>').join("")+'</select></div><div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This saves a pending request locally. No money is transferred.</p>'}
 }
 function closeModal(){$("modal").classList.remove("show")}
 function submitModal(){
  if(modalMode==="account"){
-  let name=$("fName").value.trim(),type=$("fType").value,identifier=$("fIdentifier").value.trim();
-  if(!name||!identifier)return alert("Please fill all account fields.");
-  accounts.push({id:id("ACC"),name,type,identifier,status:"Pending"});save("accounts",accounts);renderAccounts();
+  let name=$("fName").value.trim(),type=$("fType").value;
+  const extra={};let missing=false;
+  document.querySelectorAll("#customAccountFields [data-account-field]").forEach(el=>{if(el.required&&!el.value.trim())missing=true;extra[el.dataset.accountField]=el.value.trim()});
+  if(!name)return alert("Please enter account name.");
+  if(missing)return alert("Please fill all required fields.");
+  accounts.push({id:id("ACC"),name,type,details:extra,status:"Pending"});save("accounts",accounts);renderAccounts();
  }
  if(modalMode==="deposit"){
   let amount=Number($("fAmount").value);if(!amount||amount<=0)return alert("Enter a valid amount.");
@@ -207,7 +226,7 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
 (async function(){
   const token=sessionStorage.getItem("superpay_token");
   let user=null; try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
-  if(!token||!user||user.role!=="MERCHANT"){location.replace("/login.html");return;}
+  if(!token||!user||!["MERCHANT","ADMIN","SUPER_ADMIN"].includes(user.role)){location.replace("/login.html");return;}
   const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
   try{
     const res=await fetch("/api/ledger",{headers:{Authorization:"Bearer "+token}});
