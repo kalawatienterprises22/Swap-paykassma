@@ -53,7 +53,8 @@
       <div class="card"><h3>Total Merchants</h3><div class="number">—</div></div>
       <div class="card"><h3>Transactions</h3><div class="number">—</div></div>
       <div class="card"><h3>Deposits</h3><div class="number">—</div></div>
-      <div class="card"><h3>Withdrawals</h3><div class="number">—</div></div>
+      <div class="card"><h3>Payments / Debits</h3><div class="number">—</div></div>
+      <div class="card"><h3>Pending Account Requests</h3><div class="number">—</div></div>
     </section>
   </main>
   <script>
@@ -110,7 +111,8 @@
         numbers[0].textContent = data.stats.merchants;
         numbers[1].textContent = data.stats.transactions;
         numbers[2].textContent = data.stats.deposits;
-        numbers[3].textContent = data.stats.withdrawals;
+        numbers[3].textContent = data.stats.payments_debits;
+        numbers[4].textContent = data.stats.pending_account_requests;
         status.textContent = "Dashboard data loaded successfully.";
       } catch (error) {
         status.textContent = error.message || "Unable to load dashboard.";
