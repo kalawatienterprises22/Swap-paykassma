@@ -91,8 +91,7 @@
 
         message.textContent = "Login successful!";
 
-window.location.href = "/dashboard.html";
-        form.reset();
+window.location.replace("/dashboard.html");
 
       } catch {
         message.textContent = "Connection error. Please try again.";
