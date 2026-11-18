@@ -62,7 +62,7 @@
       <div class="card"><h3>Transactions</h3><div class="number">—</div></div>
       <div class="card"><h3>Deposits</h3><div class="number">—</div></div>
       <div class="card"><h3>Payments / Debits</h3><div class="number">—</div></div>
-      <div class="card"><h3>Pending Account Requests</h3><div class="number">—</div></div>
+      <div class="card" id="pendingAccountCard" role="button" tabindex="0" style="cursor:pointer"><h3>Pending Account Requests · View</h3><div class="number">—</div><small style="color:#667085">Click to view requests</small></div>
     </section>
   </main>
   <script>
@@ -183,6 +183,10 @@
       }
     }
     document.getElementById("refreshAccountApprovals").addEventListener("click", loadAccountApprovals);
+    const pendingCard = document.getElementById("pendingAccountCard");
+    pendingCard.addEventListener("click", () => document.getElementById("accountApprovals").scrollIntoView({behavior:"smooth"}));
+    pendingCard.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); pendingCard.click(); } });
+
     loadAccountApprovals();
     setInterval(loadAccountApprovals, 30000);
 
