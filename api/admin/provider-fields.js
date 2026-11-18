@@ -2,16 +2,16 @@ const { getPool } = require("../_lib/db");
 const { sendJson, allowMethods } = require("../_lib/http");
 const { verifyToken } = require("../_lib/auth");
 
-function admin(req,res){
+function admin(req,res,write){
  const h=req.headers.authorization||"",t=h.startsWith("Bearer ")?h.slice(7):"";
  if(!t){sendJson(res,401,{ok:false,message:"Authentication required"});return false;}
- try{const u=verifyToken(t);req._adminId=u.sub;if(u.role!=="SUPER_ADMIN"){sendJson(res,403,{ok:false,message:"Super Admin access required"});return false;}return true;}
+ try{const u=verifyToken(t);req._adminId=u.sub;if(write && u.role!=="SUPER_ADMIN"){sendJson(res,403,{ok:false,message:"Super Admin access required"});return false;}if(!["SUPER_ADMIN","ADMIN","MERCHANT"].includes(u.role)){sendJson(res,403,{ok:false,message:"Access denied"});return false;}return true;}
  catch{sendJson(res,401,{ok:false,message:"Invalid or expired session"});return false;}
 }
 const forbidden=/password|passcode|otp|pin|cvv|security.?code|net.?banking.?login/i;
 module.exports=async(req,res)=>{
  if(!allowMethods(req,res,["GET","POST"]))return;
- if(!admin(req,res))return;
+ if(!admin(req,res,req.method==="POST"))return;
  try{
   const pool=getPool();
   if(req.method==="GET"){
