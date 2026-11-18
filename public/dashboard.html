@@ -48,6 +48,13 @@
       <a class="nav-card" href="/provider-fields.html"><span class="nav-icon">🧩</span><span><span class="nav-title">Account Form Fields</span><span class="nav-desc">Configure bank and payment app fields</span></span></a>
       <a class="nav-card" href="/staff-verification.html"><span class="nav-icon">✓</span><span><span class="nav-title">Staff Verification</span><span class="nav-desc">Verify staff and manager IDs</span></span></a>
     </nav>
+    <section class="approval-card" id="accountApprovals">
+      <h3 class="section-title">Merchant Account Approval Requests</h3>
+      <p style="color:#667085;font-size:13px">Pending account requests are shown here. Super Admin can approve or reject each request.</p>
+      <button type="button" id="refreshAccountApprovals" style="background:#175bd5">Refresh Requests</button>
+      <p id="approvalMsg">Loading account requests…</p>
+      <div id="approvalList"></div>
+    </section>
     <p id="welcome">Checking login...</p>
     <p id="status"></p>
     <section class="grid">
@@ -119,6 +126,66 @@
         status.textContent = error.message || "Unable to load dashboard.";
       }
     }
+
+    const approvalMsg = document.getElementById("approvalMsg");
+    const approvalList = document.getElementById("approvalList");
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+    }
+    async function loadAccountApprovals() {
+      approvalMsg.textContent = "Loading account requests…";
+      try {
+        const response = await fetch("/api/admin/provider-fields", {
+          method: "GET", headers: { "Authorization": "Bearer " + token }
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Could not load requests");
+        const accounts = data.accounts || [];
+        const pending = accounts.filter(a => a.status === "PENDING");
+        approvalMsg.textContent = pending.length + " pending request(s).";
+        if (!accounts.length) {
+          approvalList.innerHTML = '<p style="color:#667085">No account requests found.</p>';
+          return;
+        }
+        approvalList.innerHTML = accounts.map(a => {
+          const details = Object.entries(a.account_details || {}).map(([k,v]) =>
+            '<div><b>' + escapeHtml(k.replaceAll("_"," ")) + ':</b> ' + escapeHtml(v) + '</div>'
+          ).join("");
+          const actions = a.status === "PENDING"
+            ? '<div class="approval-actions"><button class="approve" data-review-id="' + escapeHtml(a.id) + '" data-review-status="APPROVED">Approve</button><button class="reject" data-review-id="' + escapeHtml(a.id) + '" data-review-status="REJECTED">Reject</button></div>'
+            : '<p><b>Status:</b> ' + escapeHtml(a.status) + '</p>';
+          return '<article class="approval-item"><b>' + escapeHtml(a.account_name) + ' · ' + escapeHtml(a.provider_label) + '</b><p style="color:#667085;font-size:13px">Merchant: ' + escapeHtml(a.display_name || a.user_id) + ' (' + escapeHtml(a.user_id) + ')<br>Submitted: ' + escapeHtml(new Date(a.submitted_at).toLocaleString()) + '</p>' + details + actions + '</article>';
+        }).join("");
+        approvalList.querySelectorAll("[data-review-id]").forEach(button => {
+          button.addEventListener("click", () => reviewAccountRequest(button.dataset.reviewId, button.dataset.reviewStatus));
+        });
+      } catch (error) {
+        approvalMsg.textContent = "Approval requests could not load: " + error.message;
+        approvalList.innerHTML = "";
+      }
+    }
+    async function reviewAccountRequest(id, reviewStatus) {
+      const label = reviewStatus === "APPROVED" ? "approve" : "reject";
+      if (!confirm("Are you sure you want to " + label + " this account request?")) return;
+      try {
+        const response = await fetch("/api/admin/provider-fields", {
+          method: "PATCH",
+          headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status: reviewStatus })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Action failed");
+        approvalMsg.textContent = "Request " + label + "ed successfully.";
+        await loadAccountApprovals();
+        await loadDashboard();
+      } catch (error) {
+        approvalMsg.textContent = "Could not update request: " + error.message;
+      }
+    }
+    document.getElementById("refreshAccountApprovals").addEventListener("click", loadAccountApprovals);
+    loadAccountApprovals();
+    setInterval(loadAccountApprovals, 30000);
+
     loadDashboard();
   </script>
 </body>
