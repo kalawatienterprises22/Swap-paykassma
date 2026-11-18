@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
     }
 
     const result = await getPool().query(
-      `SELECT id, user_id, password_hash, role, status
+      `SELECT id, user_id, display_name, password_hash, role, status
        FROM sp_users
        WHERE LOWER(user_id) = LOWER($1)
        LIMIT 1`,
@@ -67,6 +67,7 @@ module.exports = async (req, res) => {
       user: {
         id: user.id,
         user_id: user.user_id,
+        display_name: user.display_name,
         role: user.role
       }
     });
