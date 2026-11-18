@@ -53,7 +53,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
  </nav>
 </aside>
 <main class="main">
- <header class="top"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu">☰</button><b id="pageTitle">Dashboard</b></div><div class="top-right"><span class="rate">1 USDT ≈ INR</span><span>🔔</span><span>❔</span><b>SP</b></div></header>
+ <header class="top"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu">☰</button><b id="pageTitle">Dashboard</b></div><div class="top-right"><span class="rate">1 USDT ≈ INR</span><span>🔔</span><span>❔</span><b>SP</b><button class="btn red" id="merchantLogout" type="button">Logout</button></div></header>
  <div class="content">
   <section class="page active" id="dashboard">
    <div class="card">
@@ -125,7 +125,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
  </div>
 </main>
 
-<div class="modal" id="modal"><div class="modalbox"><h3 id="modalTitle">Add Account</h3><div id="modalFields"></div><div class="modalactions"><button class="btn gray" onclick="closeModal()">Cancel</button><button class="btn blue" onclick="submitModal()">Save</button></div></div></div>
+<div class="modal" id="modal"><div class="modalbox"><h3 id="modalTitle">Add Account</h3><div id="modalFields"></div><div class="modalactions"><a id="manageAccountFields" class="btn pale" href="/provider-fields.html" style="display:none;text-decoration:none">Manage Fields</a><button class="btn gray" onclick="closeModal()">Cancel</button><button class="btn blue" onclick="submitModal()">Save</button></div></div></div>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -228,6 +228,7 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
   let user=null; try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
   if(!token||!user||!["MERCHANT","ADMIN","SUPER_ADMIN"].includes(user.role)){location.replace("/login.html");return;}
   const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const logout=document.getElementById("merchantLogout");if(logout)logout.onclick=()=>{const role=user?.role;sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace(role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html")};
   try{
     const res=await fetch("/api/ledger",{headers:{Authorization:"Bearer "+token}});
     const data=await res.json();
@@ -248,7 +249,7 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
     const paid=document.getElementById("sAccountWithdrawal");if(paid)paid.textContent=money(debited);
     const total=document.getElementById("sTransactions");if(total)total.textContent=money(debited);
     const title=document.querySelector(".logo");if(title)title.textContent="SuperPay — "+name;
-    document.querySelectorAll("button").forEach(b=>{if(/Deposit|Withdraw|Add Account|Request Withdrawal/i.test(b.textContent)){b.disabled=true;b.title="This action is not connected to the live merchant backend yet";}});
+    document.querySelectorAll("button").forEach(b=>{if(/^(Deposit|Withdraw|Request Withdrawal)$/i.test(b.textContent.trim())){b.disabled=true;b.title="This action is not connected to the live merchant backend yet";}});
     const note=document.createElement("p");note.className="small";note.textContent="Live balance and ledger data loaded from SuperPay. Account management and withdrawal requests are not connected on this legacy screen yet.";document.querySelector(".content")?.prepend(note);
   }catch(e){document.body.innerHTML="<main style='padding:24px;font-family:Arial'><h2>Merchant dashboard could not load</h2><p>"+String(e.message)+"</p><a href='/login.html'>Back to login</a></main>";}
 })();
