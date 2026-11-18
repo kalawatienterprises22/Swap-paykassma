@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
       if (!/^[A-Za-z0-9_-]{20,100}$/.test(code)) return sendJson(res, 400, { ok: false, message: "Invalid referral link" });
       if (!/^[a-zA-Z0-9_-]{4,32}$/.test(accountId)) return sendJson(res, 400, { ok: false, message: "User ID must be 4-32 characters" });
       if (name.length < 2 || name.length > 80) return sendJson(res, 400, { ok: false, message: "Name must be 2-80 characters" });
-      if (accountEmail && (accountEmail.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(accountEmail))) return sendJson(res, 400, { ok: false, message: "Enter a valid email address" });
+      if (accountEmail && (accountEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail))) return sendJson(res, 400, { ok: false, message: "Enter a valid email address" });
       if (typeof password !== "string" || password.length < 12 || password.length > 72) return sendJson(res, 400, { ok: false, message: "Password must be 12-72 characters" });
       const referral = await pool.query(
         "SELECT r.admin_id,a.user_id AS admin_user_id FROM sp_admin_referrals r JOIN sp_users a ON a.id=r.admin_id WHERE r.code=$1 AND r.active=TRUE AND a.role='ADMIN' AND a.status='ACTIVE'",
