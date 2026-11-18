@@ -44,7 +44,7 @@
   const rateRows=document.getElementById("rateRows");
   const message=document.getElementById("message");
   let rates=[];
-  function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace("/login.html");}
+  function logout(){let role=null;try{role=JSON.parse(sessionStorage.getItem("superpay_user")||"null")?.role}catch{}const target=role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html";sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace(target);}
   document.getElementById("logout").addEventListener("click",logout);
   async function api(url,options={}){
     const response=await fetch(url,{...options,headers:{...(options.headers||{}),"Authorization":"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{})}});
@@ -114,7 +114,8 @@
       saveButton.textContent="Save Exchange Rates";
     }
   });
-  try{const user=JSON.parse(savedUser||"null");if(!token||!user||user.role!=="SUPER_ADMIN")logout();else load();}catch{logout();}
+  function recoverUserFromToken(value){try{const part=value.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");const claims=JSON.parse(decodeURIComponent(Array.from(atob(part),c=>"%"+c.charCodeAt(0).toString(16).padStart(2,"0")).join("")));return claims.role?{role:claims.role,user_id:claims.userId||"",id:claims.sub||""}:null}catch{return null}}
+  try{let user=JSON.parse(savedUser||"null");if(!user&&token){user=recoverUserFromToken(token);if(user)sessionStorage.setItem("superpay_user",JSON.stringify(user));}if(!token||!user||user.role!=="SUPER_ADMIN")logout();else load();}catch{logout();}
 </script>
 </body>
 </html>
