@@ -200,6 +200,25 @@ module.exports = async (req, res) => {
       return sendJson(res, 201, { ok: true, merchant: result.rows[0] });
     }
 
+    if (req.method === "PATCH" && req.body?.action === "change_own_password") {
+      const currentPassword = req.body?.current_password;
+      const newPassword = req.body?.new_password;
+      if (typeof currentPassword !== "string" || typeof newPassword !== "string" ||
+          newPassword.length < 12 || newPassword.length > 72) {
+        return sendJson(res, 400, { ok: false, message: "Enter your current password and a new password of 12-72 characters." });
+      }
+      const account = await pool.query("SELECT password_hash, role, status FROM sp_users WHERE id=$1", [actor.sub]);
+      if (!account.rowCount || account.rows[0].status !== "ACTIVE" || !["ADMIN", "SUPER_ADMIN"].includes(account.rows[0].role)) {
+        return sendJson(res, 403, { ok: false, message: "Active Admin account required." });
+      }
+      const validCurrent = await bcrypt.compare(currentPassword, account.rows[0].password_hash);
+      if (!validCurrent) return sendJson(res, 400, { ok: false, message: "Current password is incorrect." });
+      const nextHash = await bcrypt.hash(newPassword, 12);
+      await pool.query("UPDATE sp_users SET password_hash=$1,updated_at=now() WHERE id=$2", [nextHash, actor.sub]);
+      await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'OWN_PASSWORD_CHANGED','USER',$1,'{}')", [actor.sub]);
+      return sendJson(res, 200, { ok: true, message: "Your password was changed successfully." });
+    }
+
     const { id, status, action, password } = req.body || {};
     if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) return sendJson(res, 400, { ok: false, message: "Invalid account" });
 
