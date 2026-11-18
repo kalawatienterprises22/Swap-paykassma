@@ -108,7 +108,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
   <section class="page" id="statistics">
    <div class="heading"><div><h1>Statistics</h1><div class="muted">Transaction performance and account totals</div></div></div>
    <div class="stats"><div class="card"><div class="small">Total deposits</div><div class="value" id="statDeposit">0</div></div><div class="card"><div class="small">Total withdrawals</div><div class="value" id="statWithdraw">0</div></div><div class="card"><div class="small">Transaction count</div><div class="value" id="statCount">0</div></div><div class="card"><div class="small">Successful transactions</div><div class="value" id="statSuccess">0</div></div></div>
-   <div class="card"><h3>Transaction Activity</h3><div class="chart"><div class="bar" style="height:35%"></div><div class="bar" style="height:60%"></div><div class="bar" style="height:48%"></div><div class="bar" style="height:78%"></div><div class="bar" style="height:55%"></div><div class="bar" style="height:90%"></div><div class="bar" style="height:70%"></div></div><div class="months"><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span></div></div>
+   <div class="card"><h3>Transaction Activity</h3><div class="chart" id="activityChart"></div><div class="months" id="activityMonths"></div></div>
   </section>
 
   <section class="page" id="earn">
@@ -169,6 +169,15 @@ function refreshStats(){
  let wit=transactions.filter(t=>debits.includes(t.type)).reduce((a,t)=>a+Math.abs(Number(t.amount)),0);
  $("statDeposit").textContent=money(dep);$("statWithdraw").textContent=money(wit);$("statCount").textContent=transactions.length;$("statSuccess").textContent=transactions.filter(t=>t.status==="Successful").length;
  $("sDeposit").textContent=money(dep);$("sAccountWithdrawal").textContent=money(wit);$("sTransactions").textContent=money(dep+wit);
+ const chart=$("activityChart"),months=$("activityMonths");
+ if(chart&&months){
+  const now=new Date(),buckets=[];
+  for(let i=6;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);buckets.push({key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleDateString("en-IN",{month:"short"}),total:0})}
+  transactions.forEach(t=>{const key=String(t.date||"").slice(0,7),bucket=buckets.find(x=>x.key===key);if(bucket)bucket.total+=Math.abs(Number(t.amount)||0)});
+  const max=Math.max(1,...buckets.map(x=>x.total));
+  chart.innerHTML=buckets.map(x=>'<div class="bar" title="'+x.label+': '+money(x.total)+'" style="height:'+Math.max(4,Math.round(x.total/max*100))+'%"></div>').join("");
+  months.innerHTML=buckets.map(x=>'<span>'+x.label+'</span>').join("");
+ }
 }
 let accountFieldConfigs={},allowedAccountOptions=[];
 const ACCOUNT_CATALOG=[{"id":"phonepe_business","name":"PhonePe Business","category":"UPI"},{"id":"googlepay_business","name":"Google Pay Business","category":"UPI"},{"id":"bharatpe_business","name":"BharatPe Business","category":"UPI"},{"id":"paytm_business","name":"Paytm Business","category":"UPI"},{"id":"phonepe","name":"PhonePe","category":"UPI"},{"id":"googlepay","name":"Google Pay","category":"UPI"},{"id":"bharatpe","name":"BharatPe","category":"UPI"},{"id":"bank_1","name":"State Bank of India","category":"BANK"},{"id":"bank_2","name":"Bank of Baroda","category":"BANK"},{"id":"bank_3","name":"Punjab National Bank","category":"BANK"},{"id":"bank_4","name":"Canara Bank","category":"BANK"},{"id":"bank_5","name":"Union Bank of India","category":"BANK"},{"id":"bank_6","name":"Indian Bank","category":"BANK"},{"id":"bank_7","name":"Bank of India","category":"BANK"},{"id":"bank_8","name":"Central Bank of India","category":"BANK"},{"id":"bank_9","name":"UCO Bank","category":"BANK"},{"id":"bank_10","name":"Bank of Maharashtra","category":"BANK"},{"id":"bank_11","name":"Punjab & Sind Bank","category":"BANK"},{"id":"bank_12","name":"Indian Overseas Bank","category":"BANK"},{"id":"bank_13","name":"HDFC Bank","category":"BANK"},{"id":"bank_14","name":"ICICI Bank","category":"BANK"},{"id":"bank_15","name":"Axis Bank","category":"BANK"},{"id":"bank_16","name":"Kotak Mahindra Bank","category":"BANK"},{"id":"bank_17","name":"IndusInd Bank","category":"BANK"},{"id":"bank_18","name":"YES Bank","category":"BANK"},{"id":"bank_19","name":"IDFC FIRST Bank","category":"BANK"},{"id":"bank_20","name":"Federal Bank","category":"BANK"},{"id":"bank_21","name":"Bandhan Bank","category":"BANK"},{"id":"bank_22","name":"RBL Bank","category":"BANK"},{"id":"bank_23","name":"South Indian Bank","category":"BANK"},{"id":"bank_24","name":"Karur Vysya Bank","category":"BANK"},{"id":"bank_25","name":"City Union Bank","category":"BANK"},{"id":"bank_26","name":"Tamilnad Mercantile Bank","category":"BANK"},{"id":"bank_27","name":"Jammu & Kashmir Bank","category":"BANK"},{"id":"bank_28","name":"Dhanlaxmi Bank","category":"BANK"},{"id":"bank_29","name":"CSB Bank","category":"BANK"},{"id":"bank_30","name":"AU Small Finance Bank","category":"BANK"},{"id":"bank_31","name":"Equitas Small Finance Bank","category":"BANK"},{"id":"bank_32","name":"Ujjivan Small Finance Bank","category":"BANK"},{"id":"bank_33","name":"Jana Small Finance Bank","category":"BANK"},{"id":"bank_34","name":"ESAF Small Finance Bank","category":"BANK"},{"id":"bank_35","name":"Suryoday Small Finance Bank","category":"BANK"},{"id":"bank_36","name":"Utkarsh Small Finance Bank","category":"BANK"},{"id":"bank_37","name":"Capital Small Finance Bank","category":"BANK"},{"id":"bank_38","name":"Shivalik Small Finance Bank","category":"BANK"},{"id":"bank_39","name":"Unity Small Finance Bank","category":"BANK"},{"id":"bank_40","name":"Airtel Payments Bank","category":"BANK"},{"id":"bank_41","name":"India Post Payments Bank","category":"BANK"},{"id":"bank_42","name":"Fino Payments Bank","category":"BANK"},{"id":"bank_43","name":"Jio Payments Bank","category":"BANK"},{"id":"bank_44","name":"NSDL Payments Bank","category":"BANK"},{"id":"other_bank","name":"Other / Regional / Co-operative Bank","category":"BANK"}];
@@ -222,8 +231,8 @@ async function submitModal(){
  closeModal();
 }
 function downloadStatement(){
- let rows=transactions,header=["Date","Transaction ID","Account Type","Type","Amount","Status"];
- let csv=[header,...rows.map(t=>[t.date,t.id,t.accountType,t.type,t.amount,t.status])].map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(",")).join("\n");
+ let rows=transactions,header=["Date","Reference","Account Type","Entry Type","Credit INR","Debit INR","Status"];
+ let csv=[header,...rows.map(t=>{const signed=Number(t.signedAmount??t.amount)||0;return [t.date,t.id,t.accountType,t.type,signed>0?Math.abs(signed):"",signed<0?Math.abs(signed):"",t.status]})].map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(",")).join("\n");
  let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="superpay-statement.csv";a.click();URL.revokeObjectURL(a.href);
 }
 function copyInvite(){let i=$("inviteLink");i.select();navigator.clipboard?.writeText(i.value).then(()=>alert("Invitation link copied")).catch(()=>alert(i.value))}
