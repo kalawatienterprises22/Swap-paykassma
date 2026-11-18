@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS sp_merchant_onboarding (
   merchant_id UUID PRIMARY KEY REFERENCES sp_users(id) ON DELETE CASCADE,
   phone TEXT NOT NULL,
   full_address TEXT NOT NULL,
+  review_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (review_status IN ('PENDING','APPROVED','REJECTED')),
   telegram_chat_id TEXT UNIQUE,
   telegram_username TEXT,
   telegram_verified_at TIMESTAMPTZ,
