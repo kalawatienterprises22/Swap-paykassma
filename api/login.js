@@ -8,9 +8,10 @@ module.exports = async (req, res) => {
   if (!allowMethods(req, res, ["POST"])) return;
 
   try {
-    const { user_id, password } = req.body || {};
+    const { user_id, password, login_type } = req.body || {};
 
     if (
+      !["standard", "super_admin"].includes(login_type) ||
       typeof user_id !== "string" ||
       typeof password !== "string" ||
       !user_id.trim() ||
@@ -56,6 +57,13 @@ module.exports = async (req, res) => {
         ok: false,
         message: "Invalid User ID or password"
       });
+    }
+
+    if (login_type === "super_admin" && user.role !== "SUPER_ADMIN") {
+      return sendJson(res, 403, { ok: false, message: "This account is not a Super Admin account. Use the normal login." });
+    }
+    if (login_type === "standard" && user.role === "SUPER_ADMIN") {
+      return sendJson(res, 403, { ok: false, message: "Super Admin must use the separate Super Admin Login." });
     }
 
     const token = createToken(user);
