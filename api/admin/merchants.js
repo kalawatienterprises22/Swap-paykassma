@@ -20,7 +20,7 @@ async function handleTelegramWebhook(req,res) {
   if (!process.env.TELEGRAM_BOT_TOKEN || req.headers["x-telegram-bot-api-secret-token"] !== telegramSecret()) return sendJson(res,401,{ok:false});
   const msg=req.body?.message, chatId=msg?.chat?.id, txt=String(msg?.text||"");
   if (!chatId || !txt.startsWith("/start")) return sendJson(res,200,{ok:true});
-  const payload=txt.split(/\\s+/)[1]||"";
+  const payload=txt.split(/\s+/)[1]||"";
   if (!payload.startsWith("link_")) {
     await telegramCall("sendMessage",{chat_id:chatId,text:"Welcome to SuperPay. Use the Connect Telegram button on your Merchant signup form to link your account."});
     return sendJson(res,200,{ok:true});
@@ -158,7 +158,7 @@ module.exports = async (req, res) => {
 
     if(req.method==="POST"&&req.body?.action==="configure_telegram_webhook"){
       if(actor.role!=="SUPER_ADMIN") return sendJson(res,403,{ok:false,message:"Super Admin access required"});
-      await telegramCall("setWebhook",{url:"https://"+(req.headers.host||"swappaykassma.vercel.app")+"/api/admin/merchants",secret_token:telegramSecret(),allowed_updates:["message"],drop_pending_updates:true});
+      await telegramCall("setWebhook",{url:"https://swappaykassma.vercel.app/api/admin/merchants",secret_token:telegramSecret(),allowed_updates:["message"],drop_pending_updates:true});
       return sendJson(res,200,{ok:true,message:"Telegram webhook connected successfully."});
     }
 
