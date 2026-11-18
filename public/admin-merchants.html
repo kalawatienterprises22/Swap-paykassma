@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SuperPay Merchant Management</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#172033;font:14px Arial,sans-serif}header{background:#101827;color:#fff;padding:15px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px}header a{color:#dbeafe;margin-right:12px}main{max-width:1100px;margin:auto;padding:18px}.panel{background:#fff;padding:18px;border-radius:12px;margin:14px 0;box-shadow:0 2px 8px #0000000d}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}label{font-weight:bold;color:#475569;font-size:13px}input,select{display:block;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;margin-top:6px}button{padding:10px 13px;border:0;border-radius:8px;background:#175bd5;color:white;font-weight:bold;margin:4px;cursor:pointer}.secondary{background:#64748b}.danger{background:#dc3545}.muted{color:#64748b;font-size:12px;line-height:1.5}#message{min-height:22px}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0;vertical-align:middle}td select{min-width:150px;margin:0}.invite{display:flex;gap:8px;flex-wrap:wrap}.invite input{flex:1;min-width:220px}@media(max-width:520px){main{padding:12px}.panel{padding:14px}}
+</style></head><body>
+<header><strong>SuperPay · Merchant Management</strong><nav><a href="/balances.html">Balances</a><a id="homeLink" href="/dashboard.html">Dashboard</a><button id="logout" class="secondary">Logout</button></nav></header>
+<main><h2 id="heading">Merchant Management</h2><p class="muted" id="intro">Manage only the Merchants assigned to your Admin account.</p>
+<section class="panel"><h3>Create Merchant Login</h3><form id="createForm"><div class="grid">
+<label>Merchant Name<input name="display_name" required minlength="2" maxlength="80" placeholder="Merchant name"></label>
+<label>Merchant User ID<input name="user_id" required minlength="4" maxlength="32" pattern="[A-Za-z0-9_-]+" placeholder="e.g. merchant_01"></label>
+<label>Email (optional)<input name="email" type="email" maxlength="254" placeholder="merchant@example.com"></label>
+<label>Initial Password<input name="password" type="password" required minlength="12" maxlength="72" autocomplete="new-password" placeholder="At least 12 characters"></label>
+<label id="parentWrap" style="display:none">Assign to Admin<select name="parent_admin_id" id="parentAdmin"><option value="">Unassigned</option></select></label>
+</div><p><button id="createButton" type="submit">Create Merchant</button></p></form><p class="muted" id="message" role="status"></p></section>
+<section class="panel" id="invitePanel" style="display:none"><h3>Your Merchant Referral Link</h3><p class="muted">इस लिंक से जुड़ने वाला नया Merchant अपने-आप आपके Admin खाते के नीचे जुड़ जाएगा।</p><div class="invite"><input id="inviteUrl" readonly><button id="copyInvite">Copy Link</button></div></section>
+<section class="panel"><h3 id="listTitle">Your Merchants</h3><p class="muted" id="listNote"></p><div class="tablewrap"><table><thead><tr><th>Merchant</th><th>User ID</th><th>Status</th><th>Parent Admin</th><th id="actionHead">Action</th></tr></thead><tbody id="rows"><tr><td colspan="5">Loading...</td></tr></tbody></table></div></section>
+</main><script>
+const token=sessionStorage.getItem("superpay_token");let user=null,admins=[];
+const $=id=>document.getElementById(id);
+function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace("/login.html")}
+document.getElementById("logout").onclick=logout;
+async function api(method="GET",body,url="/api/admin/merchants?role=MERCHANT"){const r=await fetch(url,{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},...(body?{body:JSON.stringify(body)}:{})});const d=await r.json().catch(()=>({ok:false,message:"Invalid response"}));if(r.status===401||r.status===403){logout();throw Error(d.message||"Access denied")}if(!r.ok||!d.ok)throw Error(d.message||"Request failed");return d}
+function cell(tr,value){const td=document.createElement("td");td.textContent=value||"—";tr.appendChild(td);return td}
+async function load(){
+ try{
+  const d=await api();
+  const rows=$("rows");rows.replaceChildren();
+  const merchants=d.accounts||[];
+  merchants.forEach(m=>{
+   const tr=document.createElement("tr");cell(tr,m.display_name);cell(tr,m.user_id);cell(tr,m.status);
+   const parent=admins.find(a=>a.id===m.parent_admin_id);cell(tr,parent?parent.display_name+" ("+parent.user_id+")":(m.parent_admin_id?"Assigned":"Unassigned"));
+   const td=document.createElement("td");
+   if(user.role==="SUPER_ADMIN"){
+    const select=document.createElement("select");const un=document.createElement("option");un.value="";un.textContent="Unassigned";select.append(un);
+    admins.forEach(a=>{const o=document.createElement("option");o.value=a.id;o.textContent=a.display_name+" ("+a.user_id+")";select.append(o)});
+    select.value=m.parent_admin_id||"";
+    const save=document.createElement("button");save.textContent="Save";save.onclick=async()=>{save.disabled=true;try{await api("PATCH",{id:m.id,action:"transfer_merchant",parent_admin_id:select.value||null});$("message").textContent="Merchant ownership updated. Historical ledger and accounts are preserved.";await load()}catch(e){$("message").textContent=e.message}finally{save.disabled=false}};
+    td.append(select,save);
+   } else {
+    const hint=document.createElement("span");hint.className="muted";hint.textContent="Managed by you";td.append(hint);
+   }
+   tr.append(td);rows.append(tr);
+  });
+  if(!merchants.length){const tr=document.createElement("tr");cell(tr,"No Merchants found");rows.append(tr)}
+  $("listNote").textContent=merchants.length+" Merchant account(s).";
+ }catch(e){$("message").textContent=e.message}
+}
+$("createForm").onsubmit=async ev=>{
+ ev.preventDefault();const b=$("createButton");b.disabled=true;$("message").textContent="Creating Merchant...";
+ const data=Object.fromEntries(new FormData(ev.currentTarget).entries());data.role="MERCHANT";
+ try{const d=await api("POST",data);ev.currentTarget.reset();$("message").textContent="Merchant created: "+d.merchant.user_id;await load()}
+ catch(e){$("message").textContent=e.message}finally{b.disabled=false}
+};
+$("copyInvite").onclick=async()=>{try{await navigator.clipboard.writeText($("inviteUrl").value);$("message").textContent="Referral link copied."}catch{$("inviteUrl").select();document.execCommand("copy");$("message").textContent="Referral link copied."}};
+(async()=>{
+ try{
+  user=JSON.parse(sessionStorage.getItem("superpay_user")||"null");
+  if(!token||!user||!["ADMIN","SUPER_ADMIN"].includes(user.role))return logout();
+  if(user.role==="ADMIN"){
+   $("heading").textContent="My Merchants";$("intro").textContent="यहाँ बनाए गए Merchant अपने-आप आपके Admin खाते से जुड़ेंगे। दूसरे Admin के Merchant आपको नहीं दिखेंगे।";
+   $("invitePanel").style.display="block";$("actionHead").textContent="Access";
+   const d=await api("GET",null,"/api/admin/merchants?role=MERCHANT&action=referral_link");
+   $("inviteUrl").value=location.origin+"/merchant-signup.html?ref="+encodeURIComponent(d.referral_code);
+  }else{
+   $("heading").textContent="Super Admin · Merchant Ownership";$("intro").textContent="किसी भी Merchant को किसी Admin को assign, दूसरे Admin को transfer या Unassigned कर सकते हैं।";
+   $("parentWrap").style.display="block";$("invitePanel").style.display="none";
+   const a=await api("GET",null,"/api/admin/merchants?role=ADMIN");admins=a.accounts||[];
+   admins.forEach(x=>{const o=document.createElement("option");o.value=x.id;o.textContent=x.display_name+" ("+x.user_id+")";$("parentAdmin").append(o)});
+   $("homeLink").href="/dashboard.html";
+  }
+  await load();
+ }catch(e){$("message").textContent=e.message}
+})();
+</script></body></html>
