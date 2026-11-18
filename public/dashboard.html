@@ -55,6 +55,14 @@
       <p id="approvalMsg">Loading account requests…</p>
       <div id="approvalList"></div>
     </section>
+    <section class="approval-card" id="merchantSignups">
+      <h3 class="section-title">Merchant Registration Approvals</h3>
+      <p style="color:#667085;font-size:13px">Approve only after the applicant has connected Telegram. Approval automatically activates the account and sends the Merchant ID, login link and one-time password setup link by Telegram.</p>
+      <button type="button" id="connectTelegramWebhook" style="background:#229ed9">Connect Telegram Bot</button>
+      <button type="button" id="refreshMerchantSignups" style="background:#175bd5">Refresh Signups</button>
+      <p id="signupMsg">Loading merchant registrations…</p>
+      <div id="signupList"></div>
+    </section>
     <p id="welcome">Checking login...</p>
     <p id="status"></p>
     <section class="grid">
@@ -187,8 +195,48 @@
     pendingCard.addEventListener("click", () => document.getElementById("accountApprovals").scrollIntoView({behavior:"smooth"}));
     pendingCard.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); pendingCard.click(); } });
 
+
+    const signupMsg=document.getElementById("signupMsg"),signupList=document.getElementById("signupList");
+    async function loadMerchantSignups(){
+      signupMsg.textContent="Loading merchant registrations…";
+      try{
+        const r=await fetch("/api/admin/merchants?action=pending_signups",{headers:{"Authorization":"Bearer "+token}});
+        const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Could not load signups");
+        const items=d.signups||[];signupMsg.textContent=items.length+" pending signup(s).";
+        if(!items.length){signupList.innerHTML='<p style="color:#667085">No pending merchant registrations.</p>';return;}
+        signupList.innerHTML=items.map(m=>{
+          const connected=!!m.telegram_verified_at;
+          return '<article class="approval-item"><b>'+escapeHtml(m.display_name)+' ('+escapeHtml(m.user_id)+')</b><p style="color:#667085;font-size:13px">Mobile: '+escapeHtml(m.phone||"—")+'<br>Email: '+escapeHtml(m.email||"—")+'<br>Address: '+escapeHtml(m.full_address||"—")+'<br>Telegram: '+escapeHtml(m.telegram_username?"@"+m.telegram_username:"Connected account")+' · '+(connected?"Verified":"Not connected")+'<br>Applied: '+escapeHtml(new Date(m.created_at).toLocaleString())+'</p><div class="approval-actions"><button data-signup-approve="'+escapeHtml(m.id)+'" '+(connected?"":"disabled")+'>Approve & Send Telegram</button><button class="reject" data-signup-reject="'+escapeHtml(m.id)+'">Reject</button></div></article>';
+        }).join("");
+        signupList.querySelectorAll("[data-signup-approve]").forEach(b=>b.onclick=()=>reviewMerchantSignup(b.dataset.signupApprove,"approve_signup"));
+        signupList.querySelectorAll("[data-signup-reject]").forEach(b=>b.onclick=()=>reviewMerchantSignup(b.dataset.signupReject,"reject_signup"));
+      }catch(e){signupMsg.textContent="Could not load registrations: "+e.message;}
+    }
+    async function reviewMerchantSignup(id,action){
+      const verb=action==="approve_signup"?"approve and send Telegram activation details to":"reject";
+      if(!confirm("Are you sure you want to "+verb+" this Merchant?"))return;
+      try{
+        const r=await fetch("/api/admin/merchants",{method:"PATCH",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({id,action})});
+        const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Action failed");
+        signupMsg.textContent=d.message;await loadMerchantSignups();await loadDashboard();
+      }catch(e){signupMsg.textContent="Action failed: "+e.message;}
+    }
+    document.getElementById("refreshMerchantSignups").addEventListener("click",loadMerchantSignups);
+    document.getElementById("connectTelegramWebhook").addEventListener("click",async()=>{
+      if(!confirm("Connect the SuperPay Telegram bot to this website now?"))return;
+      const b=document.getElementById("connectTelegramWebhook");b.disabled=true;
+      try{
+        const r=await fetch("/api/admin/merchants",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({action:"configure_telegram_webhook"})});
+        const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Could not connect bot");
+        signupMsg.textContent=d.message;
+      }catch(e){signupMsg.textContent="Telegram connection failed: "+e.message;}
+      finally{b.disabled=false;}
+    });
+
+    loadMerchantSignups();
     loadAccountApprovals();
     setInterval(loadAccountApprovals, 30000);
+    setInterval(loadMerchantSignups, 30000);
 
     loadDashboard();
   </script>
