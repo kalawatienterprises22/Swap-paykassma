@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SuperPay Admin Login</title>
+  <title>SuperPay Login</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -43,7 +43,7 @@
 <body>
   <main class="card">
     <h1>SuperPay</h1>
-    <p>Super Admin Login</p>
+    <p>Merchant / Admin Login</p>
 
     <form id="loginForm">
       <input id="userId" type="text"
@@ -56,6 +56,7 @@
     </form>
 
     <p id="message" role="status"></p>
+    <p><a href="/super-admin-login.html">Super Admin Login</a></p>
   </main>
 
   <script>
@@ -73,6 +74,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            login_type: "standard",
             user_id: document.getElementById("userId").value.trim(),
             password: document.getElementById("password").value
           })
@@ -90,7 +92,7 @@
 
         message.textContent = "Login successful!";
 
-window.location.href = data.user.role === "SUPER_ADMIN" ? "/dashboard.html" : "/balances.html";
+window.location.href = "/balances.html";
         form.reset();
 
       } catch {
