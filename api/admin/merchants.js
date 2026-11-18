@@ -58,11 +58,17 @@ module.exports = async (req, res) => {
     // to the referring Admin. The submitted parent ID is never trusted.
     if (req.method === "POST" && req.body?.action === "register_referral") {
       const pool = getPool();
-      const { referral_code, user_id, display_name, email, phone, address } = req.body || {};
-      const code=String(referral_code||"").trim(), accountId=typeof user_id==="string"?user_id.trim():"", name=typeof display_name==="string"?display_name.trim():"";
+      const { referral_code, display_name, email, phone, address } = req.body || {};
+      const code=String(referral_code||"").trim(), name=typeof display_name==="string"?display_name.trim():"";
+      let accountId="";
+      for(let attempt=0;attempt<10;attempt++){
+        const candidate="SPM"+crypto.randomBytes(4).toString("hex").toUpperCase();
+        const exists=await pool.query("SELECT 1 FROM sp_users WHERE user_id=$1",[candidate]);
+        if(!exists.rowCount){accountId=candidate;break;}
+      }
+      if(!accountId) return sendJson(res,503,{ok:false,message:"Could not generate Merchant ID. Please try again."});
       const accountEmail=typeof email==="string"&&email.trim()?email.trim().toLowerCase():null, mobile=String(phone||"").trim(), fullAddress=String(address||"").trim();
       if(!/^[A-Za-z0-9_-]{20,100}$/.test(code)) return sendJson(res,400,{ok:false,message:"Invalid referral link"});
-      if(!/^[a-zA-Z0-9_-]{4,32}$/.test(accountId)) return sendJson(res,400,{ok:false,message:"User ID must be 4-32 characters"});
       if(name.length<2||name.length>80) return sendJson(res,400,{ok:false,message:"Name must be 2-80 characters"});
       if(mobile.length<8||mobile.length>20) return sendJson(res,400,{ok:false,message:"Enter a valid mobile number"});
       if(fullAddress.length<8||fullAddress.length>500) return sendJson(res,400,{ok:false,message:"Enter your full address"});
