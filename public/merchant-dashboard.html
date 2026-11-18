@@ -168,23 +168,27 @@ function refreshStats(){
  $("statDeposit").textContent=money(dep);$("statWithdraw").textContent=money(wit);$("statCount").textContent=transactions.length;$("statSuccess").textContent=transactions.filter(t=>t.status==="Successful").length;
  $("sDeposit").textContent=money(dep);$("sAccountWithdrawal").textContent=money(wit);$("sTransactions").textContent=money(transactions.reduce((a,t)=>a+Number(t.amount),0));
 }
-let accountFieldConfigs={};
+let accountFieldConfigs={},allowedAccountOptions=[];
+const ACCOUNT_CATALOG=[{"id":"phonepe_business","name":"PhonePe Business","category":"UPI"},{"id":"googlepay_business","name":"Google Pay Business","category":"UPI"},{"id":"bharatpe_business","name":"BharatPe Business","category":"UPI"},{"id":"paytm_business","name":"Paytm Business","category":"UPI"},{"id":"phonepe","name":"PhonePe","category":"UPI"},{"id":"googlepay","name":"Google Pay","category":"UPI"},{"id":"bharatpe","name":"BharatPe","category":"UPI"},{"id":"bank_1","name":"State Bank of India","category":"BANK"},{"id":"bank_2","name":"Bank of Baroda","category":"BANK"},{"id":"bank_3","name":"Punjab National Bank","category":"BANK"},{"id":"bank_4","name":"Canara Bank","category":"BANK"},{"id":"bank_5","name":"Union Bank of India","category":"BANK"},{"id":"bank_6","name":"Indian Bank","category":"BANK"},{"id":"bank_7","name":"Bank of India","category":"BANK"},{"id":"bank_8","name":"Central Bank of India","category":"BANK"},{"id":"bank_9","name":"UCO Bank","category":"BANK"},{"id":"bank_10","name":"Bank of Maharashtra","category":"BANK"},{"id":"bank_11","name":"Punjab & Sind Bank","category":"BANK"},{"id":"bank_12","name":"Indian Overseas Bank","category":"BANK"},{"id":"bank_13","name":"HDFC Bank","category":"BANK"},{"id":"bank_14","name":"ICICI Bank","category":"BANK"},{"id":"bank_15","name":"Axis Bank","category":"BANK"},{"id":"bank_16","name":"Kotak Mahindra Bank","category":"BANK"},{"id":"bank_17","name":"IndusInd Bank","category":"BANK"},{"id":"bank_18","name":"YES Bank","category":"BANK"},{"id":"bank_19","name":"IDFC FIRST Bank","category":"BANK"},{"id":"bank_20","name":"Federal Bank","category":"BANK"},{"id":"bank_21","name":"Bandhan Bank","category":"BANK"},{"id":"bank_22","name":"RBL Bank","category":"BANK"},{"id":"bank_23","name":"South Indian Bank","category":"BANK"},{"id":"bank_24","name":"Karur Vysya Bank","category":"BANK"},{"id":"bank_25","name":"City Union Bank","category":"BANK"},{"id":"bank_26","name":"Tamilnad Mercantile Bank","category":"BANK"},{"id":"bank_27","name":"Jammu & Kashmir Bank","category":"BANK"},{"id":"bank_28","name":"Dhanlaxmi Bank","category":"BANK"},{"id":"bank_29","name":"CSB Bank","category":"BANK"},{"id":"bank_30","name":"AU Small Finance Bank","category":"BANK"},{"id":"bank_31","name":"Equitas Small Finance Bank","category":"BANK"},{"id":"bank_32","name":"Ujjivan Small Finance Bank","category":"BANK"},{"id":"bank_33","name":"Jana Small Finance Bank","category":"BANK"},{"id":"bank_34","name":"ESAF Small Finance Bank","category":"BANK"},{"id":"bank_35","name":"Suryoday Small Finance Bank","category":"BANK"},{"id":"bank_36","name":"Utkarsh Small Finance Bank","category":"BANK"},{"id":"bank_37","name":"Capital Small Finance Bank","category":"BANK"},{"id":"bank_38","name":"Shivalik Small Finance Bank","category":"BANK"},{"id":"bank_39","name":"Unity Small Finance Bank","category":"BANK"},{"id":"bank_40","name":"Airtel Payments Bank","category":"BANK"},{"id":"bank_41","name":"India Post Payments Bank","category":"BANK"},{"id":"bank_42","name":"Fino Payments Bank","category":"BANK"},{"id":"bank_43","name":"Jio Payments Bank","category":"BANK"},{"id":"bank_44","name":"NSDL Payments Bank","category":"BANK"},{"id":"other_bank","name":"Other / Regional / Co-operative Bank","category":"BANK"}];
 async function loadAccountFieldConfigs(){
  const token=sessionStorage.getItem("superpay_token");
  const res=await fetch("/api/admin/provider-fields",{headers:{Authorization:"Bearer "+token}});
- const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Could not load account fields");
+ const data=await res.json();if(!res.ok||!data.ok)throw new Error(data.message||"Could not load account options");
  accountFieldConfigs={};(data.providers||[]).forEach(p=>accountFieldConfigs[p.provider_key]=p.config?.fields||[]);
+ allowedAccountOptions=data.allowed_options||[];
 }
 function renderAccountCustomFields(){
- const type=$("fType").value.toUpperCase(),fields=accountFieldConfigs[type]||[];
- $("customAccountFields").innerHTML=fields.map(f=>'<div class="field"><label>'+String(f.label).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+(f.required?' *':'')+'</label><input data-account-field="'+f.key+'" type="'+(f.type==="tel"?"tel":f.type==="email"?"email":f.type==="number"?"number":f.type==="date"?"date":"text")+'" '+(f.required?'required':'')+'></div>').join("")||'<p class="small">No extra fields configured for this account type.</p>';
+ const selected=ACCOUNT_CATALOG.find(x=>x.id===$("fType").value),category=selected?.category||"OTHER",fields=accountFieldConfigs[category]||[];
+ $("customAccountFields").innerHTML=fields.map(f=>'<div class="field"><label>'+String(f.label).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))+(f.required?' *':'')+'</label><input data-account-field="'+f.key+'" type="'+(f.type==="tel"?"tel":f.type==="email"?"email":f.type==="number"?"number":f.type==="date"?"date":"text")+'" '+(f.required?'required':'')+'></div>').join("")||'<p class="small">Enter the account details below.</p>';
 }
 async function openModal(mode){
  modalMode=mode;$("modal").classList.add("show");
  if(mode==="account"){
   $("modalTitle").textContent="Add Account";
   try{await loadAccountFieldConfigs()}catch(e){alert(e.message);closeModal();return}
-  $("modalFields").innerHTML='<div class="field"><label>Account Name</label><input id="fName" placeholder="Business account" required></div><div class="field"><label>Account Type</label><select id="fType"><option value="UPI">UPI</option><option value="BANK">Bank</option><option value="WALLET">Wallet</option><option value="OTHER">Other</option></select></div><div id="customAccountFields"></div>';
+  const opts=ACCOUNT_CATALOG.filter(x=>allowedAccountOptions.includes(x.id));
+  if(!opts.length){alert("No account options have been assigned by Super Admin yet.");closeModal();return}
+  $("modalFields").innerHTML='<div class="field"><label>Account Name</label><input id="fName" placeholder="Business account" required></div><div class="field"><label>Bank / Payment App</label><select id="fType">'+opts.map(x=>'<option value="'+x.id+'">'+x.name+'</option>').join("")+'</select></div><div id="customAccountFields"></div>';
   $("fType").onchange=renderAccountCustomFields;renderAccountCustomFields();
  }
  if(mode==="deposit"){$("modalTitle").textContent="Deposit Record";$("modalFields").innerHTML='<div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This creates a local record only. It does not add funds or contact a bank.</p>'}
@@ -198,7 +202,7 @@ function submitModal(){
   document.querySelectorAll("#customAccountFields [data-account-field]").forEach(el=>{if(el.required&&!el.value.trim())missing=true;extra[el.dataset.accountField]=el.value.trim()});
   if(!name)return alert("Please enter account name.");
   if(missing)return alert("Please fill all required fields.");
-  accounts.push({id:id("ACC"),name,type,details:extra,status:"Pending"});save("accounts",accounts);renderAccounts();
+  const provider=ACCOUNT_CATALOG.find(x=>x.id===type);accounts.push({id:id("ACC"),name,type:provider?.name||type,provider_id:type,details:extra,status:"Pending"});save("accounts",accounts);renderAccounts();
  }
  if(modalMode==="deposit"){
   let amount=Number($("fAmount").value);if(!amount||amount<=0)return alert("Enter a valid amount.");
