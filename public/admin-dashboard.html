@@ -15,5 +15,5 @@
 const token=sessionStorage.getItem("superpay_token");let user=null;
 function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace("/login.html")}
 document.getElementById("logout").onclick=logout;
-try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null");if(!token||user?.role!=="ADMIN")logout();else{document.getElementById("identity").textContent=(user.display_name||user.user_id||"Admin")+" · "+(user.user_id||"");document.getElementById("status").textContent="Signed in as Admin. Your dashboard is ready.";}}catch{logout()}
+async function verifySession(){try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null");if(!token||user?.role!=="ADMIN")return logout();const r=await fetch("/api/admin/merchants?role=MERCHANT",{headers:{Authorization:"Bearer "+token}});const d=await r.json().catch(()=>({ok:false}));if(!r.ok||!d.ok)return logout();document.getElementById("identity").textContent=(user.display_name||user.user_id||"Admin")+" · "+(user.user_id||"");document.getElementById("status").textContent="Session verified. Your Admin dashboard is ready.";}catch{logout()}}verifySession();
 </script></body></html>
