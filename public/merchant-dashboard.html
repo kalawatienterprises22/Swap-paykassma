@@ -260,7 +260,7 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
     const title=document.querySelector(".logo");if(title)title.textContent="SuperPay — "+name;
     document.querySelectorAll("button").forEach(b=>{if(/^(Deposit|Withdraw|Request Withdrawal)$/i.test(b.textContent.trim())){b.disabled=true;b.title="This action is not connected to the live merchant backend yet";}});
     const note=document.createElement("p");note.className="small";note.textContent="Live balance and ledger data loaded from SuperPay. Account requests are sent to Super Admin for approval.";document.querySelector(".content")?.prepend(note);
-    await loadLiveAccounts();
+    await window.loadLiveAccounts();
   }catch(e){document.body.innerHTML="<main style='padding:24px;font-family:Arial'><h2>Merchant dashboard could not load</h2><p>"+String(e.message)+"</p><a href='/login.html'>Back to login</a></main>";}
 })();
 </script>
