@@ -15,6 +15,7 @@ module.exports=async(req,res)=>{
  try{
   const pool=getPool();
   if(req.method==="GET"){
+   if(String(req.query?.portal||"")==="merchant" && actor.role!=="MERCHANT")return sendJson(res,403,{ok:false,message:"Merchant account portal is only available to Merchant accounts. Please use your Admin Dashboard."});
    const r=await pool.query("SELECT provider_key,config,updated_at FROM sp_provider_configs ORDER BY provider_key");
    if(actor.role==="SUPER_ADMIN"){
     const users=await pool.query("SELECT u.id,u.user_id,u.display_name,u.role,COALESCE(a.options,'[]'::jsonb) AS options FROM sp_users u LEFT JOIN sp_user_account_options a ON a.user_id=u.id WHERE u.role IN ('ADMIN','MERCHANT') AND u.status='ACTIVE' ORDER BY u.role,u.display_name");
