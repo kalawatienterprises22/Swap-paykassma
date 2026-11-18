@@ -142,9 +142,10 @@ function fmt(n){return Number(n||0).toLocaleString("en-IN",{minimumFractionDigit
 function money(n){return "₹"+fmt(n)}
 function id(prefix){return prefix+"-"+Date.now().toString().slice(-8)}
 function status(s){return `<span class="status ${s==="Pending"?"pending":s==="Failed"?"failed":""}">${s}</span>`}
+function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function renderAccounts(){
  let q=($("accountSearch")?.value||"").toLowerCase(),type=$("accountFilter")?.value||"";
- $("accountRows").innerHTML=accounts.filter(a=>(!type||a.type===type)&&JSON.stringify(a).toLowerCase().includes(q)).map(a=>`<tr><td>${a.id}</td><td>${a.name}</td><td>${a.type}</td><td>${a.identifier}</td><td>${status(a.status)}</td><td><button class="btn red" onclick="removeAccount('${a.id}')">Remove</button></td></tr>`).join("")||'<tr><td colspan="6">No accounts added yet.</td></tr>';
+ $("accountRows").innerHTML=accounts.filter(a=>(!type||a.type===type)&&JSON.stringify(a).toLowerCase().includes(q)).map(a=>`<tr><td>${escapeHtml(a.id)}</td><td>${escapeHtml(a.name)}</td><td>${escapeHtml(a.type)}</td><td>${escapeHtml(a.identifier||"—")}</td><td>${status(a.status)}</td><td><span class="small">Managed by Super Admin</span></td></tr>`).join("")||'<tr><td colspan="6">No accounts added yet.</td></tr>';
 }
 function removeAccount(id){if(confirm("Remove this locally saved account?")){accounts=accounts.filter(a=>a.id!==id);save("accounts",accounts);renderAccounts()}}
 function renderTransactions(){
@@ -246,7 +247,7 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
   let user=null; try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
   if(!token||!user||!["MERCHANT","ADMIN","SUPER_ADMIN"].includes(user.role)){location.replace("/login.html");return;}
   const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
-  window.loadLiveAccounts=async function(){const token=sessionStorage.getItem("superpay_token");const response=await fetch("/api/admin/provider-fields",{headers:{Authorization:"Bearer "+token}});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Could not load account requests");accounts=(data.accounts||[]).map(a=>({id:a.id,name:a.account_name,type:a.provider_label,provider_id:a.provider_key,details:a.account_details||{},status:a.status==="APPROVED"?"Approved":a.status==="REJECTED"?"Rejected":"Pending"}));renderAccounts();}
+  window.loadLiveAccounts=async function(){const token=sessionStorage.getItem("superpay_token");const response=await fetch("/api/admin/provider-fields",{headers:{Authorization:"Bearer "+token}});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Could not load account requests");accounts=(data.accounts||[]).map(a=>{const details=a.account_details||{};const identifier=Object.values(details).filter(v=>v!==null&&v!==undefined&&String(v).trim()).map(v=>String(v)).join(" · ")||"—";return {id:a.id,name:a.account_name,type:a.provider_label,provider_id:a.provider_key,details,identifier,status:a.status==="APPROVED"?"Approved":a.status==="REJECTED"?"Rejected":"Pending"};});renderAccounts();}
 
   const logout=document.getElementById("merchantLogout");if(logout)logout.onclick=()=>{const role=user?.role;sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace(role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html")};
   try{
