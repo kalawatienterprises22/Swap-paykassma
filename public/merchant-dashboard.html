@@ -161,12 +161,14 @@ function renderStatement(){
  let from=$("stFrom").value,to=$("stTo").value,acct=$("stAccount").value;
  let rows=transactions.filter(t=>(!from||t.date>=from)&&(!to||t.date<=to)&&(!acct||t.accountType===acct));
  $("stCount").textContent=rows.length+" records";
- $("statementRows").innerHTML=rows.map(t=>`<tr><td>${t.date}</td><td>${t.id}</td><td>${t.accountType}</td><td>${t.type}</td><td>${t.type==="Deposit"?money(t.amount):"—"}</td><td>${t.type==="Withdrawal"?money(t.amount):"—"}</td><td>${status(t.status)}</td></tr>`).join("")||'<tr><td colspan="7">No statement records for this period.</td></tr>';
+ $("statementRows").innerHTML=rows.map(t=>`<tr><td>${t.date}</td><td>${t.id}</td><td>${t.accountType}</td><td>${t.type}</td><td>${Number(t.signedAmount??t.amount)>0?money(Math.abs(Number(t.signedAmount??t.amount))):"—"}</td><td>${Number(t.signedAmount??t.amount)<0?money(Math.abs(Number(t.signedAmount??t.amount))):"—"}</td><td>${status(t.status)}</td></tr>`).join("")||'<tr><td colspan="7">No statement records for this period.</td></tr>';
 }
 function refreshStats(){
- let dep=transactions.filter(t=>t.type==="Deposit").reduce((a,t)=>a+Number(t.amount),0),wit=transactions.filter(t=>t.type==="Withdrawal").reduce((a,t)=>a+Number(t.amount),0);
+ const credits=["DEPOSIT","MANUAL_CREDIT"],debits=["PAYMENT","MANUAL_DEBIT","CHARGE","COMMISSION"];
+ let dep=transactions.filter(t=>credits.includes(t.type)).reduce((a,t)=>a+Math.abs(Number(t.amount)),0);
+ let wit=transactions.filter(t=>debits.includes(t.type)).reduce((a,t)=>a+Math.abs(Number(t.amount)),0);
  $("statDeposit").textContent=money(dep);$("statWithdraw").textContent=money(wit);$("statCount").textContent=transactions.length;$("statSuccess").textContent=transactions.filter(t=>t.status==="Successful").length;
- $("sDeposit").textContent=money(dep);$("sAccountWithdrawal").textContent=money(wit);$("sTransactions").textContent=money(transactions.reduce((a,t)=>a+Number(t.amount),0));
+ $("sDeposit").textContent=money(dep);$("sAccountWithdrawal").textContent=money(wit);$("sTransactions").textContent=money(dep+wit);
 }
 let accountFieldConfigs={},allowedAccountOptions=[];
 const ACCOUNT_CATALOG=[{"id":"phonepe_business","name":"PhonePe Business","category":"UPI"},{"id":"googlepay_business","name":"Google Pay Business","category":"UPI"},{"id":"bharatpe_business","name":"BharatPe Business","category":"UPI"},{"id":"paytm_business","name":"Paytm Business","category":"UPI"},{"id":"phonepe","name":"PhonePe","category":"UPI"},{"id":"googlepay","name":"Google Pay","category":"UPI"},{"id":"bharatpe","name":"BharatPe","category":"UPI"},{"id":"bank_1","name":"State Bank of India","category":"BANK"},{"id":"bank_2","name":"Bank of Baroda","category":"BANK"},{"id":"bank_3","name":"Punjab National Bank","category":"BANK"},{"id":"bank_4","name":"Canara Bank","category":"BANK"},{"id":"bank_5","name":"Union Bank of India","category":"BANK"},{"id":"bank_6","name":"Indian Bank","category":"BANK"},{"id":"bank_7","name":"Bank of India","category":"BANK"},{"id":"bank_8","name":"Central Bank of India","category":"BANK"},{"id":"bank_9","name":"UCO Bank","category":"BANK"},{"id":"bank_10","name":"Bank of Maharashtra","category":"BANK"},{"id":"bank_11","name":"Punjab & Sind Bank","category":"BANK"},{"id":"bank_12","name":"Indian Overseas Bank","category":"BANK"},{"id":"bank_13","name":"HDFC Bank","category":"BANK"},{"id":"bank_14","name":"ICICI Bank","category":"BANK"},{"id":"bank_15","name":"Axis Bank","category":"BANK"},{"id":"bank_16","name":"Kotak Mahindra Bank","category":"BANK"},{"id":"bank_17","name":"IndusInd Bank","category":"BANK"},{"id":"bank_18","name":"YES Bank","category":"BANK"},{"id":"bank_19","name":"IDFC FIRST Bank","category":"BANK"},{"id":"bank_20","name":"Federal Bank","category":"BANK"},{"id":"bank_21","name":"Bandhan Bank","category":"BANK"},{"id":"bank_22","name":"RBL Bank","category":"BANK"},{"id":"bank_23","name":"South Indian Bank","category":"BANK"},{"id":"bank_24","name":"Karur Vysya Bank","category":"BANK"},{"id":"bank_25","name":"City Union Bank","category":"BANK"},{"id":"bank_26","name":"Tamilnad Mercantile Bank","category":"BANK"},{"id":"bank_27","name":"Jammu & Kashmir Bank","category":"BANK"},{"id":"bank_28","name":"Dhanlaxmi Bank","category":"BANK"},{"id":"bank_29","name":"CSB Bank","category":"BANK"},{"id":"bank_30","name":"AU Small Finance Bank","category":"BANK"},{"id":"bank_31","name":"Equitas Small Finance Bank","category":"BANK"},{"id":"bank_32","name":"Ujjivan Small Finance Bank","category":"BANK"},{"id":"bank_33","name":"Jana Small Finance Bank","category":"BANK"},{"id":"bank_34","name":"ESAF Small Finance Bank","category":"BANK"},{"id":"bank_35","name":"Suryoday Small Finance Bank","category":"BANK"},{"id":"bank_36","name":"Utkarsh Small Finance Bank","category":"BANK"},{"id":"bank_37","name":"Capital Small Finance Bank","category":"BANK"},{"id":"bank_38","name":"Shivalik Small Finance Bank","category":"BANK"},{"id":"bank_39","name":"Unity Small Finance Bank","category":"BANK"},{"id":"bank_40","name":"Airtel Payments Bank","category":"BANK"},{"id":"bank_41","name":"India Post Payments Bank","category":"BANK"},{"id":"bank_42","name":"Fino Payments Bank","category":"BANK"},{"id":"bank_43","name":"Jio Payments Bank","category":"BANK"},{"id":"bank_44","name":"NSDL Payments Bank","category":"BANK"},{"id":"other_bank","name":"Other / Regional / Co-operative Bank","category":"BANK"}];
@@ -247,16 +249,18 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
     if(trust)trust.innerHTML=money(balance)+" <span class='small'>INR</span>";
     if(income)income.innerHTML=money(balance)+" <span class='small'>INR</span>";
     const name=user.display_name||user.user_id||"Merchant";
+    try {
+      const rateResponse=await fetch("/api/admin/exchange-rates",{headers:{Authorization:"Bearer "+token}});
+      const rateData=await rateResponse.json();
+      const usdt=(rateData.rates||[]).find(r=>r.currency==="USDT");
+      const rateLabel=document.querySelector(".top-right .rate");
+      if(rateLabel)rateLabel.textContent=usdt?"1 USDT = "+money(usdt.rate):"Exchange rate not set";
+    } catch { const rateLabel=document.querySelector(".top-right .rate");if(rateLabel)rateLabel.textContent="Exchange rate unavailable"; }
     const top=document.querySelector(".top b");
     if(top)top.textContent="Welcome, "+name;
-    const rows=(data.entries||[]).map(e=>({date:new Date(e.created_at).toLocaleDateString(),id:e.reference,accountType:"Ledger",type:e.entry_type,accountId:"—",amount:e.amount_inr,status:"Successful"}));
-    const body=document.getElementById("dashTransactions");
-    if(body)body.innerHTML=rows.slice(0,5).map(t=>"<tr><td>"+t.date+"</td><td>"+t.id+"</td><td>"+t.accountType+"</td><td>"+t.type+"</td><td>—</td><td>"+money(t.amount)+"</td><td>Successful</td></tr>").join("")||"<tr><td colspan='7'>No transaction records yet.</td></tr>";
-    const tx=document.getElementById("txRows");
-    if(tx)tx.innerHTML=rows.map(t=>"<tr><td>"+t.date+"</td><td>"+t.id+"</td><td>Ledger</td><td>"+t.type+"</td><td>—</td><td>"+money(t.amount)+"</td><td>—</td><td>Successful</td></tr>").join("")||"<tr><td colspan='8'>No transactions found.</td></tr>";
-    const dep=document.getElementById("sDeposit");if(dep)dep.textContent=money(credited);
-    const paid=document.getElementById("sAccountWithdrawal");if(paid)paid.textContent=money(debited);
-    const total=document.getElementById("sTransactions");if(total)total.textContent=money(debited);
+    transactions=(data.entries||[]).map(e=>({date:new Date(e.created_at).toISOString().slice(0,10),id:e.reference,accountType:"Ledger",type:e.entry_type,accountId:"—",amount:Math.abs(Number(e.amount_inr)),signedAmount:Number(e.amount_inr),status:"Successful"}));
+    renderTransactions();
+    refreshStats();
     const title=document.querySelector(".logo");if(title)title.textContent="SuperPay — "+name;
     document.querySelectorAll("button").forEach(b=>{if(/^(Deposit|Withdraw|Request Withdrawal)$/i.test(b.textContent.trim())){b.disabled=true;b.title="This action is not connected to the live merchant backend yet";}});
     const note=document.createElement("p");note.className="small";note.textContent="Live balance and ledger data loaded from SuperPay. Account requests are sent to Super Admin for approval.";document.querySelector(".content")?.prepend(note);
