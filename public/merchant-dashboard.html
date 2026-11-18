@@ -1,0 +1,238 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SuperPay | Merchant Dashboard</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#253044;font:14px Arial}button,input,select{font:inherit}button{cursor:pointer}
+.sidebar{position:fixed;inset:0 auto 0 0;width:225px;background:white;border-right:1px solid #e8ebf1;padding:22px 14px;z-index:5;overflow:auto}
+.logo{font-size:24px;font-weight:800;padding:5px 10px 30px;color:#17233c}.logo b{color:#3478e5}
+.nav button{width:100%;border:0;background:white;text-align:left;padding:12px 10px;border-radius:8px;margin:2px 0;color:#475467;font-size:13px}
+.nav button.active,.nav button:hover{background:#edf3ff;color:#2868d8}
+.nav small{display:block;color:#98a2b3;font-size:10px;margin:23px 10px 8px}
+.balance-mini{background:#f4f5f7;padding:12px;border-radius:7px;margin:10px 5px;font-size:11px;color:#667085}.balance-mini strong{display:block;color:#253044;font-size:15px;margin-top:6px}
+.main{margin-left:225px}.top{height:58px;background:white;border-bottom:1px solid #e8ebf1;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:3}
+.top b{font-size:13px}.top-right{display:flex;gap:13px;align-items:center;color:#667085;font-size:12px}
+.content{padding:23px;max-width:1400px;margin:auto}.page{display:none}.page.active{display:block}
+h1{font-size:21px;margin:0 0 6px}h3{font-size:14px;margin:0 0 16px}.muted{color:#8993a3;font-size:11px}
+.heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.card{background:white;border:1px solid #e9edf3;border-radius:9px;padding:16px;margin-bottom:14px}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.value{font-size:24px;font-weight:700;margin:8px 0}.small{font-size:11px;color:#8993a3}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.btn{border:0;border-radius:6px;padding:10px 14px;font-size:12px;font-weight:600}.blue{background:#3478e5;color:white}.pale{background:#edf3ff;color:#3478e5}.gray{background:#f2f4f7;color:#344054}.red{background:#fff0f0;color:#c43232}
+table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10px;border-top:1px solid #edf0f4;text-align:left;font-size:11px}th{color:#8993a3;background:#fafbfc;font-weight:600}
+.tablewrap{overflow:auto}.status{display:inline-block;border-radius:20px;padding:5px 8px;background:#e8f8ef;color:#12834c;font-size:10px}.pending{background:#fff5df;color:#a56a00}.failed{background:#fff0f0;color:#c43232}
+.formgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field label{display:block;font-size:11px;color:#667085;margin-bottom:6px}.field input,.field select{width:100%;padding:11px;border:1px solid #dce1e9;border-radius:6px;background:white}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:13px}.toolbar input,.toolbar select{padding:10px;border:1px solid #dce1e9;border-radius:6px;background:white;font-size:12px}
+.toolbar input{flex:1;min-width:140px}.line{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #edf0f4;font-size:12px}.line:last-child{border:0}
+.toggle{accent-color:#3478e5;width:35px;height:18px}.chart{height:140px;display:flex;align-items:end;gap:13px;padding:10px 5px 0;border-bottom:1px solid #e8ebf1}.bar{flex:1;background:#8eabf5;border-radius:4px 4px 0 0}.months{display:flex;justify-content:space-around;color:#8993a3;font-size:10px;padding-top:8px}
+.modal{display:none;position:fixed;inset:0;background:#17233c88;z-index:10;align-items:center;justify-content:center;padding:15px}.modal.show{display:flex}.modalbox{background:white;border-radius:12px;padding:22px;width:100%;max-width:460px;max-height:90vh;overflow:auto}.modalbox h3{margin-bottom:18px}.modalbox .field{margin-bottom:12px}.modalactions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}
+.menu{display:none;border:0;background:none;font-size:21px}
+@media(max-width:850px){.sidebar{transform:translateX(-100%);transition:.2s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.menu{display:block}.stats{grid-template-columns:repeat(2,1fr)}.formgrid{grid-template-columns:1fr 1fr}.content{padding:15px}.top{padding:0 14px}}
+@media(max-width:520px){.row2{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr}.top-right .rate{display:none}.value{font-size:21px}}
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+ <div class="logo">Super<b>Pay</b></div>
+ <nav class="nav">
+  <button class="active" data-page="dashboard">⌂ &nbsp; Dashboard</button>
+  <button data-page="transactions">⇄ &nbsp; Transactions</button>
+  <button data-page="withdrawals">↙ &nbsp; Withdrawals</button>
+  <button data-page="accounts">▣ &nbsp; Accounts</button>
+  <button data-page="statement">▤ &nbsp; Statement</button>
+  <button data-page="statistics">⌁ &nbsp; Statistics</button>
+  <button data-page="earn">✦ &nbsp; Earn Money</button>
+  <small>BALANCES</small>
+  <div class="balance-mini">Trust balance<strong id="sideTrust">0.00 INR</strong></div>
+  <div class="balance-mini">Income balance<strong id="sideIncome">0.00 INR</strong></div>
+  <small>ACCOUNT</small>
+  <button data-page="profile">⚙ &nbsp; Profile & Settings</button>
+ </nav>
+</aside>
+<main class="main">
+ <header class="top"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu">☰</button><b id="pageTitle">Dashboard</b></div><div class="top-right"><span class="rate">1 USDT ≈ INR</span><span>🔔</span><span>❔</span><b>SP</b></div></header>
+ <div class="content">
+  <section class="page active" id="dashboard">
+   <div class="card">
+    <div class="card-head"><span style="color:#3478e5">⌂ &nbsp; Trust balance</span><div><button class="btn blue" onclick="openModal('deposit')">Deposit</button> <button class="btn pale" onclick="go('withdrawals')">Withdraw</button></div></div>
+    <div class="value" id="trustValue">0.00 <span class="small">INR</span></div>
+    <div class="small">Status: <span style="color:#e36c83">●</span> Account balance overview</div>
+    <div class="small" style="text-align:right">Allowable minimum trust balance<br><b>100,000 INR</b></div>
+   </div>
+   <div class="card">
+    <div class="card-head"><span style="color:#3478e5">⌁ &nbsp; Income balance</span><label class="small">Deduct from income <input class="toggle" id="deductToggle" type="checkbox" checked></label></div>
+    <div class="value" id="incomeValue">0.00 <span class="small">INR</span></div>
+   </div>
+   <div class="card">
+    <div class="card-head"><h3>Statistics</h3><div class="toolbar"><input id="fromDate" type="date"><input id="toDate" type="date"><button class="btn pale" onclick="refreshStats()">Apply</button></div></div>
+    <b class="small">Deposit</b>
+    <div class="line"><span>Deposit amount</span><b id="sDeposit">0</b></div>
+    <div class="line"><span>Account withdrawal amount</span><b id="sAccountWithdrawal">0</b></div>
+    <div class="line"><span>Deposit other amount</span><b>0</b></div>
+    <div class="line"><span>Withdrawal other amount</span><b>0</b></div>
+    <br><b class="small">Transactions</b>
+    <div class="line"><span>Account transaction amount</span><b id="sTransactions">0</b></div>
+    <div class="line"><span>Account transaction trust debiting amount</span><b>0</b></div>
+    <div class="line"><span>Account transaction income commission amount</span><b>0</b></div>
+    <div class="line"><span>Account transaction income deduct amount</span><b>0</b></div>
+    <button class="btn pale" style="margin-top:12px" onclick="go('statistics')">Show details</button>
+   </div>
+   <div class="card"><div class="card-head"><h3>Transactions</h3><button class="btn pale" onclick="go('transactions')">View all</button></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Transaction ID</th><th>Account Type</th><th>Type</th><th>Account ID</th><th>Amount</th><th>Status</th></tr></thead><tbody id="dashTransactions"></tbody></table></div></div>
+  </section>
+
+  <section class="page" id="transactions">
+   <div class="heading"><div><h1>Transactions</h1><div class="muted">Search and review account transactions</div></div></div>
+   <div class="card"><div class="toolbar"><input id="txSearch" placeholder="Transaction ID" oninput="renderTransactions()"><input id="txDate" type="date" onchange="renderTransactions()"><select id="txAccount" onchange="renderTransactions()"><option value="">All account types</option><option>UPI</option><option>Bank</option><option>Wallet</option></select><select id="txType" onchange="renderTransactions()"><option value="">All types</option><option>Deposit</option><option>Withdrawal</option></select><select id="txStatus" onchange="renderTransactions()"><option value="">All status</option><option>Successful</option><option>Pending</option><option>Failed</option></select></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Transaction ID</th><th>Account Type</th><th>Transaction Type</th><th>Account ID</th><th>Amount</th><th>Commission</th><th>Status</th></tr></thead><tbody id="txRows"></tbody></table></div></div>
+  </section>
+
+  <section class="page" id="accounts">
+   <div class="heading"><div><h1>Accounts</h1><div class="muted">Manage your payment and settlement accounts</div></div><button class="btn blue" onclick="openModal('account')">＋ Add Account</button></div>
+   <div class="card"><div class="toolbar"><input id="accountSearch" placeholder="Search account..." oninput="renderAccounts()"><select id="accountFilter" onchange="renderAccounts()"><option value="">All account types</option><option>UPI</option><option>Bank</option><option>Wallet</option></select></div><div class="tablewrap"><table><thead><tr><th>Account ID</th><th>Account Name</th><th>Type</th><th>Identifier</th><th>Status</th><th>Action</th></tr></thead><tbody id="accountRows"></tbody></table></div><p class="small">Account entries are stored locally in this browser. No bank account is connected.</p></div>
+  </section>
+
+  <section class="page" id="withdrawals">
+   <div class="heading"><div><h1>Withdrawals</h1><div class="muted">Create and track withdrawal requests</div></div><button class="btn blue" onclick="openModal('withdraw')">＋ Request Withdrawal</button></div>
+   <div class="stats"><div class="card"><div class="small">Available balance</div><div class="value" id="withdrawBalance">0.00</div></div><div class="card"><div class="small">Pending requests</div><div class="value" id="pendingCount">0</div></div></div>
+   <div class="card"><h3>Withdrawal History</h3><div class="tablewrap"><table><thead><tr><th>Request ID</th><th>Date</th><th>Account</th><th>Amount</th><th>Status</th></tr></thead><tbody id="withdrawRows"></tbody></table></div><p class="small">Requests created here are not sent to a bank or payment provider.</p></div>
+  </section>
+
+  <section class="page" id="statement">
+   <div class="heading"><div><h1>Statement</h1><div class="muted">Account and transaction statements</div></div><button class="btn blue" onclick="downloadStatement()">↓ Download CSV</button></div>
+   <div class="card"><h3>Statement Filters</h3><div class="formgrid"><div class="field"><label>From Date</label><input id="stFrom" type="date"></div><div class="field"><label>To Date</label><input id="stTo" type="date"></div><div class="field"><label>Account Type</label><select id="stAccount"><option value="">All</option><option>UPI</option><option>Bank</option><option>Wallet</option></select></div></div><button class="btn blue" onclick="renderStatement()">Generate Statement</button></div>
+   <div class="card"><div class="card-head"><h3>Statement Summary</h3><span class="small" id="stCount">0 records</span></div><div class="tablewrap"><table><thead><tr><th>Date</th><th>Transaction ID</th><th>Account</th><th>Type</th><th>Credit</th><th>Debit</th><th>Status</th></tr></thead><tbody id="statementRows"></tbody></table></div></div>
+  </section>
+
+  <section class="page" id="statistics">
+   <div class="heading"><div><h1>Statistics</h1><div class="muted">Transaction performance and account totals</div></div></div>
+   <div class="stats"><div class="card"><div class="small">Total deposits</div><div class="value" id="statDeposit">0</div></div><div class="card"><div class="small">Total withdrawals</div><div class="value" id="statWithdraw">0</div></div><div class="card"><div class="small">Transaction count</div><div class="value" id="statCount">0</div></div><div class="card"><div class="small">Successful transactions</div><div class="value" id="statSuccess">0</div></div></div>
+   <div class="card"><h3>Transaction Activity</h3><div class="chart"><div class="bar" style="height:35%"></div><div class="bar" style="height:60%"></div><div class="bar" style="height:48%"></div><div class="bar" style="height:78%"></div><div class="bar" style="height:55%"></div><div class="bar" style="height:90%"></div><div class="bar" style="height:70%"></div></div><div class="months"><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span></div></div>
+  </section>
+
+  <section class="page" id="earn">
+   <div class="heading"><div><h1>Earn Money</h1><div class="muted">Invite other participants and view referrals</div></div></div>
+   <div class="card"><h3>Invitation Link</h3><p class="small">To invite other participants, send them a link</p><input id="inviteLink" readonly style="width:100%;padding:11px;border:1px solid #ddd;border-radius:6px" value="https://superpay.example/invite/merchant"><button class="btn blue" style="width:100%;margin-top:10px" onclick="copyInvite()">Copy Invitation Link</button></div>
+   <div class="card"><h3>Referral System Rules</h3><details><summary>View referral rules</summary><p class="small">Referral rewards and eligibility must be configured by the platform administrator.</p></details></div>
+   <div class="card"><h3>My Referrals</h3><p class="small">No referral records are connected yet.</p></div>
+  </section>
+
+  <section class="page" id="profile">
+   <div class="heading"><div><h1>Profile & Settings</h1><div class="muted">Merchant profile preferences</div></div></div>
+   <div class="card"><h3>Business Profile</h3><div class="formgrid"><div class="field"><label>Business Name</label><input value="SuperPay Merchant"></div><div class="field"><label>Contact Email</label><input type="email" placeholder="you@example.com"></div><div class="field"><label>Currency</label><select><option>INR</option></select></div></div><button class="btn blue" onclick="alert('Connect a backend to securely save profile changes.')">Save Profile</button></div>
+  </section>
+ </div>
+</main>
+
+<div class="modal" id="modal"><div class="modalbox"><h3 id="modalTitle">Add Account</h3><div id="modalFields"></div><div class="modalactions"><button class="btn gray" onclick="closeModal()">Cancel</button><button class="btn blue" onclick="submitModal()">Save</button></div></div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const get=(k,d)=>{try{return JSON.parse(localStorage.getItem("sp_"+k))??d}catch{return d}};
+const save=(k,v)=>localStorage.setItem("sp_"+k,JSON.stringify(v));
+let accounts=get("accounts",[]),withdrawals=get("withdrawals",[]),transactions=get("transactions",[]);
+let modalMode="";
+const pages=["dashboard","transactions","withdrawals","accounts","statement","statistics","earn","profile"];
+const titles={dashboard:"Dashboard",transactions:"Transactions",withdrawals:"Withdrawals",accounts:"Accounts",statement:"Statement",statistics:"Statistics",earn:"Earn Money",profile:"Profile & Settings"};
+function go(p){pages.forEach(x=>$(x).classList.toggle("active",x===p));document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===p));$("pageTitle").textContent=titles[p];$("sidebar").classList.remove("open");if(p==="statement")renderStatement();if(p==="statistics")refreshStats()}
+document.querySelectorAll(".nav button[data-page]").forEach(b=>b.onclick=()=>go(b.dataset.page));
+$("menu").onclick=()=>$("sidebar").classList.toggle("open");
+function fmt(n){return Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function money(n){return "₹"+fmt(n)}
+function id(prefix){return prefix+"-"+Date.now().toString().slice(-8)}
+function status(s){return `<span class="status ${s==="Pending"?"pending":s==="Failed"?"failed":""}">${s}</span>`}
+function renderAccounts(){
+ let q=($("accountSearch")?.value||"").toLowerCase(),type=$("accountFilter")?.value||"";
+ $("accountRows").innerHTML=accounts.filter(a=>(!type||a.type===type)&&JSON.stringify(a).toLowerCase().includes(q)).map(a=>`<tr><td>${a.id}</td><td>${a.name}</td><td>${a.type}</td><td>${a.identifier}</td><td>${status(a.status)}</td><td><button class="btn red" onclick="removeAccount('${a.id}')">Remove</button></td></tr>`).join("")||'<tr><td colspan="6">No accounts added yet.</td></tr>';
+}
+function removeAccount(id){if(confirm("Remove this locally saved account?")){accounts=accounts.filter(a=>a.id!==id);save("accounts",accounts);renderAccounts()}}
+function renderTransactions(){
+ let q=($("txSearch")?.value||"").toLowerCase(),date=$("txDate")?.value||"",account=$("txAccount")?.value||"",type=$("txType")?.value||"",st=$("txStatus")?.value||"";
+ let rows=transactions.filter(t=>(!q||t.id.toLowerCase().includes(q))&&(!date||t.date===date)&&(!account||t.accountType===account)&&(!type||t.type===type)&&(!st||t.status===st));
+ const html=rows.map(t=>`<tr><td>${t.date}</td><td>${t.id}</td><td>${t.accountType}</td><td>${t.type}</td><td>${t.accountId||"—"}</td><td>${money(t.amount)}</td><td>₹0.00</td><td>${status(t.status)}</td></tr>`).join("")||'<tr><td colspan="8">No transactions found.</td></tr>';
+ $("txRows").innerHTML=html;$("dashTransactions").innerHTML=rows.slice(0,5).map(t=>`<tr><td>${t.date}</td><td>${t.id}</td><td>${t.accountType}</td><td>${t.type}</td><td>${t.accountId||"—"}</td><td>${money(t.amount)}</td><td>${status(t.status)}</td></tr>`).join("")||'<tr><td colspan="7">No transaction records.</td></tr>';
+}
+function renderWithdrawals(){
+ $("withdrawRows").innerHTML=withdrawals.map(w=>`<tr><td>${w.id}</td><td>${w.date}</td><td>${w.account}</td><td>${money(w.amount)}</td><td>${status(w.status)}</td></tr>`).join("")||'<tr><td colspan="5">No withdrawal requests.</td></tr>';
+ $("pendingCount").textContent=withdrawals.filter(w=>w.status==="Pending").length;
+}
+function renderStatement(){
+ let from=$("stFrom").value,to=$("stTo").value,acct=$("stAccount").value;
+ let rows=transactions.filter(t=>(!from||t.date>=from)&&(!to||t.date<=to)&&(!acct||t.accountType===acct));
+ $("stCount").textContent=rows.length+" records";
+ $("statementRows").innerHTML=rows.map(t=>`<tr><td>${t.date}</td><td>${t.id}</td><td>${t.accountType}</td><td>${t.type}</td><td>${t.type==="Deposit"?money(t.amount):"—"}</td><td>${t.type==="Withdrawal"?money(t.amount):"—"}</td><td>${status(t.status)}</td></tr>`).join("")||'<tr><td colspan="7">No statement records for this period.</td></tr>';
+}
+function refreshStats(){
+ let dep=transactions.filter(t=>t.type==="Deposit").reduce((a,t)=>a+Number(t.amount),0),wit=transactions.filter(t=>t.type==="Withdrawal").reduce((a,t)=>a+Number(t.amount),0);
+ $("statDeposit").textContent=money(dep);$("statWithdraw").textContent=money(wit);$("statCount").textContent=transactions.length;$("statSuccess").textContent=transactions.filter(t=>t.status==="Successful").length;
+ $("sDeposit").textContent=money(dep);$("sAccountWithdrawal").textContent=money(wit);$("sTransactions").textContent=money(transactions.reduce((a,t)=>a+Number(t.amount),0));
+}
+function openModal(mode){
+ modalMode=mode;$("modal").classList.add("show");
+ if(mode==="account"){$("modalTitle").textContent="Add Account";$("modalFields").innerHTML=`<div class="field"><label>Account Name</label><input id="fName" placeholder="Business account"></div><div class="field"><label>Account Type</label><select id="fType"><option>UPI</option><option>Bank</option><option>Wallet</option></select></div><div class="field"><label>UPI ID / Account Identifier</label><input id="fIdentifier" placeholder="Enter identifier"></div>`}
+ if(mode==="deposit"){$("modalTitle").textContent="Deposit Record";$("modalFields").innerHTML=`<div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This creates a local record only. It does not add funds or contact a bank.</p>`}
+ if(mode==="withdraw"){$("modalTitle").textContent="Withdrawal Request";$("modalFields").innerHTML=`<div class="field"><label>Destination Account</label><select id="fAccount">${accounts.map(a=>`<option value="${a.id}">${a.name} (${a.type})</option>`).join("")}</select></div><div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This saves a pending request locally. No money is transferred.</p>`}
+}
+function closeModal(){$("modal").classList.remove("show")}
+function submitModal(){
+ if(modalMode==="account"){
+  let name=$("fName").value.trim(),type=$("fType").value,identifier=$("fIdentifier").value.trim();
+  if(!name||!identifier)return alert("Please fill all account fields.");
+  accounts.push({id:id("ACC"),name,type,identifier,status:"Pending"});save("accounts",accounts);renderAccounts();
+ }
+ if(modalMode==="deposit"){
+  let amount=Number($("fAmount").value);if(!amount||amount<=0)return alert("Enter a valid amount.");
+  transactions.unshift({id:id("TX"),date:new Date().toISOString().slice(0,10),accountType:"Manual",type:"Deposit",accountId:"—",amount,status:"Pending"});save("transactions",transactions);renderTransactions();refreshStats();
+ }
+ if(modalMode==="withdraw"){
+  let amount=Number($("fAmount").value),account=$("fAccount")?.value;
+  if(!accounts.length)return alert("Please add an account first.");
+  if(!amount||amount<=0)return alert("Enter a valid amount.");
+  withdrawals.unshift({id:id("WD"),date:new Date().toISOString().slice(0,10),account,amount,status:"Pending"});save("withdrawals",withdrawals);renderWithdrawals();
+ }
+ closeModal();
+}
+function downloadStatement(){
+ let rows=transactions,header=["Date","Transaction ID","Account Type","Type","Amount","Status"];
+ let csv=[header,...rows.map(t=>[t.date,t.id,t.accountType,t.type,t.amount,t.status])].map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(",")).join("\n");
+ let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="superpay-statement.csv";a.click();URL.revokeObjectURL(a.href);
+}
+function copyInvite(){let i=$("inviteLink");i.select();navigator.clipboard?.writeText(i.value).then(()=>alert("Invitation link copied")).catch(()=>alert(i.value))}
+function updateBalance(){let trust=Number(get("trustBalance",0)),income=Number(get("incomeBalance",0));$("trustValue").innerHTML=fmt(trust)+' <span class="small">INR</span>';$("incomeValue").innerHTML=fmt(income)+' <span class="small">INR</span>';$("sideTrust").textContent=money(trust);$("sideIncome").textContent=money(income);$("withdrawBalance").textContent=money(trust)}
+renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateBalance();
+</script>
+
+<script>
+(async function(){
+  const token=sessionStorage.getItem("superpay_token");
+  let user=null; try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
+  if(!token||!user||user.role!=="MERCHANT"){location.replace("/login.html");return;}
+  const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  try{
+    const res=await fetch("/api/ledger",{headers:{Authorization:"Bearer "+token}});
+    const data=await res.json();
+    if(!res.ok||!data.ok)throw new Error(data.message||"Could not load merchant data");
+    const balance=Number(data.totals?.balance||0), credited=Number(data.totals?.deposited||0), debited=Number(data.totals?.paid||0);
+    const trust=document.getElementById("trustValue"), income=document.getElementById("incomeValue");
+    if(trust)trust.innerHTML=money(balance)+" <span class='small'>INR</span>";
+    if(income)income.innerHTML=money(balance)+" <span class='small'>INR</span>";
+    const name=user.display_name||user.user_id||"Merchant";
+    const top=document.querySelector(".top b");
+    if(top)top.textContent="Welcome, "+name;
+    const rows=(data.entries||[]).map(e=>({date:new Date(e.created_at).toLocaleDateString(),id:e.reference,accountType:"Ledger",type:e.entry_type,accountId:"—",amount:e.amount_inr,status:"Successful"}));
+    const body=document.getElementById("dashTransactions");
+    if(body)body.innerHTML=rows.slice(0,5).map(t=>"<tr><td>"+t.date+"</td><td>"+t.id+"</td><td>"+t.accountType+"</td><td>"+t.type+"</td><td>—</td><td>"+money(t.amount)+"</td><td>Successful</td></tr>").join("")||"<tr><td colspan='7'>No transaction records yet.</td></tr>";
+    const tx=document.getElementById("txRows");
+    if(tx)tx.innerHTML=rows.map(t=>"<tr><td>"+t.date+"</td><td>"+t.id+"</td><td>Ledger</td><td>"+t.type+"</td><td>—</td><td>"+money(t.amount)+"</td><td>—</td><td>Successful</td></tr>").join("")||"<tr><td colspan='8'>No transactions found.</td></tr>";
+    const dep=document.getElementById("sDeposit");if(dep)dep.textContent=money(credited);
+    const paid=document.getElementById("sAccountWithdrawal");if(paid)paid.textContent=money(debited);
+    const total=document.getElementById("sTransactions");if(total)total.textContent=money(debited);
+    const title=document.querySelector(".logo");if(title)title.textContent="SuperPay — "+name;
+    document.querySelectorAll("button").forEach(b=>{if(/Deposit|Withdraw|Add Account|Request Withdrawal/i.test(b.textContent)){b.disabled=true;b.title="This action is not connected to the live merchant backend yet";}});
+    const note=document.createElement("p");note.className="small";note.textContent="Live balance and ledger data loaded from SuperPay. Account management and withdrawal requests are not connected on this legacy screen yet.";document.querySelector(".content")?.prepend(note);
+  }catch(e){document.body.innerHTML="<main style='padding:24px;font-family:Arial'><h2>Merchant dashboard could not load</h2><p>"+String(e.message)+"</p><a href='/login.html'>Back to login</a></main>";}
+})();
+</script>
+
+</body></html>
