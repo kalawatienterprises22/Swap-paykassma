@@ -113,8 +113,8 @@ module.exports = async (req, res) => {
       }
       await pool.query(
         `INSERT INTO sp_audit_logs (actor_id, action, target_type, target_id, details)
-         VALUES ($1, 'MERCHANT_PASSWORD_RESET', 'MERCHANT', $2, $3)`,
-        [admin.sub, id, JSON.stringify({ user_id: result.rows[0].user_id })]
+         VALUES ($1, $2, $3, $4, $5)`,
+        [admin.sub, targetRole + '_PASSWORD_RESET', targetRole, id, JSON.stringify({ user_id: result.rows[0].user_id })]
       );
       return sendJson(res, 200, { ok: true, merchant: result.rows[0] });
     }
@@ -133,8 +133,8 @@ module.exports = async (req, res) => {
     }
     await pool.query(
       `INSERT INTO sp_audit_logs (actor_id, action, target_type, target_id, details)
-       VALUES ($1, 'MERCHANT_STATUS_CHANGED', 'MERCHANT', $2, $3)`,
-      [admin.sub, id, JSON.stringify({ status })]
+       VALUES ($1, $2, $3, $4, $5)`,
+      [admin.sub, targetRole + '_STATUS_CHANGED', targetRole, id, JSON.stringify({ status })]
     );
     return sendJson(res, 200, { ok: true, merchant: result.rows[0] });
   } catch (error) {
