@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Join SuperPay</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f1f5f9;font:15px Arial;color:#172033}.wrap{max-width:520px;margin:35px auto;padding:18px}.panel{background:#fff;padding:22px;border-radius:14px;box-shadow:0 3px 14px #00000010}label{display:block;font-weight:bold;font-size:13px;margin:13px 0;color:#475569}input{display:block;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;margin-top:6px}button{width:100%;padding:13px;border:0;border-radius:8px;background:#175bd5;color:#fff;font-weight:bold;margin-top:15px}#message{line-height:1.5;color:#475569}</style></head>
+<body><div class="wrap"><section class="panel"><h2>Join SuperPay as Merchant</h2><p>Complete the form to create your Merchant login.</p><form id="signup">
+<label>Full Name<input name="display_name" required minlength="2" maxlength="80"></label>
+<label>Merchant User ID<input name="user_id" required minlength="4" maxlength="32" pattern="[A-Za-z0-9_-]+"></label>
+<label>Email (optional)<input name="email" type="email" maxlength="254"></label>
+<label>Password<input name="password" type="password" required minlength="12" maxlength="72" autocomplete="new-password"></label>
+<button id="submit" type="submit">Create Merchant Account</button></form><p id="message" role="status"></p><p><a href="/login.html">Already have an account? Login</a></p></section></div>
+<script>
+const params=new URLSearchParams(location.search),ref=params.get("ref")||"",form=document.getElementById("signup"),message=document.getElementById("message"),button=document.getElementById("submit");
+if(!/^[a-f0-9]{48}$/i.test(ref)){form.hidden=true;message.textContent="This referral link is invalid. Please ask your Admin for a new link."}
+form.onsubmit=async e=>{e.preventDefault();button.disabled=true;message.textContent="Creating your account...";const data=Object.fromEntries(new FormData(form).entries());data.action="register_referral";data.referral_code=ref;try{const r=await fetch("/api/admin/merchants",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Signup failed");form.hidden=true;message.textContent="Account created successfully. You can now login using your Merchant User ID and password."}catch(err){message.textContent=err.message}finally{button.disabled=false}};
+</script></body></html>
