@@ -21,18 +21,27 @@ module.exports = async (req, res) => {
   } catch {
     return sendJson(res, 401, { ok: false, message: "Invalid or expired session" });
   }
-  if (actor.role !== "MERCHANT") {
-    return sendJson(res, 403, { ok: false, message: "Merchant account required" });
+  if (!["MERCHANT", "SUPER_ADMIN"].includes(actor.role)) {
+    return sendJson(res, 403, { ok: false, message: "Merchant or Super Admin access required" });
   }
 
   const body = req.body || {};
   const pool = getPool();
+  let targetMerchantId = actor.sub;
+  if (actor.role === "SUPER_ADMIN") {
+    targetMerchantId = String(req.method === "GET" ? req.query?.merchant_id || "" : body.merchant_id || "");
+    if (!/^[0-9a-f-]{36}$/i.test(targetMerchantId)) {
+      return sendJson(res, 400, { ok: false, message: "Select a valid merchant first" });
+    }
+    const target = await pool.query("SELECT id FROM sp_users WHERE id=$1 AND role='MERCHANT'", [targetMerchantId]);
+    if (!target.rows.length) return sendJson(res, 404, { ok: false, message: "Merchant not found" });
+  }
 
   if (req.method === "GET") {
     try {
       const current = await pool.query(
         "SELECT source_package, enabled, updated_at FROM sp_merchant_notification_sources WHERE merchant_id=$1",
-        [actor.sub]
+        [targetMerchantId]
       );
       return sendJson(res, 200, { ok: true, source: current.rows[0] || null });
     } catch (error) {
@@ -57,12 +66,12 @@ module.exports = async (req, res) => {
          ON CONFLICT (merchant_id) DO UPDATE
          SET source_package=EXCLUDED.source_package, enabled=TRUE,
              updated_by=EXCLUDED.updated_by, updated_at=now()`,
-        [actor.sub, sourcePackage]
+        [targetMerchantId, sourcePackage]
       );
       await client.query(
         `INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details)
          VALUES($1,'NOTIFICATION_SOURCE_CHANGED','MERCHANT',$1,$2)`,
-        [actor.sub, JSON.stringify({ source_package: sourcePackage })]
+        [actor.sub, JSON.stringify({ merchant_id: targetMerchantId, source_package: sourcePackage })]
       );
       await client.query("COMMIT");
       return sendJson(res, 200, { ok: true, source_package: sourcePackage, enabled: true });
@@ -95,7 +104,7 @@ module.exports = async (req, res) => {
     const configured = await pool.query(
       `SELECT source_package FROM sp_merchant_notification_sources
        WHERE merchant_id=$1 AND enabled=TRUE`,
-      [actor.sub]
+      [targetMerchantId]
     );
     if (!configured.rows.length) {
       return sendJson(res, 403, { ok: false, message: "Select and enable one payment app in SuperPay before sending notifications" });
@@ -110,7 +119,7 @@ module.exports = async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,to_timestamp($6 / 1000.0))
        ON CONFLICT (merchant_id, notification_key) DO NOTHING
        RETURNING id, status, received_at`,
-      [actor.sub, sourcePackage, notificationKey.toLowerCase(), title, notificationText, postedAt]
+      [targetMerchantId, sourcePackage, notificationKey.toLowerCase(), title, notificationText, postedAt]
     );
     if (!result.rows.length) {
       return sendJson(res, 200, { ok: true, duplicate: true, message: "Notification already received" });
