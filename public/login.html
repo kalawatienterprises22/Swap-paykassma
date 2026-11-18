@@ -91,7 +91,15 @@
 
         message.textContent = "Login successful!";
 
-window.location.href = data.user.role === "MERCHANT" ? "/merchant-dashboard.html" : "/balances.html";
+if (data.user.role === "MERCHANT") {
+          window.location.replace("/merchant-dashboard.html");
+        } else if (data.user.role === "ADMIN") {
+          window.location.replace("/balances.html");
+        } else {
+          sessionStorage.removeItem("superpay_token");
+          sessionStorage.removeItem("superpay_user");
+          message.textContent = "This account cannot use the Merchant / Admin login.";
+        }
         form.reset();
 
       } catch {
