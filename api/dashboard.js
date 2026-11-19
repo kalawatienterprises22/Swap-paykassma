@@ -349,7 +349,7 @@ module.exports = async (req, res) => {
       const saved=await pool.query(`
         INSERT INTO sp_predictions(match_id,player_id,selection_side)
         SELECT m.id,$2,$3 FROM sp_prediction_matches m
-        WHERE m.id=$1 AND m.status<>'FINISHED'
+        WHERE m.id=$1 AND m.status='UPCOMING'
         ON CONFLICT(match_id,player_id) DO UPDATE SET selection_side=EXCLUDED.selection_side,created_at=NOW()
         RETURNING id,match_id,selection_side,created_at
       `,[matchId,player.sub,side]);
@@ -575,7 +575,7 @@ module.exports = async (req, res) => {
           ]);
           const rows=matches.rows.map(m=>{
             const total=Number(m.prediction_count||0),a=Number(m.side_a_count||0),b=Number(m.side_b_count||0);
-            return {...m,side_a_count:a,side_b_count:b,imbalance_percent:total?Math.round(Math.abs(a-b)*100/total):0};
+            return {...m,side_a_count:a,side_b_count:b,imbalance_percent:total?Math.round(Math.max(a,b)*100/total):0};
           });
           return sendJson(res,200,{ok:true,monitoring:{
             exposure:{matches:rows,total_predictions:String(exposureTotals.rows[0].total_predictions||0),unbalanced_matches:Number(exposureTotals.rows[0].unbalanced_matches||0)},
@@ -639,6 +639,22 @@ module.exports = async (req, res) => {
           [sport,title,sideA,sideB,scheduled]
         );
         return sendJson(res,201,{ok:true,match:saved.rows[0]});
+      }
+      if (req.method === "PATCH" && body.action === "prediction_match_status") {
+        const matchId=Number(body.match_id);
+        const status=String(body.status||"").toUpperCase();
+        if(!Number.isSafeInteger(matchId)||matchId<1||!["UPCOMING","LOCKED"].includes(status))
+          return sendJson(res,400,{ok:false,message:"Choose a valid match and status"});
+        const saved=await pool.query(
+          "UPDATE sp_prediction_matches SET status=$1,updated_at=NOW() WHERE id=$2 AND result_side IS NULL AND status IN ('UPCOMING','LOCKED') RETURNING id,status,title",
+          [status,matchId]
+        );
+        if(!saved.rowCount)return sendJson(res,409,{ok:false,message:"Match not found, already finished, or cannot be changed"});
+        await pool.query(
+          "INSERT INTO sp_prediction_audit_logs(match_id,event_type,event_note,event_data) VALUES($1,$2,$3,$4::jsonb)",
+          [matchId,status==="LOCKED"?"PREDICTIONS_LOCKED":"PREDICTIONS_REOPENED",status==="LOCKED"?"Admin locked new and updated predictions":"Admin reopened predictions",JSON.stringify({status,admin:true})]
+        );
+        return sendJson(res,200,{ok:true,match:saved.rows[0],message:status==="LOCKED"?"Predictions are now locked for this match.":"Predictions are open again for this match."});
       }
       if (req.method === "POST" && body.action === "manual_match_result") {
         const matchId=Number(body.match_id), side=String(body.result_side||"").toUpperCase();
