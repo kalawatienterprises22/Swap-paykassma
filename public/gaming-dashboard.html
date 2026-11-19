@@ -76,7 +76,7 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
     <button class="btn" type="submit">Create Player</button>
    </form><p id="playerMsg" class="muted">Loading player list…</p><div id="playerList"></div>
   </section>
-  <section class="section card" id="records"><h2>Game Records</h2><p id="recordMsg" class="muted">Loading records…</p><div id="recordList" class="notice">There are no game records yet. Game Service जुड़ने पर रिकॉर्ड यहां दिखेंगे।</div></section>
+  <section class="section card" id="records"><h2>Game Records</h2><p id="recordMsg" class="muted">Loading records…</p><div id="recordList" class="notice">There are no game records yet. Records will appear here once the game service is connected.</div></section>
   <section class="section card" id="settings"><h2>System Settings & Rules</h2><div class="notice"><b>For entertainment only.</b> Virtual coins have no cash value. They cannot be deposited, withdrawn, exchanged for money, or redeemed for prizes. ParixBet gaming data and virtual balances are completely separate from merchant balances and payment records on the payment platform.</div></section>
   <div class="footer" id="authStatus">Checking admin login…</div>
  </div>
@@ -107,10 +107,10 @@ async function loadCricket(){
 }
 async function loadRecords(){
  const box=document.getElementById("recordList"),msg=document.getElementById("recordMsg");
- try{const d=await api("/api/dashboard?module=gaming&action=records");msg.textContent=d.records.length+" रिकॉर्ड";box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">'+Number(x.coins_change).toLocaleString("en-IN")+' virtual</span></div>').join(""):'There are no game records yet.'}catch(e){msg.textContent=e.message}
+ try{const d=await api("/api/dashboard?module=gaming&action=records");msg.textContent=d.records.length+" records";box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">'+Number(x.coins_change).toLocaleString("en-IN")+' virtual</span></div>').join(""):'There are no game records yet.'}catch(e){msg.textContent=e.message}
 }
 function safe(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
-document.getElementById("playerForm").addEventListener("submit",async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector("button"),msg=document.getElementById("playerMsg");button.disabled=true;try{const payload=Object.fromEntries(new FormData(form));const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"create_player",...payload})});form.reset();msg.textContent="player(s) बन गया: "+d.player.username+" · 1,000 starter virtual coins were added.";await loadGaming()}catch(err){msg.textContent=err.message}finally{button.disabled=false}});
+document.getElementById("playerForm").addEventListener("submit",async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector("button"),msg=document.getElementById("playerMsg");button.disabled=true;try{const payload=Object.fromEntries(new FormData(form));const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"create_player",...payload})});form.reset();msg.textContent="Player created: "+d.player.username+" · 1,000 starter virtual coins were added.";await loadGaming()}catch(err){msg.textContent=err.message}finally{button.disabled=false}});
 async function init(){
  try{
   const user=JSON.parse(sessionStorage.getItem("parixbet_admin_user")||"null");
