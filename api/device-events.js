@@ -109,7 +109,7 @@ module.exports = async (req, res) => {
       [targetMerchantId]
     );
     if (!configured.rows.length) {
-      return sendJson(res, 403, { ok: false, message: "Select and enable one payment app in SuperPay before sending notifications" });
+      return sendJson(res, 403, { ok: false, message: "Select and enable one payment app in Paykassma before sending notifications" });
     }
     if (configured.rows[0].source_package !== sourcePackage) {
       return sendJson(res, 403, { ok: false, message: "This app is not enabled for this merchant. Only the selected payment app is accepted." });
