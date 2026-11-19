@@ -1,7 +1,7 @@
 
-# SuperPay
+# Paykassma
 
-SuperPay is a modern digital payment management platform with a clean merchant dashboard and payment management interface.
+Paykassma is a modern digital payment management platform with a clean merchant dashboard and payment management interface.
 
 ## Features
 
@@ -26,7 +26,7 @@ https://kalawatienterprises22.github.io/Swap-paykassma/
 
 ## Project Structure
 
-- `index.html` — SuperPay website
+- `index.html` — Paykassma website
 - `README.md` — Project information
 
 ## Important Information
@@ -35,4 +35,4 @@ This website currently provides a front-end interface only. Payment records and 
 
 To enable real payment processing, connect a secure server-side backend and an approved payment gateway. Never put secret API keys in frontend code.
 
-© SuperPay. All rights reserved.
+© Paykassma. All rights reserved.
