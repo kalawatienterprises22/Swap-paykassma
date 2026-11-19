@@ -73,6 +73,39 @@ function getAdmin(req, res) {
 }
 
 module.exports = async (req, res) => {
+  const isPlayer = req.query && req.query.module === "gaming-player";
+  if (isPlayer) {
+    if (!allowMethods(req, res, ["GET"])) return;
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    let player;
+    try { player = token ? verifyToken(token) : null; } catch {}
+    if (!player || player.role !== "GAMING_PLAYER" || !player.sub) {
+      return sendJson(res, 401, { ok: false, message: "Gaming player login required" });
+    }
+    try {
+      const pool = getPool();
+      await ensureGamingTables(pool);
+      const profile = await pool.query(
+        `SELECT p.id,p.username,p.display_name,p.status,
+                COALESCE(w.virtual_coins,0)::bigint AS virtual_coins
+         FROM sp_game_players p LEFT JOIN sp_game_wallets w ON w.player_id=p.id
+         WHERE p.id=$1 LIMIT 1`, [player.sub]
+      );
+      if (!profile.rows.length || profile.rows[0].status !== "ACTIVE") {
+        return sendJson(res, 403, { ok: false, message: "Gaming account is unavailable" });
+      }
+      const history = await pool.query(
+        "SELECT id,game_code,result,coins_change,created_at FROM sp_game_sessions WHERE player_id=$1 ORDER BY created_at DESC LIMIT 30",
+        [player.sub]
+      );
+      return sendJson(res, 200, { ok: true, player: profile.rows[0], history: history.rows });
+    } catch (error) {
+      console.error("Gaming player API error:", error.message);
+      return sendJson(res, 500, { ok: false, message: "Gaming profile unavailable" });
+    }
+  }
+
   const isGaming = req.query && req.query.module === "gaming";
   if (isGaming) {
     if (!["GET", "POST", "PATCH"].includes(req.method)) {
