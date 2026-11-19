@@ -30,6 +30,16 @@ function decryptKyc(value) {
   decipher.setAuthTag(Buffer.from(parts[2], "hex"));
   return Buffer.concat([decipher.update(Buffer.from(parts[3], "hex")), decipher.final()]).toString("utf8");
 }
+function normalizeMobile(value) {
+  let digits = String(value || "").replace(/\\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+  return digits;
+}
+function panFingerprint(value) {
+  return crypto.createHmac("sha256", String(process.env.JWT_SECRET || ""))
+    .update("superpay-pan-unique-v1:" + String(value || "").trim().toUpperCase())
+    .digest("hex");
+}
 function telegramSecret() {
   return crypto.createHash("sha256").update(String(process.env.TELEGRAM_BOT_TOKEN || "") + ":superpay-webhook-v1").digest("hex").slice(0,48);
 }
@@ -88,17 +98,19 @@ module.exports = async (req, res) => {
       const pan=String(pan_number||"").trim().toUpperCase(), aadhaar=String(aadhaar_number||"").replace(/\D/g,"");
       if(!/^[A-Za-z0-9_-]{20,100}$/.test(code)) return sendJson(res,400,{ok:false,message:"Invalid referral link"});
       if(name.length<2||name.length>80) return sendJson(res,400,{ok:false,message:"Name must be 2-80 characters"});
-      if(mobile.length<8||mobile.length>20) return sendJson(res,400,{ok:false,message:"Enter a valid mobile number"});
+      if(mobile.length<8||mobile.length>20||normalizedMobile.length<8||normalizedMobile.length>15) return sendJson(res,400,{ok:false,message:"Enter a valid mobile number"});
       if(fullAddress.length<8||fullAddress.length>500) return sendJson(res,400,{ok:false,message:"Enter your full address"});
       if(!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) return sendJson(res,400,{ok:false,message:"Enter a valid 10-character PAN number"});
       if(aadhaar && !/^[0-9]{12}$/.test(aadhaar)) return sendJson(res,400,{ok:false,message:"Aadhaar number must contain exactly 12 digits"});
       if(accountEmail&&(accountEmail.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(accountEmail))) return sendJson(res,400,{ok:false,message:"Enter a valid email address"});
       const referral=await pool.query("SELECT r.admin_id,a.user_id AS admin_user_id FROM sp_admin_referrals r JOIN sp_users a ON a.id=r.admin_id WHERE r.code=$1 AND r.active=TRUE AND a.role='ADMIN' AND a.status='ACTIVE'",[code]);
       if(!referral.rowCount) return sendJson(res,404,{ok:false,message:"This referral link is invalid or inactive"});
+      const duplicate=await pool.query("SELECT CASE WHEN phone_normalized=$1 THEN 'MOBILE' WHEN pan_fingerprint=$2 THEN 'PAN' END AS duplicate_type FROM sp_merchant_onboarding WHERE phone_normalized=$1 OR pan_fingerprint=$2 LIMIT 1",[normalizedMobile,panHash]);
+      if(duplicate.rowCount) return sendJson(res,409,{ok:false,message:duplicate.rows[0].duplicate_type==="MOBILE"?"This mobile number is already registered. Please use another number.":"This PAN number is already registered with SuperPay."});
       const passwordHash=await bcrypt.hash(crypto.randomBytes(48).toString("hex"),12);
       const created=await pool.query("INSERT INTO sp_users(id,user_id,email,password_hash,display_name,role,status,parent_admin_id) VALUES($1,$2,$3,$4,$5,'MERCHANT','SUSPENDED',$6) RETURNING id,user_id,display_name,role,status",[crypto.randomUUID(),accountId,accountEmail,passwordHash,name,referral.rows[0].admin_id]);
       const linkToken=crypto.randomBytes(32).toString("hex"), linkHash=crypto.createHash("sha256").update(linkToken).digest("hex");
-      await pool.query("INSERT INTO sp_merchant_onboarding(merchant_id,phone,full_address,pan_number_encrypted,aadhaar_number_encrypted,telegram_link_token_hash,telegram_link_expires_at) VALUES($1,$2,$3,$4,$5,$6,now()+interval '30 minutes')",[created.rows[0].id,mobile,fullAddress,encryptKyc(pan),encryptKyc(aadhaar),linkHash]);
+      await pool.query("INSERT INTO sp_merchant_onboarding(merchant_id,phone,full_address,pan_number_encrypted,aadhaar_number_encrypted,phone_normalized,pan_fingerprint,telegram_link_token_hash,telegram_link_expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()+interval '30 minutes')",[created.rows[0].id,mobile,fullAddress,encryptKyc(pan),encryptKyc(aadhaar),normalizedMobile,panHash,linkHash]);
       await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REFERRED_SIGNUP','MERCHANT',$2,$3)",[referral.rows[0].admin_id,created.rows[0].id,JSON.stringify({merchant_user_id:accountId,referral_admin_user_id:referral.rows[0].admin_user_id})]);
       await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE (id=$2 OR role='SUPER_ADMIN') AND status='ACTIVE'",[`Merchant ${accountId} registered. Telegram connection and Super Admin approval are required.`,referral.rows[0].admin_id]);
       return sendJson(res,201,{ok:true,message:"Registration saved. Connect Telegram to finish verification.",bot_url:"https://t.me/superpay_notification_bot?start=link_"+linkToken,merchant:created.rows[0]});
