@@ -278,8 +278,8 @@ module.exports = async (req, res) => {
         if(!m.telegram_chat_id||!m.telegram_verified_at){await client.query("ROLLBACK");return sendJson(res,400,{ok:false,message:"Merchant must connect Telegram before approval."});}
         const setupToken=crypto.randomBytes(32).toString("hex"), setupHash=crypto.createHash("sha256").update(setupToken).digest("hex");
         await client.query("UPDATE sp_merchant_onboarding SET setup_token_hash=$1,setup_expires_at=now()+interval '24 hours',setup_used_at=NULL WHERE merchant_id=$2",[setupHash,id]);
-        const setupUrl="https://swappaykassma.vercel.app/merchant-set-password.html?token="+setupToken;
-        await telegramCall("sendMessage",{chat_id:m.telegram_chat_id,text:"Congratulations! Your SuperPay Merchant account is approved.\\nMerchant ID: "+m.user_id+"\\nLogin: https://swappaykassma.vercel.app/login.html\\nCreate your password using this one-time link (valid 24 hours):\\n"+setupUrl});
+        const setupUrl="https://swappaykassma.vercel.app/login.html?setup_token="+setupToken;
+        await telegramCall("sendMessage",{chat_id:m.telegram_chat_id,text:"Congratulations! Your SuperPay Merchant account is approved.\nMerchant ID: "+m.user_id+"\nLogin: https://swappaykassma.vercel.app/login.html\nCreate your password using this one-time link (valid 24 hours):\n"+setupUrl,reply_markup:{inline_keyboard:[[{text:"Create Password",url:setupUrl}]]}});
         await client.query("UPDATE sp_users SET status='ACTIVE',updated_at=now() WHERE id=$1",[id]);
         await client.query("UPDATE sp_merchant_onboarding SET review_status='APPROVED' WHERE merchant_id=$1",[id]);
         await client.query("INSERT INTO sp_notifications(user_id,title,message,category) VALUES($1,'Merchant account approved','Your account is active. Password setup details were sent to your connected Telegram.','MERCHANT_SIGNUP')",[id]);
