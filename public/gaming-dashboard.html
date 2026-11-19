@@ -131,6 +131,24 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
    </form>
    <div id="predictionMatchList" class="notice">Loading match results…</div>
   </section>
+  <section class="section card" id="risk-monitoring">
+   <h2>Exposure · Liquidity · Reserve · Settlement Monitor</h2>
+   <p class="muted">Live database monitoring for prediction volume, side imbalance, virtual-point availability and match-result records.</p>
+   <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:14px 0">
+    <div class="card"><div class="metric-label">Total Predictions</div><div class="metric" id="monExposureTotal">—</div><span class="pending">Recorded A/B selections</span></div>
+    <div class="card"><div class="metric-label">Unbalanced Matches</div><div class="metric" id="monExposureAlerts">—</div><span class="pending">5+ predictions and 60%+ imbalance</span></div>
+    <div class="card"><div class="metric-label">Virtual Liquidity</div><div class="metric" id="monLiquidity">—</div><span class="pending">Player virtual points only</span></div>
+    <div class="card"><div class="metric-label">Virtual Reserve</div><div class="metric" id="monReserve">—</div><span class="pending">Not cash or withdrawable funds</span></div>
+    <div class="card"><div class="metric-label">Settled Matches</div><div class="metric" id="monSettled">—</div><span class="pending">Results saved in database</span></div>
+    <div class="card"><div class="metric-label">Correct Predictions</div><div class="metric" id="monCorrect">—</div><span class="pending">Score tracking only</span></div>
+   </div>
+   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0">
+    <b>Match Exposure Monitor</b><button class="btn" type="button" id="refreshMonitoring">Refresh Monitor</button>
+   </div>
+   <div id="monitorMatchList" class="notice">Loading monitoring data…</div>
+   <div style="margin-top:16px"><b>Settlement & Result Audit</b><div id="monitorAuditList" class="notice" style="margin-top:9px">Loading audit records…</div></div>
+   <p class="muted" style="margin-top:12px">Settlement here records match outcomes and correct/incorrect prediction counts. No cash liability, cash reserve or payout processing is enabled.</p>
+  </section>
   <section class="section card" id="settings"><h2>System Settings & Rules</h2><div class="notice"><b>For entertainment only.</b> Virtual coins have no cash value. They cannot be deposited, withdrawn, exchanged for money, or redeemed for prizes. ParixBet gaming data and virtual balances are completely separate from merchant balances and payment records on the payment platform.</div></section>
   <div class="footer" id="authStatus">Checking admin login…</div>
  </div>
@@ -145,7 +163,7 @@ async function loadGaming(){
  document.getElementById("playerCount").textContent=stats.stats.players;
  document.getElementById("gameCount").textContent=stats.stats.games;
  document.getElementById("coinCount").textContent=Number(stats.stats.coins).toLocaleString("en-IN");
- await Promise.all([loadGames(),loadPlayers(),loadRecords(),loadCricket(),loadPredictionMatches()]);
+ await Promise.all([loadGames(),loadPlayers(),loadRecords(),loadCricket(),loadPredictionMatches(),loadMonitoring()]);
 }
 async function loadGames(){
  const box=document.getElementById("gameList");
@@ -175,6 +193,25 @@ async function loadRecords(){
  const box=document.getElementById("recordList"),msg=document.getElementById("recordMsg");
  try{const d=await api("/api/dashboard?module=gaming&action=records");msg.textContent=d.records.length+" records";box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">'+Number(x.coins_change).toLocaleString("en-IN")+' virtual</span></div>').join(""):'There are no game records yet.'}catch(e){msg.textContent=e.message}
 }
+async function loadMonitoring(){
+ const matchBox=document.getElementById("monitorMatchList"),auditBox=document.getElementById("monitorAuditList");
+ try{
+  const d=await api("/api/dashboard?module=gaming&action=monitoring"),m=d.monitoring;
+  const fmt=v=>Number(v||0).toLocaleString("en-IN");
+  document.getElementById("monExposureTotal").textContent=fmt(m.exposure.total_predictions);
+  document.getElementById("monExposureAlerts").textContent=fmt(m.exposure.unbalanced_matches);
+  document.getElementById("monLiquidity").textContent=fmt(m.liquidity.virtual_points);
+  document.getElementById("monReserve").textContent=fmt(m.reserve.virtual_points);
+  document.getElementById("monSettled").textContent=fmt(m.settlement.settled_matches);
+  document.getElementById("monCorrect").textContent=fmt(m.settlement.correct);
+  matchBox.innerHTML=m.exposure.matches.length?m.exposure.matches.map(x=>{
+   const alert=Number(x.prediction_count)>=5&&Number(x.imbalance_percent)>=60;
+   return '<div class="row"><div style="min-width:0;flex:1"><b>'+safe(x.title)+'</b><p>'+safe(x.side_a)+': '+fmt(x.side_a_count)+' · '+safe(x.side_b)+': '+fmt(x.side_b_count)+' · Total: '+fmt(x.prediction_count)+'</p><p>Side imbalance: '+fmt(x.imbalance_percent)+'% · '+safe(x.status)+(x.result_label?' · Result: '+safe(x.result_label):'')+'</p></div><span class="pill">'+(alert?'Review':'Normal')+'</span></div>';
+  }).join(""):'<div class="notice">No match prediction records are available yet.</div>';
+  auditBox.innerHTML=m.settlement.recent.length?m.settlement.recent.map(x=>'<div class="row"><div><b>'+safe(x.event_type)+'</b><p>'+safe(x.event_note)+' · Match #'+safe(x.match_id||"—")+'</p></div><span class="pill">'+new Date(x.created_at).toLocaleString("en-IN")+'</span></div>').join(""):'<div class="notice">No result audit events have been recorded yet.</div>';
+ }catch(e){matchBox.textContent="Monitoring unavailable: "+e.message;auditBox.textContent="Audit data unavailable."}
+}
+document.getElementById("refreshMonitoring").addEventListener("click",loadMonitoring);
 async function loadPredictionMatches(){
  const box=document.getElementById("predictionMatchList");
  try{
