@@ -61,7 +61,7 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
    <div class="row"><div><b>कैजुअल मिनी गेम्स</b><p>केवल वर्चुअल पॉइंट्स के साथ मनोरंजन</p></div><span class="pill">अभी चालू नहीं</span></div>
    <div class="row"><div><b>प्लेयर एक्टिविटी</b><p>हर प्लेयर के अलग सेशन और हिस्ट्री</p></div><span class="pill">डेटाबेस बाकी</span></div>
   </section>
-  <section class="section card" id="cricket"><h2>क्रिकेट डेटा</h2><div class="notice">अभी कोई लाइव क्रिकेट डेटा कनेक्ट नहीं है। इसलिए यहां नकली स्कोर या फिक्स्चर नहीं दिखाए जा रहे। सही डेटा प्रोवाइडर जुड़ने के बाद उपलब्ध प्लान के अनुसार असली फिक्स्चर, लाइव स्कोर, स्कोरकार्ड और कमेंट्री दिखाई जाएगी।</div></section>
+  <section class="section card" id="cricket"><h2>क्रिकेट डेटा · Sportmonks</h2><div class="notice" id="cricketMsg">असली लाइव डेटा प्रोवाइडर कनेक्शन की जांच हो रही है। कोई नकली स्कोर नहीं दिखाया जाएगा।</div><div id="cricketList"></div></section>
   <section class="section card" id="apis"><h2>API और सर्विस कनेक्शन</h2>
    <div class="row"><div><b>क्रिकेट लाइव स्कोर और फिक्स्चर API</b><p>प्रोवाइडर अकाउंट और API क्रेडेंशियल आवश्यक</p></div><span class="pill">कनेक्ट नहीं</span></div>
    <div class="row"><div><b>बॉल-बाय-बॉल / कमेंट्री API</b><p>प्रोवाइडर के प्लान पर निर्भर</p></div><span class="pill">कनेक्ट नहीं</span></div>
@@ -91,13 +91,19 @@ async function loadGaming(){
  document.getElementById("playerCount").textContent=stats.stats.players;
  document.getElementById("gameCount").textContent=stats.stats.games;
  document.getElementById("coinCount").textContent=Number(stats.stats.coins).toLocaleString("en-IN");
- await Promise.all([loadPlayers(),loadRecords()]);
+ await Promise.all([loadPlayers(),loadRecords(),loadCricket()]);
 }
 async function loadPlayers(){
  const box=document.getElementById("playerList"),msg=document.getElementById("playerMsg");
  try{const d=await api("/api/dashboard?module=gaming&action=players");msg.textContent=d.players.length+" प्लेयर";box.innerHTML=d.players.length?d.players.map(p=>'<div class="row"><div><b>'+safe(p.display_name)+' (@'+safe(p.username)+')</b><p>Virtual coins: '+Number(p.virtual_coins).toLocaleString("en-IN")+' · Joined: '+new Date(p.created_at).toLocaleDateString("en-IN")+'</p></div><div style="display:flex;align-items:center;gap:7px"><span class="pill">'+safe(p.status)+'</span><button class="btn" data-player="'+p.id+'" data-status="'+(p.status==="ACTIVE"?"SUSPENDED":"ACTIVE")+'">'+(p.status==="ACTIVE"?"Suspend":"Activate")+'</button></div></div>').join(""):'<div class="notice">अभी कोई प्लेयर रजिस्टर नहीं है।</div>';
  box.querySelectorAll("[data-player]").forEach(b=>b.addEventListener("click",async()=>{try{await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"player_status",player_id:b.dataset.player,status:b.dataset.status})});await loadPlayers()}catch(e){msg.textContent=e.message}}));
  }catch(e){msg.textContent=e.message}
+}
+async function loadCricket(){
+ const msg=document.getElementById("cricketMsg"),box=document.getElementById("cricketList");
+ try{const d=await api("/api/dashboard?module=gaming&action=cricket");if(!d.ok){msg.textContent=d.message||"Cricket API key is not configured.";return}
+ const matches=d.matches||[];msg.textContent="Source: "+d.source+" · "+(d.cached?"cached data":"fresh provider response")+" · "+matches.length+" live match(es).";
+ box.innerHTML=matches.length?matches.map(m=>{const home=m.localteam?.name||m.localteam?.data?.name||"Team";const away=m.visitorteam?.name||m.visitorteam?.data?.name||"Opponent";const score=Array.isArray(m.scoreboards)?m.scoreboards.map(s=>[s.team?.name||s.team_name,s.total||s.score,s.wickets,s.overs].filter(Boolean).join(" ")).join(" · "):"";return '<div class="row"><div><b>'+safe(home)+' vs '+safe(away)+'</b><p>'+safe(m.status||"Scheduled")+' · '+safe(m.starting_at||"")+(score?" · "+safe(score):"")+'</p></div><span class="pill">'+(m.live?"LIVE":"MATCH")+'</span></div>'}).join(""):'<div class="notice">Provider से अभी कोई live match नहीं मिला। Fixtures endpoint अगला चरण होगा।</div>'}catch(e){msg.textContent="Cricket data unavailable: "+e.message}
 }
 async function loadRecords(){
  const box=document.getElementById("recordList"),msg=document.getElementById("recordMsg");
