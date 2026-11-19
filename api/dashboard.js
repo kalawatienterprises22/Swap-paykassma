@@ -134,15 +134,24 @@ module.exports = async (req, res) => {
         const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key=$1 LIMIT 1", [cacheKey]);
         const age = cached.rows[0] ? Date.now() - new Date(cached.rows[0].fetched_at).getTime() : Infinity;
         if (age < maxAge) return cached.rows[0].payload;
-        const response = await fetch(url, { headers: { Accept: "application/json", Authorization: "Bearer " + apiKey } });
-        if (!response.ok) throw new Error("Football provider returned HTTP " + response.status);
-        const payload = await response.json();
-        const data = Array.isArray(payload.data) ? payload.data : [];
-        await pool.query(
-          "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES($1,$2::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
-          [cacheKey, JSON.stringify(data)]
-        );
-        return data;
+        try {
+          const response = await fetch(url, { headers: { Accept: "application/json", Authorization: "Bearer " + apiKey } });
+          if (!response.ok) throw new Error("Football provider returned HTTP " + response.status);
+          const payload = await response.json();
+          if (payload && payload.error) throw new Error(payload.error.message || "Football provider API error");
+          const data = Array.isArray(payload.data) ? payload.data : [];
+          await pool.query(
+            "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES($1,$2::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
+            [cacheKey, JSON.stringify(data)]
+          );
+          return data;
+        } catch (error) {
+          if (cached.rows[0] && Array.isArray(cached.rows[0].payload)) {
+            console.warn("Using cached football data after provider error:", cacheKey, error.message);
+            return cached.rows[0].payload;
+          }
+          throw error;
+        }
       }
 
       const now = new Date();
@@ -153,7 +162,7 @@ module.exports = async (req, res) => {
         30000
       );
       const fixtureDates = [];
-      for (let offset = -7; offset <= 7; offset++) {
+      for (let offset = -2; offset <= 5; offset++) {
         const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offset));
         fixtureDates.push(dateKey(day));
       }
