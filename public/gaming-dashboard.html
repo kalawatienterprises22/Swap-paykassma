@@ -51,7 +51,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
   <a href="#apis">🔌 <span>API Connections</span></a>
   <a href="#players">👥 <span>Player Management</span></a>
   <a href="#records">▤ <span>Game Records</span></a>
-  <a href="#engine">🧮 <span>Engine Control</span></a>
+  <a href="#engine">🧮 <span>Engine Control</span></a>\n  <a href="#prediction-results">🏁 <span>Match Results</span></a>
   <a href="#settings">⚙ <span>Settings</span></a>
   <div class="nav-label">PARIXBET ENTERTAINMENT</div>
  </nav>
@@ -114,6 +114,23 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
    <div style="margin-top:14px"><b>Engine Activity Log</b><pre id="engineLog" style="white-space:pre-wrap;overflow:auto;background:#0b172b;border:1px solid #344b70;border-radius:10px;padding:13px;color:#a7f3d0">Ready · Score-only mode</pre></div>
    <div class="notice" style="margin-top:12px">Demo limitation: this simulator runs in the current admin page session. It does not write to player wallets or the payment database, and its demo scores are not transferable or redeemable.</div>
   </section>
+  <section class="section card" id="prediction-results">
+   <h2>Match Prediction · Result Management</h2>
+   <p class="muted">Provider results are imported automatically when a confirmed winner is available. Admin can enter or correct a result manually.</p>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+    <button class="btn" type="button" id="syncPredictionResults">Sync Automatic Results</button>
+    <span class="muted" id="predictionSyncMsg">Automatic result sync is ready.</span>
+   </div>
+   <form id="predictionMatchForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin:14px 0">
+    <select name="sport" style="padding:11px;border:1px solid #dce3ed;border-radius:8px"><option value="CRICKET">Cricket</option><option value="FOOTBALL">Football</option><option value="OTHER">Other</option></select>
+    <input name="title" required maxlength="200" placeholder="Match / prediction title" style="padding:11px;border:1px solid #dce3ed;border-radius:8px">
+    <input name="side_a" required maxlength="100" placeholder="Team / Side A" style="padding:11px;border:1px solid #dce3ed;border-radius:8px">
+    <input name="side_b" required maxlength="100" placeholder="Team / Side B" style="padding:11px;border:1px solid #dce3ed;border-radius:8px">
+    <input name="scheduled_at" type="datetime-local" style="padding:11px;border:1px solid #dce3ed;border-radius:8px">
+    <button class="btn" type="submit">Add Match</button>
+   </form>
+   <div id="predictionMatchList" class="notice">Loading match results…</div>
+  </section>
   <section class="section card" id="settings"><h2>System Settings & Rules</h2><div class="notice"><b>For entertainment only.</b> Virtual coins have no cash value. They cannot be deposited, withdrawn, exchanged for money, or redeemed for prizes. ParixBet gaming data and virtual balances are completely separate from merchant balances and payment records on the payment platform.</div></section>
   <div class="footer" id="authStatus">Checking admin login…</div>
  </div>
@@ -128,7 +145,7 @@ async function loadGaming(){
  document.getElementById("playerCount").textContent=stats.stats.players;
  document.getElementById("gameCount").textContent=stats.stats.games;
  document.getElementById("coinCount").textContent=Number(stats.stats.coins).toLocaleString("en-IN");
- await Promise.all([loadGames(),loadPlayers(),loadRecords(),loadCricket()]);
+ await Promise.all([loadGames(),loadPlayers(),loadRecords(),loadCricket(),loadPredictionMatches()]);
 }
 async function loadGames(){
  const box=document.getElementById("gameList");
@@ -158,6 +175,37 @@ async function loadRecords(){
  const box=document.getElementById("recordList"),msg=document.getElementById("recordMsg");
  try{const d=await api("/api/dashboard?module=gaming&action=records");msg.textContent=d.records.length+" records";box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">'+Number(x.coins_change).toLocaleString("en-IN")+' virtual</span></div>').join(""):'There are no game records yet.'}catch(e){msg.textContent=e.message}
 }
+async function loadPredictionMatches(){
+ const box=document.getElementById("predictionMatchList");
+ try{
+  const d=await api("/api/dashboard?module=gaming&action=prediction_matches");
+  box.innerHTML=d.matches.length?d.matches.map(m=>{
+   const status=m.result_side?"RESULT: "+safe(m.result_label||m.result_side):"RESULT PENDING";
+   const source=m.result_source==="API"?"Automatic API":m.result_source==="MANUAL"?"Manual Admin":m.result_source==="API_REVIEW"?"API · Manual review needed":"—";
+   return '<div class="row" style="align-items:flex-start"><div style="min-width:0;flex:1"><b>'+safe(m.title)+'</b><p>'+safe(m.sport)+' · '+safe(m.side_a)+' vs '+safe(m.side_b)+'</p><p>'+status+' · '+safe(source)+' · Predictions: '+Number(m.prediction_count||0)+' · Correct: '+Number(m.correct_count||0)+'</p></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn" data-result-match="'+m.id+'" data-result-side="A">'+safe(m.side_a)+' won</button><button class="btn" data-result-match="'+m.id+'" data-result-side="B">'+safe(m.side_b)+' won</button></div></div>';
+  }).join(""):'<div class="notice">No matches have been added yet. Add a match or sync provider results.</div>';
+  box.querySelectorAll("[data-result-match]").forEach(b=>b.addEventListener("click",async()=>{
+   if(!confirm("Save this as the final match result?"))return;
+   b.disabled=true;
+   try{const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"manual_match_result",match_id:Number(b.dataset.resultMatch),result_side:b.dataset.resultSide})});document.getElementById("predictionSyncMsg").textContent="Manual result saved. "+d.predictions.correct+" correct prediction(s) out of "+d.predictions.total+".";await loadPredictionMatches()}
+   catch(e){document.getElementById("predictionSyncMsg").textContent=e.message;b.disabled=false}
+  }));
+ }catch(e){box.textContent="Could not load match results: "+e.message}
+}
+document.getElementById("predictionMatchForm").addEventListener("submit",async e=>{
+ e.preventDefault();const form=e.currentTarget,button=form.querySelector("button[type=submit]");
+ button.disabled=true;
+ try{const payload=Object.fromEntries(new FormData(form));await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"create_prediction_match",...payload})});form.reset();document.getElementById("predictionSyncMsg").textContent="Match added.";await loadPredictionMatches()}
+ catch(err){document.getElementById("predictionSyncMsg").textContent=err.message}
+ finally{button.disabled=false}
+});
+document.getElementById("syncPredictionResults").addEventListener("click",async()=>{
+ const button=document.getElementById("syncPredictionResults"),msg=document.getElementById("predictionSyncMsg");
+ button.disabled=true;msg.textContent="Checking connected sports data providers…";
+ try{const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"sync_match_results"})});msg.textContent="Checked "+d.checked+" finished matches · Automatically updated "+d.updated+" · Need manual review "+d.needs_manual_review+(d.errors?.length?" · "+d.errors.join(" | "):"");await loadPredictionMatches()}
+ catch(e){msg.textContent="Sync failed: "+e.message}
+ finally{button.disabled=false}
+});
 function safe(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
 document.getElementById("playerForm").addEventListener("submit",async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector("button"),msg=document.getElementById("playerMsg");button.disabled=true;try{const payload=Object.fromEntries(new FormData(form));const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"create_player",...payload})});form.reset();msg.textContent="Player created: "+d.player.username+" · 1,000 starter virtual coins were added.";await loadGaming()}catch(err){msg.textContent=err.message}finally{button.disabled=false}});
 async function init(){
