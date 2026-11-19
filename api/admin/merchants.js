@@ -53,7 +53,7 @@ async function handleTelegramWebhook(req,res) {
     return sendJson(res,200,{ok:true});
   }
   const raw=payload.slice(5);
-  if (!/^[a-f0-9]{64}$/i.test(raw)) return sendJson(res,200,{ok:true});
+  if (!/^[a-f0-9]{58}$/i.test(raw)) return sendJson(res,200,{ok:true});
   const hash=crypto.createHash("sha256").update(raw).digest("hex");
   const linked=await getPool().query("UPDATE sp_merchant_onboarding SET telegram_chat_id=$1,telegram_username=$2,telegram_verified_at=now(),telegram_link_token_hash=NULL,telegram_link_expires_at=NULL WHERE telegram_link_token_hash=$3 AND telegram_link_expires_at>now() AND telegram_chat_id IS NULL RETURNING merchant_id",[String(chatId),String(msg.from?.username||"").slice(0,80)||null,hash]);
   await telegramCall("sendMessage",{chat_id:chatId,text:linked.rowCount?"Telegram connected. Your SuperPay signup is waiting for Super Admin approval.":"This signup link is invalid or expired. Please register again to generate a fresh link."});
@@ -110,7 +110,7 @@ module.exports = async (req, res) => {
       if(duplicate.rowCount) return sendJson(res,409,{ok:false,message:duplicate.rows[0].duplicate_type==="MOBILE"?"This mobile number is already registered. Please use another number.":"This PAN number is already registered with SuperPay."});
       const passwordHash=await bcrypt.hash(crypto.randomBytes(48).toString("hex"),12);
       const created=await pool.query("INSERT INTO sp_users(id,user_id,email,password_hash,display_name,role,status,parent_admin_id) VALUES($1,$2,$3,$4,$5,'MERCHANT','SUSPENDED',$6) RETURNING id,user_id,display_name,role,status",[crypto.randomUUID(),accountId,accountEmail,passwordHash,name,referral.rows[0].admin_id]);
-      const linkToken=crypto.randomBytes(32).toString("hex"), linkHash=crypto.createHash("sha256").update(linkToken).digest("hex");
+      const linkToken=crypto.randomBytes(29).toString("hex"), linkHash=crypto.createHash("sha256").update(linkToken).digest("hex");
       await pool.query("INSERT INTO sp_merchant_onboarding(merchant_id,phone,full_address,pan_number_encrypted,aadhaar_number_encrypted,phone_normalized,pan_fingerprint,telegram_link_token_hash,telegram_link_expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()+interval '30 minutes')",[created.rows[0].id,mobile,fullAddress,encryptKyc(pan),encryptKyc(aadhaar),normalizedMobile,panHash,linkHash]);
       await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REFERRED_SIGNUP','MERCHANT',$2,$3)",[referral.rows[0].admin_id,created.rows[0].id,JSON.stringify({merchant_user_id:accountId,referral_admin_user_id:referral.rows[0].admin_user_id})]);
       await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE (id=$2 OR role='SUPER_ADMIN') AND status='ACTIVE'",[`Merchant ${accountId} registered. Telegram connection and Super Admin approval are required.`,referral.rows[0].admin_id]);
