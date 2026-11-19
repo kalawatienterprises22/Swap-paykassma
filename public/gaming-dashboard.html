@@ -25,7 +25,7 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
 .pill{font-size:10px;padding:5px 8px;border-radius:20px;background:#eef1f5;color:#596579;white-space:nowrap}
 .notice{background:#f7f9fc;border:1px solid var(--line);padding:14px;border-radius:10px;color:#5f6d82;font-size:12px;line-height:1.7}
 .menu{display:none;background:none;border:0;font-size:22px;color:var(--ink);padding:4px 8px}
-.footer{padding:15px 0;color:var(--muted);font-size:11px}
+.footer{padding:15px 0;color:var(--muted);font-size:11px}\n.btn{border:0;border-radius:8px;padding:9px 12px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer}.btn:disabled{opacity:.55;cursor:wait}
 @media(max-width:900px){.sidebar{transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.menu{display:block}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wrap{padding:17px}.topbar{padding:0 15px}}
 @media(max-width:480px){.heading{align-items:flex-start;flex-direction:column}.grid{gap:9px}.card{padding:13px}.metric{font-size:22px}.topbar strong{font-size:12px}}
 </style>
@@ -55,11 +55,9 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
    <div class="card"><div class="metric-label">Live Cricket Matches</div><div class="metric">—</div><span class="pending">Live API Pending</span></div>
    <div class="card"><div class="metric-label">Total Virtual Coins</div><div class="metric" id="coinCount">—</div><span class="pending">Virtual Coins Only</span></div>
   </div>
-  <section class="section card" id="games"><h2>Games & Activity</h2>
-   <div class="row"><div><b>Crash-style Arcade Game</b><p>Game sessions, results, and player activity records</p></div><span class="pill">Not Available Yet</span></div>
-   <div class="row"><div><b>Cricket Center</b><p>Fixtures, live scores, scorecards, and commentary</p></div><span class="pill">Awaiting API</span></div>
-   <div class="row"><div><b>Casual Mini Games</b><p>Entertainment with virtual points only</p></div><span class="pill">Not Available Yet</span></div>
-   <div class="row"><div><b>Player Activity</b><p>Individual sessions and history for each player</p></div><span class="pill">Database Setup Pending</span></div>
+  <section class="section card" id="games"><h2>Game Management</h2>
+   <p class="muted">Enable or disable games shown in the Player Portal. Disabled games cannot be started.</p>
+   <div id="gameList"><div class="notice">Loading game settings…</div></div>
   </section>
   <section class="section card" id="cricket"><h2>Cricket Data · Sportmonks</h2><div class="notice" id="cricketMsg">Checking the live data provider connection. No fake scores will be displayed.</div><div id="cricketList"></div></section>
   <section class="section card" id="apis"><h2>API & Service Connections</h2>
@@ -91,7 +89,19 @@ async function loadGaming(){
  document.getElementById("playerCount").textContent=stats.stats.players;
  document.getElementById("gameCount").textContent=stats.stats.games;
  document.getElementById("coinCount").textContent=Number(stats.stats.coins).toLocaleString("en-IN");
- await Promise.all([loadPlayers(),loadRecords(),loadCricket()]);
+ await Promise.all([loadGames(),loadPlayers(),loadRecords(),loadCricket()]);
+}
+async function loadGames(){
+ const box=document.getElementById("gameList");
+ try{
+  const d=await api("/api/dashboard?module=gaming&action=games");
+  box.innerHTML=d.games.map(g=>'<div class="row"><div><b>'+safe(g.title)+'</b><p>'+safe(g.description)+' · '+safe(g.game_code)+'</p></div><div style="display:flex;align-items:center;gap:8px"><span class="pill">'+(g.enabled?"ENABLED":"DISABLED")+'</span><button class="btn" data-game="'+safe(g.game_code)+'" data-enabled="'+(!g.enabled)+'">'+(g.enabled?"Turn OFF":"Turn ON")+'</button></div></div>').join("");
+  box.querySelectorAll("[data-game]").forEach(button=>button.addEventListener("click",async()=>{
+   button.disabled=true;
+   try{await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"game_status",game_code:button.dataset.game,enabled:button.dataset.enabled==="true"})});await loadGames()}
+   catch(e){box.insertAdjacentHTML("afterbegin",'<div class="notice">'+safe(e.message)+'</div>');button.disabled=false}
+  }));
+ }catch(e){box.innerHTML='<div class="notice">'+safe(e.message)+'</div>'}
 }
 async function loadPlayers(){
  const box=document.getElementById("playerList"),msg=document.getElementById("playerMsg");
