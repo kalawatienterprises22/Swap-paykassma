@@ -31,7 +31,7 @@ function decryptKyc(value) {
   return Buffer.concat([decipher.update(Buffer.from(parts[3], "hex")), decipher.final()]).toString("utf8");
 }
 function normalizeMobile(value) {
-  let digits = String(value || "").replace(/\\D/g, "");
+  let digits = String(value || "").replace(/\D/g, "");
   if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
   return digits;
 }
@@ -96,6 +96,7 @@ module.exports = async (req, res) => {
       if(!accountId) return sendJson(res,503,{ok:false,message:"Could not generate Merchant ID. Please try again."});
       const accountEmail=typeof email==="string"&&email.trim()?email.trim().toLowerCase():null, mobile=String(phone||"").trim(), fullAddress=String(address||"").trim();
       const pan=String(pan_number||"").trim().toUpperCase(), aadhaar=String(aadhaar_number||"").replace(/\D/g,"");
+      const normalizedMobile=normalizeMobile(mobile), panHash=panFingerprint(pan);
       if(!/^[A-Za-z0-9_-]{20,100}$/.test(code)) return sendJson(res,400,{ok:false,message:"Invalid referral link"});
       if(name.length<2||name.length>80) return sendJson(res,400,{ok:false,message:"Name must be 2-80 characters"});
       if(mobile.length<8||mobile.length>20||normalizedMobile.length<8||normalizedMobile.length>15) return sendJson(res,400,{ok:false,message:"Enter a valid mobile number"});
