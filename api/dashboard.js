@@ -131,6 +131,38 @@ module.exports = async (req, res) => {
     }
   }
 
+  const isPlayerGame = req.query && req.query.module === "gaming-play";
+  if (isPlayerGame) {
+    if (!allowMethods(req, res, ["POST"])) return;
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    let player;
+    try { player = token ? verifyToken(token) : null; } catch {}
+    if (!player || player.role !== "GAMING_PLAYER" || !player.sub) {
+      return sendJson(res, 401, { ok: false, message: "ParixBet player login required" });
+    }
+    try {
+      const pool = getPool();
+      await ensureGamingTables(pool);
+      const taps = Number(req.body && req.body.taps);
+      const durationMs = Number(req.body && req.body.duration_ms);
+      if (!Number.isInteger(taps) || taps < 0 || taps > 500 ||
+          !Number.isInteger(durationMs) || durationMs < 5000 || durationMs > 60000) {
+        return sendJson(res, 400, { ok: false, message: "Invalid game result" });
+      }
+      const active = await pool.query("SELECT id FROM sp_game_players WHERE id=$1 AND status='ACTIVE' LIMIT 1",[player.sub]);
+      if (!active.rowCount) return sendJson(res,403,{ok:false,message:"Player account is unavailable"});
+      const saved = await pool.query(
+        "INSERT INTO sp_game_sessions(player_id,game_code,result,coins_change) VALUES($1,'TAP_CHALLENGE',$2::jsonb,0) RETURNING id,created_at",
+        [player.sub,JSON.stringify({taps,duration_ms:durationMs,points_awarded:0})]
+      );
+      return sendJson(res,200,{ok:true,session:saved.rows[0],score:taps,message:"Score saved. Virtual points were not changed."});
+    } catch (error) {
+      console.error("ParixBet game save error:",error.message);
+      return sendJson(res,500,{ok:false,message:"Game result could not be saved"});
+    }
+  }
+
   const isGaming = req.query && req.query.module === "gaming";
   if (isGaming) {
     if (!["GET", "POST", "PATCH"].includes(req.method)) {
