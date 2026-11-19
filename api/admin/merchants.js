@@ -55,8 +55,9 @@ async function handleTelegramWebhook(req,res) {
   const raw=payload.slice(5);
   if (!/^[a-f0-9]{58}$/i.test(raw)) return sendJson(res,200,{ok:true});
   const hash=crypto.createHash("sha256").update(raw).digest("hex");
-  const linked=await getPool().query("UPDATE sp_merchant_onboarding SET telegram_chat_id=$1,telegram_username=$2,telegram_verified_at=now(),telegram_link_token_hash=NULL,telegram_link_expires_at=NULL WHERE telegram_link_token_hash=$3 AND telegram_link_expires_at>now() AND telegram_chat_id IS NULL RETURNING merchant_id",[String(chatId),String(msg.from?.username||"").slice(0,80)||null,hash]);
-  await telegramCall("sendMessage",{chat_id:chatId,text:linked.rowCount?"Telegram connected. Your SuperPay signup is waiting for Super Admin approval.":"This signup link is invalid or expired. Please register again to generate a fresh link."});
+  const linked=await getPool().query("UPDATE sp_merchant_onboarding SET telegram_chat_id=COALESCE(telegram_chat_id,$1),telegram_username=$2,telegram_verified_at=now(),telegram_link_token_hash=NULL,telegram_link_expires_at=NULL WHERE telegram_link_token_hash=$3 AND telegram_link_expires_at>now() AND (telegram_chat_id IS NULL OR telegram_chat_id=$1) RETURNING merchant_id",[String(chatId),String(msg.from?.username||"").slice(0,80)||null,hash]);
+  const text=linked.rowCount?"Telegram connected. Your SuperPay signup is waiting for Super Admin approval.":"This link can only be used from the Telegram account previously connected to this Merchant, or it may be invalid/expired.";
+  await telegramCall("sendMessage",{chat_id:chatId,text});
   return sendJson(res,200,{ok:true});
 }
 
@@ -106,15 +107,29 @@ module.exports = async (req, res) => {
       if(accountEmail&&(accountEmail.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(accountEmail))) return sendJson(res,400,{ok:false,message:"Enter a valid email address"});
       const referral=await pool.query("SELECT r.admin_id,a.user_id AS admin_user_id FROM sp_admin_referrals r JOIN sp_users a ON a.id=r.admin_id WHERE r.code=$1 AND r.active=TRUE AND a.role='ADMIN' AND a.status='ACTIVE'",[code]);
       if(!referral.rowCount) return sendJson(res,404,{ok:false,message:"This referral link is invalid or inactive"});
-      const duplicate=await pool.query("SELECT CASE WHEN phone_normalized=$1 THEN 'MOBILE' WHEN pan_fingerprint=$2 THEN 'PAN' END AS duplicate_type FROM sp_merchant_onboarding WHERE phone_normalized=$1 OR pan_fingerprint=$2 LIMIT 1",[normalizedMobile,panHash]);
-      if(duplicate.rowCount) return sendJson(res,409,{ok:false,message:duplicate.rows[0].duplicate_type==="MOBILE"?"This mobile number is already registered. Please use another number.":"This PAN number is already registered with SuperPay."});
-      const passwordHash=await bcrypt.hash(crypto.randomBytes(48).toString("hex"),12);
-      const created=await pool.query("INSERT INTO sp_users(id,user_id,email,password_hash,display_name,role,status,parent_admin_id) VALUES($1,$2,$3,$4,$5,'MERCHANT','SUSPENDED',$6) RETURNING id,user_id,display_name,role,status",[crypto.randomUUID(),accountId,accountEmail,passwordHash,name,referral.rows[0].admin_id]);
+      const duplicate=await pool.query("SELECT merchant_id,phone_normalized,pan_fingerprint,review_status,telegram_chat_id FROM sp_merchant_onboarding WHERE phone_normalized=$1 OR pan_fingerprint=$2 LIMIT 2",[normalizedMobile,panHash]);
+      let createdMerchant=null;
+      if(duplicate.rowCount){
+        const prior=duplicate.rows.length===1?duplicate.rows[0]:null;
+        const canReuse=!!prior&&prior.phone_normalized===normalizedMobile&&prior.pan_fingerprint===panHash&&prior.review_status==="REJECTED"&&!!prior.telegram_chat_id;
+        if(!canReuse) return sendJson(res,409,{ok:false,message:duplicate.rows[0].phone_normalized===normalizedMobile?"This mobile number is already registered. Please use the same Telegram account previously linked to this Merchant, or contact Super Admin.":"This PAN number is already registered with SuperPay."});
+        const reused=await pool.query("UPDATE sp_users SET display_name=$1,email=$2,parent_admin_id=$3,status='SUSPENDED',updated_at=now() WHERE id=$4 AND role='MERCHANT' RETURNING id,user_id,display_name,role,status",[name,accountEmail,referral.rows[0].admin_id,prior.merchant_id]);
+        if(!reused.rowCount) return sendJson(res,409,{ok:false,message:"The previous Merchant account could not be reopened. Please contact Super Admin."});
+        createdMerchant=reused.rows[0];
+      } else {
+        const passwordHash=await bcrypt.hash(crypto.randomBytes(48).toString("hex"),12);
+        const created=await pool.query("INSERT INTO sp_users(id,user_id,email,password_hash,display_name,role,status,parent_admin_id) VALUES($1,$2,$3,$4,$5,'MERCHANT','SUSPENDED',$6) RETURNING id,user_id,display_name,role,status",[crypto.randomUUID(),accountId,accountEmail,passwordHash,name,referral.rows[0].admin_id]);
+        createdMerchant=created.rows[0];
+      }
       const linkToken=crypto.randomBytes(29).toString("hex"), linkHash=crypto.createHash("sha256").update(linkToken).digest("hex");
-      await pool.query("INSERT INTO sp_merchant_onboarding(merchant_id,phone,full_address,pan_number_encrypted,aadhaar_number_encrypted,phone_normalized,pan_fingerprint,telegram_link_token_hash,telegram_link_expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()+interval '30 minutes')",[created.rows[0].id,mobile,fullAddress,encryptKyc(pan),encryptKyc(aadhaar),normalizedMobile,panHash,linkHash]);
+      if(duplicate.rowCount){
+        await pool.query("UPDATE sp_merchant_onboarding SET phone=$1,full_address=$2,pan_number_encrypted=$3,aadhaar_number_encrypted=$4,telegram_link_token_hash=$5,telegram_link_expires_at=now()+interval '30 minutes',review_status='PENDING',setup_token_hash=NULL,setup_expires_at=NULL,setup_used_at=NULL WHERE merchant_id=$6",[mobile,fullAddress,encryptKyc(pan),encryptKyc(aadhaar),linkHash,createdMerchant.id]);
+      } else {
+        await pool.query("INSERT INTO sp_merchant_onboarding(merchant_id,phone,full_address,pan_number_encrypted,aadhaar_number_encrypted,phone_normalized,pan_fingerprint,telegram_link_token_hash,telegram_link_expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()+interval '30 minutes')",[createdMerchant.id,mobile,fullAddress,encryptKyc(pan),encryptKyc(aadhaar),normalizedMobile,panHash,linkHash]);
+      }
       await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REFERRED_SIGNUP','MERCHANT',$2,$3)",[referral.rows[0].admin_id,created.rows[0].id,JSON.stringify({merchant_user_id:accountId,referral_admin_user_id:referral.rows[0].admin_user_id})]);
       await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE (id=$2 OR role='SUPER_ADMIN') AND status='ACTIVE'",[`Merchant ${accountId} registered. Telegram connection and Super Admin approval are required.`,referral.rows[0].admin_id]);
-      return sendJson(res,201,{ok:true,message:"Registration saved. Connect Telegram to finish verification.",bot_url:"https://t.me/superpay_notification_bot?start=link_"+linkToken,merchant:created.rows[0]});
+      return sendJson(res,201,{ok:true,message:"Registration saved. Connect Telegram to finish verification.",bot_url:"https://t.me/superpay_notification_bot?start=link_"+linkToken,merchant:createdMerchant});
     }
 
     if(req.method==="POST"&&req.body?.action==="set_merchant_password"){
@@ -287,6 +302,23 @@ module.exports = async (req, res) => {
         await client.query("COMMIT");return sendJson(res,200,{ok:true,message:"Merchant approved. Telegram message sent automatically."});
       }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
     }
+    if(action==="reset_registration"){
+      if(actor.role!=="SUPER_ADMIN") return sendJson(res,403,{ok:false,message:"Only Super Admin can reset Merchant registration"});
+      const client=await pool.connect();
+      try{
+        await client.query("BEGIN");
+        const target=await client.query("SELECT u.id,u.user_id,o.telegram_chat_id,o.telegram_verified_at FROM sp_users u JOIN sp_merchant_onboarding o ON o.merchant_id=u.id WHERE u.id=$1 AND u.role='MERCHANT' FOR UPDATE OF u,o",[id]);
+        if(!target.rowCount){await client.query("ROLLBACK");return sendJson(res,404,{ok:false,message:"Merchant registration record not found"});}
+        const m=target.rows[0];
+        if(!m.telegram_chat_id||!m.telegram_verified_at){await client.query("ROLLBACK");return sendJson(res,400,{ok:false,message:"This Merchant has no verified Telegram account to identify. Reset is available after Telegram is connected."});}
+        await client.query("UPDATE sp_users SET status='SUSPENDED',updated_at=now() WHERE id=$1",[id]);
+        await client.query("UPDATE sp_merchant_onboarding SET review_status='REJECTED',telegram_link_token_hash=NULL,telegram_link_expires_at=NULL,setup_token_hash=NULL,setup_expires_at=NULL,setup_used_at=COALESCE(setup_used_at,now()) WHERE merchant_id=$1",[id]);
+        await client.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REGISTRATION_RESET','MERCHANT',$2,$3)",[actor.sub,id,JSON.stringify({merchant_user_id:m.user_id,telegram_chat_id_retained:true})]);
+        await client.query("COMMIT");
+        return sendJson(res,200,{ok:true,message:"Registration reset. The same Telegram account can submit a fresh application; its Merchant ID and financial records remain unchanged."});
+      }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
+    }
+
     if (action === "transfer_merchant") {
       if (actor.role !== "SUPER_ADMIN") return sendJson(res, 403, { ok: false, message: "Super Admin access required for transfers" });
       const newParent = req.body?.parent_admin_id ? String(req.body.parent_admin_id) : null;
