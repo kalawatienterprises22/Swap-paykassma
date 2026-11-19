@@ -1,7 +1,31 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ParixBet | Player</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#101a30;color:#eef4ff;font:14px Arial,sans-serif;min-height:100vh}.wrap{max-width:480px;margin:0 auto;padding:26px 16px}.brand{text-align:center;font-size:23px;font-weight:800;margin:24px 0 8px}.brand span{color:#72aaff}.sub{text-align:center;color:#aab8d0;font-size:12px;line-height:1.6;margin-bottom:24px}.panel{background:#fff;color:#19253a;border-radius:16px;padding:22px;box-shadow:0 18px 50px #0004}.tabs{display:flex;background:#eef2f8;padding:4px;border-radius:10px;margin-bottom:18px}.tabs button{width:50%;border:0;padding:10px;border-radius:8px;background:transparent;color:#53627a;font-weight:700}.tabs button.active{background:#fff;color:#215fbd;box-shadow:0 2px 8px #0001}label{display:block;font-size:12px;font-weight:700;margin:13px 0 6px}input{width:100%;padding:12px;border:1px solid #dce3ed;border-radius:8px;font-size:14px}button.submit{width:100%;border:0;border-radius:9px;padding:13px;background:#286bd6;color:#fff;font-weight:800;margin-top:18px}.msg{font-size:12px;color:#b42318;min-height:18px;margin-top:12px}.disclose{font-size:11px;color:#65748b;line-height:1.6;margin-top:16px}.hidden{display:none!important}.wallet{background:linear-gradient(120deg,#2156a6,#2b80db);color:#fff;border-radius:13px;padding:20px;margin:14px 0}.wallet small{opacity:.8}.coins{font-size:32px;font-weight:800;margin-top:8px}.game{padding:15px;border:1px solid #e4eaf2;border-radius:12px;margin-top:12px}.game h3{margin:0 0 6px;font-size:15px}.muted{color:#748197;font-size:12px;line-height:1.5}.logout{background:#eef2f8;color:#44536b;border:0;padding:10px;border-radius:8px;width:100%;margin-top:16px}
+:root{--bg:#080f20;--panel:#111e38;--line:#2a4168;--ink:#f5f8ff;--muted:#a9bad6;--blue:#4b8eff;--cyan:#51dce8;--purple:#9878ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -10%,#314a83 0,transparent 42%),linear-gradient(180deg,#0a1327,#070d1b);color:var(--ink);font:15px Inter,system-ui,Arial,sans-serif;min-height:100vh}
+.wrap{max-width:570px;margin:0 auto;padding:25px 17px 45px}.brand{text-align:center;font-size:32px;font-weight:950;letter-spacing:-1px;margin:24px 0 9px;text-shadow:0 5px 24px #438bff55}.brand span{color:var(--cyan)}
+.sub{text-align:center;color:#b1c2df;font-size:13px;font-weight:600;line-height:1.75;margin-bottom:27px}
+.panel{background:linear-gradient(145deg,#172847,#101b32);color:var(--ink);border:1px solid #30476d;border-radius:20px;padding:24px;box-shadow:0 20px 60px #0005}
+.tabs{display:flex;background:#0b172d;padding:5px;border:1px solid #2a4168;border-radius:12px;margin-bottom:20px}
+.tabs button{width:50%;border:0;padding:12px;border-radius:9px;background:transparent;color:#9fb2d2;font-weight:850;font-size:13px}
+.tabs button.active{background:linear-gradient(110deg,#347be8,#7658df);color:#fff;box-shadow:0 6px 18px #326bd955}
+label{display:block;font-size:12px;font-weight:850;letter-spacing:.3px;margin:15px 0 7px;color:#d8e5fa}
+input{width:100%;padding:14px;border:1px solid #3a5278;border-radius:10px;background:#0a162c;color:#fff;font-size:14px;font-weight:650;outline:none}
+input:focus{border-color:#68a4ff;box-shadow:0 0 0 3px #438cff22}input::placeholder{color:#8095b7}
+button.submit{width:100%;border:1px solid #73a8ff;border-radius:11px;padding:14px;background:linear-gradient(105deg,#347be8,#7957df);color:#fff;font-weight:950;font-size:14px;letter-spacing:.3px;margin-top:19px;box-shadow:0 8px 22px #2858a955;cursor:pointer}
+button.submit:active{transform:scale(.99)}button.submit:disabled{opacity:.55}
+.msg{font-size:12px;color:#ff9b9b;min-height:18px;margin-top:12px;font-weight:700}
+.disclose{font-size:11px;color:#a7b8d4;line-height:1.7;margin-top:18px;padding:12px;background:#0b172b;border:1px solid #2b4164;border-radius:10px}
+.hidden{display:none!important}
+.wallet{background:linear-gradient(120deg,#245bb4,#386fe0 55%,#7655d8);border:1px solid #80aaff55;color:#fff;border-radius:17px;padding:23px;margin:17px 0 22px;box-shadow:0 12px 28px #1c4b9a55;position:relative;overflow:hidden}
+.wallet:after{content:"";position:absolute;width:150px;height:150px;border-radius:50%;right:-50px;top:-60px;background:#fff1}
+.wallet small{opacity:.88;font-size:11px;font-weight:900;letter-spacing:1.2px}.coins{font-size:43px;font-weight:1000;letter-spacing:-1px;margin:9px 0 4px}
+#playerPanel h2{font-size:22px;font-weight:950;letter-spacing:-.4px}#playerPanel>h3{font-size:17px;font-weight:950;margin:20px 0 12px}
+.game{padding:18px;border:1px solid #30476b;background:linear-gradient(145deg,#172b4b,#101d34);border-radius:15px;margin-top:13px;box-shadow:0 8px 22px #0002}
+.game h3{margin:0 0 8px;font-size:16px;font-weight:950;color:#f4f7ff}.muted{color:#a9bad5;font-size:12px;line-height:1.7;font-weight:550}
+#tapScore{color:#7ce6ef!important;font-size:30px!important;font-weight:1000!important}
+.logout{background:#1c2c49;color:#dce8fb;border:1px solid #3a5278;padding:12px;border-radius:10px;width:100%;margin-top:18px;font-weight:850}
+@media(max-width:420px){.wrap{padding:16px 12px 35px}.panel{padding:18px}.brand{font-size:29px}.coins{font-size:38px}}
 </style></head><body><div class="wrap">
 <div class="brand">ParixBet <span>Gaming</span></div><div class="sub">Entertainment games · Virtual points only<br>No real money, deposits, withdrawals or cash value.</div>
 <section class="panel" id="authPanel"><div class="tabs"><button id="loginTab" class="active" type="button">Login</button><button id="registerTab" type="button">Create account</button></div>
