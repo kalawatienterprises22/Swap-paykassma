@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
         try {
           await client.query("BEGIN");
           const created = await client.query(
-            "INSERT INTO sp_game_players (username,display_name,password_hash) VALUES ($1,$2,$3) RETURNING id,user_name",
+            "INSERT INTO sp_game_players (username,display_name,password_hash) VALUES ($1,$2,$3) RETURNING id,username",
             [username,name,hash]
           );
           await client.query("INSERT INTO sp_game_wallets (player_id,virtual_coins) VALUES ($1,1000)",[created.rows[0].id]);
