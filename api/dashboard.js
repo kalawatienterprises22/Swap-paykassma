@@ -63,9 +63,7 @@ async function ensureGamingTables(pool) {
     );
     INSERT INTO sp_game_settings(game_code,title,description,enabled) VALUES
       ('TAP_CHALLENGE','Tap Speed Challenge','10-second reaction and tapping game',TRUE),
-      ('CRICKET_CENTRE','Cricket Centre','Cricket information and verified live data',TRUE),
-      ('ARCADE_CRASH','Arcade Challenge','Casual arcade game; no wagering or cash prizes',FALSE),
-      ('MEMORY_MATCH','Memory Match','Casual memory mini-game',FALSE)
+      ('CRICKET_CENTRE','Cricket Centre','Cricket information and verified live data',TRUE)
     ON CONFLICT(game_code) DO NOTHING;
   `);
 }
