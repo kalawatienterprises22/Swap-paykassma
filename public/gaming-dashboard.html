@@ -32,6 +32,12 @@ input{background:#0b172b!important;color:#f4f7ff!important;border:1px solid #344
 @media(max-width:1050px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.sidebar{transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.menu{display:block}.wrap{padding:20px}.topbar{padding:0 16px}}
 @media(max-width:520px){.heading{align-items:flex-start;flex-direction:column}.grid{gap:10px}.card{padding:16px}.metric{font-size:28px}.topbar strong{font-size:12px}.wrap{padding:15px}h1{font-size:25px}.row{align-items:flex-start}.btn{padding:9px 11px}}
+/* Colorful sports-and-arcade atmosphere */
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(circle at 92% 23%,#ff9b3d20,transparent 18%),radial-gradient(circle at 42% 75%,#24d6c51a,transparent 23%),radial-gradient(circle at 75% 88%,#9d65ff1b,transparent 20%)}
+.main,.sidebar{position:relative;z-index:1}.main{z-index:1}.sidebar{z-index:5}
+.ambient-art{position:fixed;right:22px;top:90px;display:flex;gap:12px;opacity:.20;pointer-events:none;z-index:0}.ambient-art span{display:grid;place-items:center;width:48px;height:48px;border:1px solid #6f9cff66;border-radius:15px;background:linear-gradient(145deg,#315c9c66,#7b4cc466);font-size:23px;box-shadow:0 8px 25px #0002}
+.grid .card:nth-child(1){background:linear-gradient(135deg,#183c69,#14213d)}.grid .card:nth-child(2){background:linear-gradient(135deg,#41316f,#172342)}.grid .card:nth-child(3){background:linear-gradient(135deg,#145a62,#14243e)}.grid .card:nth-child(4){background:linear-gradient(135deg,#70452c,#25203e)}
+@media(max-width:900px){.ambient-art{right:12px;top:77px;opacity:.15}.ambient-art span{width:36px;height:36px;font-size:18px}}
 </style>
 </head>
 <body>
@@ -49,7 +55,7 @@ input{background:#0b172b!important;color:#f4f7ff!important;border:1px solid #344
   <div class="nav-label">PARIXBET ENTERTAINMENT</div>
  </nav>
 </aside>
-<main class="main">
+<div class="ambient-art" aria-hidden="true"><span>🏏</span><span>⚽</span><span>🃏</span><span>✈️</span></div>\n<main class="main">
  <header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu" aria-label="Open menu">☰</button><strong>Gaming Control Dashboard</strong></div><div style="display:flex;gap:14px;align-items:center"><a href="/game-portal.html" target="_blank">Player Portal ↗</a></div></header>
  <div class="wrap" id="overview">
   <div class="heading"><div><h1>Gaming Overview</h1><div class="muted">Separate gaming system · Player data and virtual points are recorded independently</div></div><span class="status">SETUP IN PROGRESS</span></div>
