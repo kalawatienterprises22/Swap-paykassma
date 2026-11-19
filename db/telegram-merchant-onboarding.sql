@@ -21,3 +21,12 @@ CREATE INDEX IF NOT EXISTS sp_merchant_onboarding_pending_idx
 -- Encrypted KYC fields for referral-based Merchant registrations.
 ALTER TABLE sp_merchant_onboarding ADD COLUMN IF NOT EXISTS pan_number_encrypted TEXT;
 ALTER TABLE sp_merchant_onboarding ADD COLUMN IF NOT EXISTS aadhaar_number_encrypted TEXT;
+
+-- Prevent duplicate Merchant registrations by normalized mobile number and PAN fingerprint.
+ALTER TABLE sp_merchant_onboarding ADD COLUMN IF NOT EXISTS phone_normalized TEXT;
+ALTER TABLE sp_merchant_onboarding ADD COLUMN IF NOT EXISTS pan_fingerprint TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS sp_merchant_onboarding_phone_unique
+  ON sp_merchant_onboarding(phone_normalized) WHERE phone_normalized IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS sp_merchant_onboarding_pan_unique
+  ON sp_merchant_onboarding(pan_fingerprint) WHERE pan_fingerprint IS NOT NULL;
+-- telegram_chat_id already has a UNIQUE constraint in the original table definition.
