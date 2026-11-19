@@ -63,7 +63,8 @@ async function ensureGamingTables(pool) {
     );
     INSERT INTO sp_game_settings(game_code,title,description,enabled) VALUES
       ('TAP_CHALLENGE','Tap Speed Challenge','10-second reaction and tapping game',TRUE),
-      ('CRICKET_CENTRE','Cricket Centre','Cricket information and verified live data',TRUE)
+      ('CRICKET_CENTRE','Cricket Centre','Cricket information and verified live data',TRUE),
+      ('FOOTBALL_CENTRE','Football Centre','Football live scores, fixtures and results',TRUE)
     ON CONFLICT(game_code) DO NOTHING;
   `);
 }
@@ -109,6 +110,75 @@ function getAdmin(req, res) {
 }
 
 module.exports = async (req, res) => {
+  const isPlayerFootball = req.query && req.query.module === "gaming-football";
+  if (isPlayerFootball) {
+    if (!allowMethods(req, res, ["GET"])) return;
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    let player;
+    try { player = token ? verifyToken(token) : null; } catch {}
+    if (!player || player.role !== "GAMING_PLAYER" || !player.sub) {
+      return sendJson(res, 401, { ok: false, message: "ParixBet player login required" });
+    }
+    try {
+      const pool = getPool();
+      await ensureGamingTables(pool);
+      const active = await pool.query("SELECT id FROM sp_game_players WHERE id=$1 AND status='ACTIVE' LIMIT 1", [player.sub]);
+      if (!active.rowCount) return sendJson(res, 403, { ok: false, message: "Player account is unavailable" });
+      const setting = await pool.query("SELECT enabled FROM sp_game_settings WHERE game_code='FOOTBALL_CENTRE' LIMIT 1");
+      if (!setting.rows[0]?.enabled) return sendJson(res, 403, { ok: false, message: "Football Centre is currently disabled" });
+      const apiKey = process.env.FOOTBALL_API_KEY;
+      if (!apiKey) return sendJson(res, 200, { ok: true, connected: false, message: "Football data is not connected yet.", matches: [], upcoming: [], results: [] });
+
+      async function getFootballData(cacheKey, url, maxAge) {
+        const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key=$1 LIMIT 1", [cacheKey]);
+        const age = cached.rows[0] ? Date.now() - new Date(cached.rows[0].fetched_at).getTime() : Infinity;
+        if (age < maxAge) return cached.rows[0].payload;
+        const response = await fetch(url, { headers: { Accept: "application/json", Authorization: "Bearer " + apiKey } });
+        if (!response.ok) throw new Error("Football provider returned HTTP " + response.status);
+        const payload = await response.json();
+        const data = Array.isArray(payload.data) ? payload.data : [];
+        await pool.query(
+          "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES($1,$2::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
+          [cacheKey, JSON.stringify(data)]
+        );
+        return data;
+      }
+
+      const now = new Date();
+      const dateKey = value => value.toISOString().slice(0, 10);
+      const livePromise = getFootballData(
+        "football-live",
+        "https://api.sportsapi.app/v2/livescores?sport=football",
+        30000
+      );
+      const fixtureDates = [];
+      for (let offset = -7; offset <= 7; offset++) {
+        const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offset));
+        fixtureDates.push(dateKey(day));
+      }
+      const fixtureLists = await Promise.all(fixtureDates.map(date =>
+        getFootballData(
+          "football-" + date.replace(/-/g, ""),
+          "https://api.sportsapi.app/v2/fixtures?date=" + date + "&sport=football",
+          900000
+        )
+      ));
+      const matches = await livePromise;
+      const fixtures = fixtureLists.flat();
+      const upcoming = fixtures.filter(match => {
+        const start = new Date(match.startTime || 0);
+        const status = String(match.status?.type || "").toLowerCase();
+        return !Number.isNaN(start.getTime()) && start >= now && !["finished", "cancelled", "postponed"].includes(status);
+      }).sort((a,b) => new Date(a.startTime) - new Date(b.startTime)).slice(0, 15);
+      const results = fixtures.filter(match => String(match.status?.type || "").toLowerCase() === "finished")
+        .sort((a,b) => new Date(b.startTime || 0) - new Date(a.startTime || 0)).slice(0, 15);
+      return sendJson(res, 200, { ok: true, connected: true, matches, upcoming, results });
+    } catch (error) {
+      console.error("ParixBet player football API error:", error.message);
+      return sendJson(res, 502, { ok: false, message: "Live football data is temporarily unavailable" });
+    }
+  }
   const isPlayerCricket = req.query && req.query.module === "gaming-cricket";
   if (isPlayerCricket) {
     if (!allowMethods(req, res, ["GET"])) return;
