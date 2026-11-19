@@ -165,9 +165,10 @@ async function loadPlayerPredictions(){
    const title=document.createElement("b");title.textContent=match.title;card.append(title);
    const info=document.createElement("div");info.className="muted";info.style.margin="6px 0";info.textContent=match.sport+" · "+match.side_a+" vs "+match.side_b+(match.scheduled_at?" · "+new Date(match.scheduled_at).toLocaleString():"");card.append(info);
    const status=document.createElement("div");status.className="muted";status.style.margin="6px 0";
-   status.textContent=match.status==="FINISHED"?"Result: "+(match.result_label||"Recorded")+(match.my_selection?" · Your pick: "+(match.my_selection==="A"?match.side_a:match.side_b):" · No prediction saved"):(match.my_selection?"Your current pick: "+(match.my_selection==="A"?match.side_a:match.side_b):"No selection yet");
+   const picked=match.my_selection?"Your pick: "+(match.my_selection==="A"?match.side_a:match.side_b):"No selection yet";
+   status.textContent=match.status==="FINISHED"?"Result: "+(match.result_label||"Recorded")+" · "+picked:match.status==="LOCKED"?"Predictions are locked by the administrator. · "+picked:match.status==="CANCELLED"?"This match was cancelled. · "+picked:(match.my_selection?"Your current pick: "+(match.my_selection==="A"?match.side_a:match.side_b):"No selection yet");
    card.append(status);
-   if(match.status!=="FINISHED"){
+   if(match.status==="UPCOMING"){
     const actions=document.createElement("div");actions.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px";
     [["A",match.side_a],["B",match.side_b]].forEach(([side,label])=>{
      const button=document.createElement("button");button.type="button";button.className="submit";button.style.cssText="flex:1;min-width:120px;margin:0";button.textContent=(match.my_selection===side?"✓ ":"")+label;
