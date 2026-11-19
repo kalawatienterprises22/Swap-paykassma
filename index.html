@@ -36,7 +36,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
 </head>
 <body>
 <aside class="sidebar" id="sidebar">
- <div class="logo">Super<b>Pay</b></div>
+ <div class="logo">Pay<b>kassma</b></div>
  <nav class="nav">
   <button class="active" data-page="dashboard">⌂ &nbsp; Dashboard</button>
   <button data-page="transactions">⇄ &nbsp; Transactions</button>
@@ -113,7 +113,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
 
   <section class="page" id="earn">
    <div class="heading"><div><h1>Earn Money</h1><div class="muted">Invite other participants and view referrals</div></div></div>
-   <div class="card"><h3>Invitation Link</h3><p class="small">To invite other participants, send them a link</p><input id="inviteLink" readonly style="width:100%;padding:11px;border:1px solid #ddd;border-radius:6px" value="https://superpay.example/invite/merchant"><button class="btn blue" style="width:100%;margin-top:10px" onclick="copyInvite()">Copy Invitation Link</button></div>
+   <div class="card"><h3>Invitation Link</h3><p class="small">To invite other participants, send them a link</p><input id="inviteLink" readonly style="width:100%;padding:11px;border:1px solid #ddd;border-radius:6px" value="https://paykassma.example/invite/merchant"><button class="btn blue" style="width:100%;margin-top:10px" onclick="copyInvite()">Copy Invitation Link</button></div>
    <div class="card"><h3>Referral System Rules</h3><details><summary>View referral rules</summary><p class="small">Referral rewards and eligibility must be configured by the platform administrator.</p></details></div>
    <div class="card"><h3>My Referrals</h3><p class="small">No referral records are connected yet.</p></div>
   </section>
@@ -196,7 +196,7 @@ function submitModal(){
 function downloadStatement(){
  let rows=transactions,header=["Date","Transaction ID","Account Type","Type","Amount","Status"];
  let csv=[header,...rows.map(t=>[t.date,t.id,t.accountType,t.type,t.amount,t.status])].map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(",")).join("\n");
- let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="superpay-statement.csv";a.click();URL.revokeObjectURL(a.href);
+ let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="paykassma-statement.csv";a.click();URL.revokeObjectURL(a.href);
 }
 function copyInvite(){let i=$("inviteLink");i.select();navigator.clipboard?.writeText(i.value).then(()=>alert("Invitation link copied")).catch(()=>alert(i.value))}
 function updateBalance(){let trust=Number(get("trustBalance",0)),income=Number(get("incomeBalance",0));$("trustValue").innerHTML=fmt(trust)+' <span class="small">INR</span>';$("incomeValue").innerHTML=fmt(income)+' <span class="small">INR</span>';$("sideTrust").textContent=money(trust);$("sideIncome").textContent=money(income);$("withdrawBalance").textContent=money(trust)}
