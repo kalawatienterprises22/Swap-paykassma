@@ -90,9 +90,16 @@
       const action=document.createElement("td");
       const button=document.createElement("button");
       button.className=m.status==="ACTIVE"?"danger":"secondary";
-      button.textContent=m.status==="ACTIVE"?"Suspend":"Activate";
+      button.textContent=m.status==="ACTIVE"?"Deactivate":"Reactivate";
       button.addEventListener("click",()=>changeStatus(m.id,m.status==="ACTIVE"?"SUSPENDED":"ACTIVE"));
       action.appendChild(button);
+      const registrationButton=document.createElement("button");
+      registrationButton.className="secondary";
+      registrationButton.style.marginLeft="6px";
+      registrationButton.style.marginTop="6px";
+      registrationButton.textContent="Reset Registration";
+      registrationButton.addEventListener("click",()=>resetRegistration(m.id,m.user_id));
+      action.appendChild(registrationButton);
       const resetButton=document.createElement("button");
       resetButton.className="secondary";
       resetButton.style.marginLeft="6px";
@@ -130,6 +137,16 @@
       message.textContent="Password reset successfully for "+resetMerchantUserId+". Share the new password securely with the merchant.";
     }catch(error){message.textContent=error.message;}
   });
+
+  async function resetRegistration(id,userId){
+    const confirmed=confirm("Reset registration for "+userId+"? The Merchant will be suspended until a fresh application is approved. The same Telegram account must be used. Merchant ID and financial records will remain unchanged.");
+    if(!confirmed)return;
+    try{
+      const data=await api("/api/admin/merchants",{method:"PATCH",body:JSON.stringify({id,action:"reset_registration"})});
+      message.textContent=data.message||"Registration reset successfully.";
+      await load();
+    }catch(error){message.textContent=error.message;}
+  }
 
   async function changeStatus(id,status){
     if(!confirm("Are you sure you want to "+(status==="SUSPENDED"?"suspend":"activate")+" this merchant?"))return;
