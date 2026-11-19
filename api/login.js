@@ -9,6 +9,19 @@ module.exports = async (req, res) => {
 
   try {
     const { user_id, password, login_type, display_name } = req.body || {};
+    if (login_type === "gaming_admin") {
+      const adminUser = process.env.GAMING_ADMIN_USERNAME;
+      const adminPass = process.env.GAMING_ADMIN_PASSWORD;
+      if (!adminUser || !adminPass) {
+        return sendJson(res, 503, { ok: false, message: "ParixBet Admin login is not configured yet. Set GAMING_ADMIN_USERNAME and GAMING_ADMIN_PASSWORD in Vercel Environment Variables." });
+      }
+      if (typeof user_id !== "string" || typeof password !== "string" ||
+          user_id.trim().toLowerCase() !== adminUser.trim().toLowerCase() || password !== adminPass) {
+        return sendJson(res, 401, { ok: false, message: "Invalid ParixBet Admin username or password." });
+      }
+      const admin = { id: "parixbet-admin", user_id: adminUser.trim(), display_name: "ParixBet Admin", role: "GAMING_ADMIN" };
+      return sendJson(res, 200, { ok: true, message: "ParixBet Admin login successful", token: createToken(admin), user: admin });
+    }
     if (login_type === "gaming_register" || login_type === "gaming") {
       const pool = getPool();
       await pool.query(`
