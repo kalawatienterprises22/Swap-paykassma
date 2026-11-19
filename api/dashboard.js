@@ -98,6 +98,65 @@ async function ensureGamingTables(pool) {
       event_data JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    -- Compatibility migration for prediction tables created from the Neon SQL editor.
+    ALTER TABLE sp_prediction_matches
+      ADD COLUMN IF NOT EXISTS provider_match_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS title VARCHAR(200),
+      ADD COLUMN IF NOT EXISTS side_a VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS side_b VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS result_label VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS result_data JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+    UPDATE sp_prediction_matches
+       SET provider_match_id = COALESCE(provider_match_id, external_match_id),
+           title = COALESCE(title, match_title),
+           side_a = COALESCE(side_a, team_a),
+           side_b = COALESCE(side_b, team_b),
+           scheduled_at = COALESCE(scheduled_at, starts_at),
+           sport = UPPER(sport),
+           status = CASE
+             WHEN UPPER(status) = 'OPEN' THEN 'UPCOMING'
+             WHEN UPPER(status) = 'SETTLED' THEN 'FINISHED'
+             ELSE UPPER(status)
+           END
+     WHERE title IS NULL OR side_a IS NULL OR side_b IS NULL
+        OR scheduled_at IS NULL OR provider_match_id IS NULL
+        OR status IN ('OPEN','SETTLED') OR sport <> UPPER(sport);
+
+    ALTER TABLE sp_prediction_matches
+      ALTER COLUMN match_title DROP NOT NULL,
+      ALTER COLUMN team_a DROP NOT NULL,
+      ALTER COLUMN team_b DROP NOT NULL;
+
+    DO $
+    DECLARE constraint_row RECORD;
+    BEGIN
+      FOR constraint_row IN
+        SELECT conname
+          FROM pg_constraint
+         WHERE conrelid = 'sp_prediction_matches'::regclass
+           AND contype = 'c'
+           AND pg_get_constraintdef(oid) ILIKE '%status%'
+      LOOP
+        EXECUTE format('ALTER TABLE sp_prediction_matches DROP CONSTRAINT %I', constraint_row.conname);
+      END LOOP;
+    END $;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_sp_prediction_provider_match
+      ON sp_prediction_matches(sport, provider_match_id)
+      WHERE provider_match_id IS NOT NULL;
+
+    ALTER TABLE sp_predictions
+      ADD COLUMN IF NOT EXISTS selection_side VARCHAR(1);
+
+    UPDATE sp_predictions
+       SET selection_side = selected_side
+     WHERE selection_side IS NULL;
+
+    ALTER TABLE sp_predictions
+      ALTER COLUMN selected_side DROP NOT NULL;
+
     CREATE TABLE IF NOT EXISTS sp_game_settings (
       game_code VARCHAR(40) PRIMARY KEY,
       title VARCHAR(100) NOT NULL,
