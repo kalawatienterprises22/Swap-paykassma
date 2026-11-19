@@ -49,6 +49,11 @@ async function ensureGamingTables(pool) {
       status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS sp_game_cricket_cache (
+      cache_key VARCHAR(40) PRIMARY KEY,
+      payload JSONB NOT NULL,
+      fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 }
 
@@ -138,6 +143,23 @@ module.exports = async (req, res) => {
             ORDER BY p.created_at DESC LIMIT 100
           `);
           return sendJson(res, 200, { ok: true, players: result.rows });
+        }
+        if (action === "cricket") {
+          const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key='livescores' LIMIT 1");
+          const age = cached.rows[0] ? Date.now() - new Date(cached.rows[0].fetched_at).getTime() : Infinity;
+          if (age < 30000) return sendJson(res,200,{ok:true,source:"Sportmonks Cricket API",cached:true,matches:cached.rows[0].payload});
+          const apiKey = process.env.SPORTMONKS_CRICKET_TOKEN;
+          if (!apiKey) return sendJson(res,200,{ok:false,connected:false,message:"SPORTMONKS_CRICKET_TOKEN is not configured"});
+          const url = "https://cricket.sportmonks.com/api/v2.0/livescores?api_token="+encodeURIComponent(apiKey)+"&include=localteam,visitorteam,scoreboards";
+          const response = await fetch(url,{headers:{Accept:"application/json"}});
+          if(!response.ok) throw new Error("Cricket provider returned HTTP "+response.status);
+          const payload = await response.json();
+          const matches = Array.isArray(payload.data) ? payload.data : [];
+          await pool.query(
+            "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES('livescores',$1::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
+            [JSON.stringify(matches)]
+          );
+          return sendJson(res,200,{ok:true,source:"Sportmonks Cricket API",cached:false,matches});
         }
         if (action === "records") {
           const result = await pool.query(`
