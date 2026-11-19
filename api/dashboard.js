@@ -469,13 +469,15 @@ module.exports = async (req, res) => {
       if (req.method === "POST" && body.action === "sync_match_results") {
         const apiKey=process.env.FOOTBALL_API_KEY;
         const cricketKey=process.env.SPORTMONKS_CRICKET_TOKEN;
-        let updated=0,review=0,checked=0,errors=[];
+        let updated=0,review=0,checked=0,skippedManual=0,errors=[];
+        const textValue=value=>String(value===undefined||value===null?"":value).trim();
+        const same=(a,b)=>textValue(a).toLocaleLowerCase()===textValue(b).toLocaleLowerCase();
         async function saveProviderMatch(sport,providerId,title,a,b,scheduled,resultSide,resultLabel,data){
-          if(!providerId||!a||!b)return;
+          if(!providerId||!a||!b||same(a,b))return;
           checked++;
           const existing=await pool.query("SELECT id,result_source,status FROM sp_prediction_matches WHERE sport=$1 AND provider_match_id=$2",[sport,String(providerId)]);
-          if(existing.rows[0]?.result_source==="MANUAL")return;
-          const status=resultSide?"FINISHED":"FINISHED";
+          if(existing.rows[0]?.result_source==="MANUAL"){skippedManual++;return;}
+          const status="FINISHED";
           await pool.query(`
             INSERT INTO sp_prediction_matches(sport,provider_match_id,title,side_a,side_b,scheduled_at,status,result_side,result_label,result_source,result_data)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
@@ -499,34 +501,65 @@ module.exports = async (req, res) => {
               if(!resp.ok)throw new Error("Football API HTTP "+resp.status);
               const payload=await resp.json();return Array.isArray(payload.data)?payload.data:[];
             }));
+            const seen=new Set();
             for(const m of lists.flat()){
               if(String(m.status?.type||"").toLowerCase()!=="finished")continue;
-              const teams=m.teams||{};
-              const a=String(m.homeTeam?.name||m.home_team?.name||m.homeTeamName||teams.home?.name||"");
-              const b=String(m.awayTeam?.name||m.away_team?.name||m.awayTeamName||teams.away?.name||"");
-              const winner=String(m.winner?.name||m.winnerName||m.status?.winner||"");
-              const side=winner&&winner.toLowerCase()===a.toLowerCase()?"A":winner&&winner.toLowerCase()===b.toLowerCase()?"B":null;
-              await saveProviderMatch("FOOTBALL",m.id||m.fixtureId||m.matchId,a+" vs "+b,a,b,m.startTime||null,side,winner||null,m);
+              const home=m.home?.name||m.homeTeam?.name||m.home_team?.name||m.homeTeamName||m.teams?.home?.name||"";
+              const away=m.away?.name||m.awayTeam?.name||m.away_team?.name||m.awayTeamName||m.teams?.away?.name||"";
+              const a=textValue(home),b=textValue(away);
+              const id=m.id||m.fixtureId||m.matchId;
+              if(!id||!a||!b||seen.has(String(id)))continue;
+              seen.add(String(id));
+              const winnerObj=m.winner||m.winnerTeam||m.winner_team||m.status?.winner;
+              const winnerName=typeof winnerObj==="string"?winnerObj:textValue(winnerObj?.name||winnerObj?.shortName||m.winnerName);
+              const homeId=m.home?.id||m.homeTeam?.id||m.home_team?.id||m.teams?.home?.id;
+              const awayId=m.away?.id||m.awayTeam?.id||m.away_team?.id||m.teams?.away?.id;
+              const winnerId=winnerObj?.id||m.winnerTeamId||m.winner_team_id;
+              let side=null;
+              if(winnerId&&homeId&&String(winnerId)===String(homeId))side="A";
+              else if(winnerId&&awayId&&String(winnerId)===String(awayId))side="B";
+              else if(winnerName&&same(winnerName,a))side="A";
+              else if(winnerName&&same(winnerName,b))side="B";
+              else {
+                const hs=Number(m.homeScore?.current??m.homeScore??m.scores?.home?.current);
+                const as=Number(m.awayScore?.current??m.awayScore??m.scores?.away?.current);
+                if(Number.isFinite(hs)&&Number.isFinite(as)&&hs>as)side="A";
+                else if(Number.isFinite(hs)&&Number.isFinite(as)&&as>hs)side="B";
+              }
+              const label=side?(side==="A"?a:b):(winnerName||null);
+              await saveProviderMatch("FOOTBALL",id,a+" vs "+b,a,b,m.startTime||m.starting_at||null,side,label,m);
             }
-          }
+          } else errors.push("Football: FOOTBALL_API_KEY is not configured");
         } catch(e){errors.push("Football: "+e.message)}
         try {
           if(cricketKey){
-            const resp=await fetch("https://cricket.sportmonks.com/api/v2.0/fixtures?api_token="+encodeURIComponent(cricketKey)+"&include=localteam,visitorteam,scoreboards,winner",{headers:{Accept:"application/json"}});
+            const now=new Date();
+            const from=new Date(now.getTime()-14*86400000).toISOString().slice(0,10);
+            const to=now.toISOString().slice(0,10);
+            const url="https://cricket.sportmonks.com/api/v2.0/fixtures?api_token="+encodeURIComponent(cricketKey)+"&filter[starts_between]="+from+","+to+"&include=localteam,visitorteam,scoreboards,winnerteam";
+            const resp=await fetch(url,{headers:{Accept:"application/json"}});
             if(!resp.ok)throw new Error("Cricket API HTTP "+resp.status);
             const payload=await resp.json();
             for(const m of (Array.isArray(payload.data)?payload.data:[])){
               if(String(m.status||"").toLowerCase()!=="finished")continue;
-              const a=String(m.localteam?.name||m.localteam?.data?.name||"");
-              const b=String(m.visitorteam?.name||m.visitorteam?.data?.name||"");
-              const winnerId=m.winner_team_id||m.winner_team?.id||m.winnerteam_id;
-              const side=winnerId&&String(winnerId)===String(m.localteam_id)?"A":winnerId&&String(winnerId)===String(m.visitorteam_id)?"B":null;
-              const winner=side?(side==="A"?a:b):null;
-              await saveProviderMatch("CRICKET",m.id,a+" vs "+b,a,b,m.starting_at||null,side,winner,m);
+              const a=textValue(m.localteam?.name||m.localteam?.data?.name);
+              const b=textValue(m.visitorteam?.name||m.visitorteam?.data?.name);
+              const winnerObj=m.winnerteam||m.winner_team||m.winnerTeam||m.winner;
+              const winnerId=m.winner_team_id||m.winnerteam_id||winnerObj?.id||winnerObj?.data?.id;
+              const localId=m.localteam_id||m.localteam?.id||m.localteam?.data?.id;
+              const visitorId=m.visitorteam_id||m.visitorteam?.id||m.visitorteam?.data?.id;
+              const winnerName=textValue(winnerObj?.name||winnerObj?.data?.name);
+              let side=null;
+              if(winnerId&&localId&&String(winnerId)===String(localId))side="A";
+              else if(winnerId&&visitorId&&String(winnerId)===String(visitorId))side="B";
+              else if(winnerName&&same(winnerName,a))side="A";
+              else if(winnerName&&same(winnerName,b))side="B";
+              const label=side?(side==="A"?a:b):(winnerName||null);
+              await saveProviderMatch("CRICKET",m.id,a+" vs "+b,a,b,m.starting_at||null,side,label,m);
             }
-          }
+          } else errors.push("Cricket: SPORTMONKS_CRICKET_TOKEN is not configured");
         } catch(e){errors.push("Cricket: "+e.message)}
-        return sendJson(res,200,{ok:true,checked,updated,needs_manual_review:review,errors});
+        return sendJson(res,200,{ok:true,checked,updated,needs_manual_review:review,skipped_manual:skippedManual,errors});
       }
       if (req.method === "POST" && body.action === "create_player") {
         const username = String(body.username || "").trim().toLowerCase();
