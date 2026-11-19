@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SuperPay Admin Dashboard</title>
+  <title>Paykassma Admin Dashboard</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Inter, Arial, sans-serif; background: #f3f6fb; color: #172033; }
@@ -31,12 +31,12 @@
 </head>
 <body>
   <header>
-    <strong>SuperPay Admin</strong>
+    <strong>Paykassma Admin</strong>
     <button id="logout">Logout</button>
   </header>
   <main>
     <h2>Super Admin Dashboard</h2>
-    <p class="subheading">Manage your SuperPay operations from one place.</p>
+    <p class="subheading">Manage your Paykassma operations from one place.</p>
     <h3 class="section-title">Management & Quick Actions</h3>
     <nav class="nav-grid" aria-label="Super Admin management">
       <a class="nav-card" href="/dashboard.html"><span class="nav-icon">⌂</span><span><span class="nav-title">Dashboard Home</span><span class="nav-desc">Overview and activity summary</span></span></a>
@@ -223,7 +223,7 @@
     }
     document.getElementById("refreshMerchantSignups").addEventListener("click",loadMerchantSignups);
     document.getElementById("connectTelegramWebhook").addEventListener("click",async()=>{
-      if(!confirm("Connect the SuperPay Telegram bot to this website now?"))return;
+      if(!confirm("Connect the Paykassma Telegram bot to this website now?"))return;
       const b=document.getElementById("connectTelegramWebhook");b.disabled=true;
       try{
         const r=await fetch("/api/admin/merchants",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({action:"configure_telegram_webhook"})});
