@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
     return sendJson(res, 500, {
       ok: false,
       message: error.code === "42P01"
-        ? "Staff verification database table is missing. Run the SuperPay schema SQL in Neon."
+        ? "Staff verification database table is missing. Run the Paykassma schema SQL in Neon."
         : error.code === "42703"
           ? "Staff verification database columns are missing. Update the Neon schema."
           : "Staff verification request failed"
