@@ -64,7 +64,9 @@ async function ensureGamingTables(pool) {
     INSERT INTO sp_game_settings(game_code,title,description,enabled) VALUES
       ('TAP_CHALLENGE','Tap Speed Challenge','10-second reaction and tapping game',TRUE),
       ('CRICKET_CENTRE','Cricket Centre','Cricket information and verified live data',TRUE),
-      ('FOOTBALL_CENTRE','Football Centre','Football live scores, fixtures and results',TRUE)
+      ('FOOTBALL_CENTRE','Football Centre','Football live scores, fixtures and results',TRUE),
+      ('AVIATOR_FLIGHT','Aviator Flight Challenge','Plane flight timing challenge · score only, no wagers',TRUE),
+      ('CARD_MEMORY','Card Memory Match','Match identical cards · score only, no prizes',TRUE)
     ON CONFLICT(game_code) DO NOTHING;
   `);
 }
@@ -294,21 +296,42 @@ module.exports = async (req, res) => {
     try {
       const pool = getPool();
       await ensureGamingTables(pool);
-      const taps = Number(req.body && req.body.taps);
-      const durationMs = Number(req.body && req.body.duration_ms);
-      if (!Number.isInteger(taps) || taps < 0 || taps > 500 ||
-          !Number.isInteger(durationMs) || durationMs < 5000 || durationMs > 60000) {
-        return sendJson(res, 400, { ok: false, message: "Invalid game result" });
+      const body = req.body || {};
+      const gameCode = String(body.game_code || "TAP_CHALLENGE");
+      const allowedGames = ["TAP_CHALLENGE","AVIATOR_FLIGHT","CARD_MEMORY"];
+      if (!allowedGames.includes(gameCode)) return sendJson(res,400,{ok:false,message:"Unknown score-only game"});
+      const durationMs = Number(body.duration_ms);
+      let result = {};
+      let score = 0;
+      if (gameCode === "TAP_CHALLENGE") {
+        const taps = Number(body.taps);
+        if (!Number.isInteger(taps) || taps < 0 || taps > 500 || !Number.isInteger(durationMs) || durationMs < 5000 || durationMs > 60000)
+          return sendJson(res,400,{ok:false,message:"Invalid tap challenge result"});
+        score = taps;
+        result = {taps,duration_ms:durationMs,points_awarded:0};
+      } else if (gameCode === "AVIATOR_FLIGHT") {
+        if (!Number.isInteger(durationMs) || durationMs < 0 || durationMs > 30000)
+          return sendJson(res,400,{ok:false,message:"Invalid flight challenge result"});
+        score = Math.floor(durationMs / 100) / 10;
+        result = {flight_ms:durationMs,score_seconds:score,points_awarded:0};
+      } else {
+        const moves = Number(body.moves);
+        const matches = Number(body.matches);
+        if (!Number.isInteger(durationMs) || durationMs < 1000 || durationMs > 600000 ||
+            !Number.isInteger(moves) || moves < 8 || moves > 200 || matches !== 8)
+          return sendJson(res,400,{ok:false,message:"Invalid card memory result"});
+        score = Math.max(0,1000 - moves * 10 - Math.floor(durationMs / 1000));
+        result = {moves,matches,duration_ms:durationMs,score,points_awarded:0};
       }
       const active = await pool.query("SELECT id FROM sp_game_players WHERE id=$1 AND status='ACTIVE' LIMIT 1",[player.sub]);
       if (!active.rowCount) return sendJson(res,403,{ok:false,message:"Player account is unavailable"});
-      const gameSetting = await pool.query("SELECT enabled FROM sp_game_settings WHERE game_code='TAP_CHALLENGE' LIMIT 1");
+      const gameSetting = await pool.query("SELECT enabled FROM sp_game_settings WHERE game_code=$1 LIMIT 1",[gameCode]);
       if (!gameSetting.rows[0]?.enabled) return sendJson(res,403,{ok:false,message:"This game is currently disabled by the administrator"});
       const saved = await pool.query(
-        "INSERT INTO sp_game_sessions(player_id,game_code,result,coins_change) VALUES($1,'TAP_CHALLENGE',$2::jsonb,0) RETURNING id,created_at",
-        [player.sub,JSON.stringify({taps,duration_ms:durationMs,points_awarded:0})]
+        "INSERT INTO sp_game_sessions(player_id,game_code,result,coins_change) VALUES($1,$2,$3::jsonb,0) RETURNING id,created_at",
+        [player.sub,gameCode,JSON.stringify(result)]
       );
-      return sendJson(res,200,{ok:true,session:saved.rows[0],score:taps,message:"Score saved. Virtual points were not changed."});
+      return sendJson(res,200,{ok:true,session:saved.rows[0],score,message:"Score saved. Virtual points were not changed."});
     } catch (error) {
       console.error("ParixBet game save error:",error.message);
       return sendJson(res,500,{ok:false,message:"Game result could not be saved"});
