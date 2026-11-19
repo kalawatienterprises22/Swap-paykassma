@@ -47,7 +47,7 @@ module.exports = async (req, res) => {
     return sendJson(res, 500, {
       ok: false,
       message: error.code === "42P01"
-        ? "A required SuperPay database table is missing. Run the latest database SQL files in Neon."
+        ? "A required Paykassma database table is missing. Run the latest database SQL files in Neon."
         : "Dashboard data unavailable"
     });
   }
