@@ -57,6 +57,26 @@ async function ensureGamingTables(pool) {
   `);
 }
 
+function getGamingAdmin(req, res) {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!token) {
+    sendJson(res, 401, { ok: false, message: "ParixBet Admin login required" });
+    return null;
+  }
+  try {
+    const user = verifyToken(token);
+    if (user.role !== "GAMING_ADMIN") {
+      sendJson(res, 403, { ok: false, message: "ParixBet Admin access denied" });
+      return null;
+    }
+    return user;
+  } catch {
+    sendJson(res, 401, { ok: false, message: "Invalid or expired ParixBet Admin session" });
+    return null;
+  }
+}
+
 function getAdmin(req, res) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -116,7 +136,7 @@ module.exports = async (req, res) => {
     if (!["GET", "POST", "PATCH"].includes(req.method)) {
       return sendJson(res, 405, { ok: false, message: "Method not allowed" });
     }
-    if (!getAdmin(req, res)) return;
+    if (!getGamingAdmin(req, res)) return;
     try {
       const pool = getPool();
       await ensureGamingTables(pool);
