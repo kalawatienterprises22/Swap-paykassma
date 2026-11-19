@@ -346,16 +346,29 @@ module.exports = async (req, res) => {
       const body=req.body||{},matchId=Number(body.match_id),side=String(body.selection_side||"").toUpperCase();
       if(!Number.isSafeInteger(matchId)||matchId<1||!["A","B"].includes(side))
         return sendJson(res,400,{ok:false,message:"Choose a match and side"});
-      const saved=await pool.query(`
-        INSERT INTO sp_predictions(match_id,player_id,selection_side)
-        SELECT m.id,$2,$3 FROM sp_prediction_matches m
-        WHERE m.id=$1 AND m.status='UPCOMING'
-        ON CONFLICT(match_id,player_id) DO UPDATE SET selection_side=EXCLUDED.selection_side,created_at=NOW()
-        RETURNING id,match_id,selection_side,created_at
-      `,[matchId,player.sub,side]);
-      if(!saved.rowCount)return sendJson(res,409,{ok:false,message:"This match is closed for predictions"});
-      await pool.query("INSERT INTO sp_prediction_audit_logs(match_id,event_type,event_note,event_data) VALUES($1,'PREDICTION_SAVED','Player saved or updated a match prediction',$2::jsonb)",[matchId,JSON.stringify({player_id:Number(player.sub),selection_side:side})]);
-      return sendJson(res,200,{ok:true,prediction:saved.rows[0],message:"Prediction saved."});
+      const client=await pool.connect();
+      let saved;
+      try {
+        await client.query("BEGIN");
+        const match=await client.query("SELECT id FROM sp_prediction_matches WHERE id=$1 AND status='UPCOMING' FOR UPDATE",[matchId]);
+        if(!match.rowCount){
+          await client.query("ROLLBACK");
+          return sendJson(res,409,{ok:false,message:"This match is locked, finished, cancelled, or unavailable for predictions"});
+        }
+        const result=await client.query(
+          "INSERT INTO sp_predictions(match_id,player_id,selection_side) VALUES($1,$2,$3) ON CONFLICT(match_id,player_id) DO UPDATE SET selection_side=EXCLUDED.selection_side,created_at=NOW() RETURNING id,match_id,selection_side,created_at",
+          [matchId,player.sub,side]
+        );
+        saved=result.rows[0];
+        await client.query("INSERT INTO sp_prediction_audit_logs(match_id,event_type,event_note,event_data) VALUES($1,'PREDICTION_SAVED','Player saved or updated a match prediction',$2::jsonb)",[matchId,JSON.stringify({player_id:Number(player.sub),selection_side:side})]);
+        await client.query("COMMIT");
+      } catch(transactionError) {
+        await client.query("ROLLBACK").catch(()=>{});
+        throw transactionError;
+      } finally {
+        client.release();
+      }
+      return sendJson(res,200,{ok:true,prediction:saved,message:"Prediction saved."});
     } catch(error) {
       console.error("ParixBet player prediction error:",error.message);
       return sendJson(res,500,{ok:false,message:"Prediction could not be saved"});
