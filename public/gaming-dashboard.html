@@ -64,7 +64,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
    <div class="card"><div class="metric-label">Registered Players</div><div class="metric" id="playerCount">—</div><span class="pending">Gaming Database</span></div>
    <div class="card"><div class="metric-label">Total Games Played</div><div class="metric" id="gameCount">—</div><span class="pending">Session Records</span></div>
    <div class="card"><div class="metric-label">Live Cricket Matches</div><div class="metric">—</div><span class="pending">Live API Pending</span></div>
-   <div class="card"><div class="metric-label">Total Virtual Coins</div><div class="metric" id="coinCount">—</div><span class="pending">Virtual Coins Only</span></div>
+   <div class="card"><div class="metric-label">Total INR Points</div><div class="metric" id="coinCount">—</div><span class="pending">Virtual Coins Only</span></div>
   </div>
   <section class="section card" id="games"><h2>Game Management</h2>
    <p class="muted">Enable or disable games shown in the Player Portal. Disabled games cannot be started.</p>
@@ -133,12 +133,12 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
   </section>
   <section class="section card" id="risk-monitoring">
    <h2>Exposure · Liquidity · Reserve · Settlement Monitor</h2>
-   <p class="muted">Live database monitoring for prediction volume, side imbalance, virtual-point availability and match-result records.</p>
+   <p class="muted">INR display reference: 1 point = ₹1. The 10% figure is a reporting benchmark calculated from total player points; it is not a collected fee or profit.</p>
    <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:14px 0">
-    <div class="card"><div class="metric-label">Total Predictions</div><div class="metric" id="monExposureTotal">—</div><span class="pending">Recorded A/B selections</span></div>
+    <div class="card"><div class="metric-label">Total Predictions</div><div class="metric" id="monExposureTotal">—</div><span class="pending">A/B selections recorded</span></div>
     <div class="card"><div class="metric-label">Unbalanced Matches</div><div class="metric" id="monExposureAlerts">—</div><span class="pending">5+ predictions and 60%+ imbalance</span></div>
-    <div class="card"><div class="metric-label">Virtual Liquidity</div><div class="metric" id="monLiquidity">—</div><span class="pending">Player virtual points only</span></div>
-    <div class="card"><div class="metric-label">Virtual Reserve</div><div class="metric" id="monReserve">—</div><span class="pending">Not cash or withdrawable funds</span></div>
+    <div class="card"><div class="metric-label">Total Player INR Points</div><div class="metric" id="monLiquidity">—</div><span class="pending">1 point = ₹1 reference</span></div>
+    <div class="card"><div class="metric-label">10% INR Reference</div><div class="metric" id="monReserve">—</div><span class="pending">10% of total player INR points</span></div>
     <div class="card"><div class="metric-label">Settled Matches</div><div class="metric" id="monSettled">—</div><span class="pending">Results saved in database</span></div>
     <div class="card"><div class="metric-label">Correct Predictions</div><div class="metric" id="monCorrect">—</div><span class="pending">Score tracking only</span></div>
    </div>
@@ -147,7 +147,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
    </div>
    <div id="monitorMatchList" class="notice">Loading monitoring data…</div>
    <div style="margin-top:16px"><b>Settlement & Result Audit</b><div id="monitorAuditList" class="notice" style="margin-top:9px">Loading audit records…</div></div>
-   <p class="muted" style="margin-top:12px">Settlement here records match outcomes and correct/incorrect prediction counts. No cash liability, cash reserve or payout processing is enabled.</p>
+   <p class="muted" style="margin-top:12px">Match results and correct/incorrect prediction counts are recorded. INR figures are display references using 1 point = ₹1.</p>
   </section>
   <section class="section card" id="settings"><h2>System Settings & Rules</h2><div class="notice"><b>For entertainment only.</b> Virtual coins have no cash value. They cannot be deposited, withdrawn, exchanged for money, or redeemed for prizes. ParixBet gaming data and virtual balances are completely separate from merchant balances and payment records on the payment platform.</div></section>
   <div class="footer" id="authStatus">Checking admin login…</div>
@@ -179,7 +179,7 @@ async function loadGames(){
 }
 async function loadPlayers(){
  const box=document.getElementById("playerList"),msg=document.getElementById("playerMsg");
- try{const d=await api("/api/dashboard?module=gaming&action=players");msg.textContent=d.players.length+" player(s)";box.innerHTML=d.players.length?d.players.map(p=>'<div class="row"><div><b>'+safe(p.display_name)+' (@'+safe(p.username)+')</b><p>Virtual coins: '+Number(p.virtual_coins).toLocaleString("en-IN")+' · Joined: '+new Date(p.created_at).toLocaleDateString("en-IN")+'</p></div><div style="display:flex;align-items:center;gap:7px"><span class="pill">'+safe(p.status)+'</span><button class="btn" data-player="'+p.id+'" data-status="'+(p.status==="ACTIVE"?"SUSPENDED":"ACTIVE")+'">'+(p.status==="ACTIVE"?"Suspend":"Activate")+'</button></div></div>').join(""):'<div class="notice">No players have registered yet.</div>';
+ try{const d=await api("/api/dashboard?module=gaming&action=players");msg.textContent=d.players.length+" player(s)";box.innerHTML=d.players.length?d.players.map(p=>'<div class="row"><div><b>'+safe(p.display_name)+' (@'+safe(p.username)+')</b><p>INR Points: ₹'+Number(p.virtual_coins).toLocaleString("en-IN")+' · Joined: '+new Date(p.created_at).toLocaleDateString("en-IN")+'</p></div><div style="display:flex;align-items:center;gap:7px"><span class="pill">'+safe(p.status)+'</span><button class="btn" data-player="'+p.id+'" data-status="'+(p.status==="ACTIVE"?"SUSPENDED":"ACTIVE")+'">'+(p.status==="ACTIVE"?"Suspend":"Activate")+'</button></div></div>').join(""):'<div class="notice">No players have registered yet.</div>';
  box.querySelectorAll("[data-player]").forEach(b=>b.addEventListener("click",async()=>{try{await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"player_status",player_id:b.dataset.player,status:b.dataset.status})});await loadPlayers()}catch(e){msg.textContent=e.message}}));
  }catch(e){msg.textContent=e.message}
 }
@@ -200,8 +200,8 @@ async function loadMonitoring(){
   const fmt=v=>Number(v||0).toLocaleString("en-IN");
   document.getElementById("monExposureTotal").textContent=fmt(m.exposure.total_predictions);
   document.getElementById("monExposureAlerts").textContent=fmt(m.exposure.unbalanced_matches);
-  document.getElementById("monLiquidity").textContent=fmt(m.liquidity.virtual_points);
-  document.getElementById("monReserve").textContent=fmt(m.reserve.virtual_points);
+  document.getElementById("monLiquidity").textContent="₹"+fmt(m.liquidity.virtual_points);
+  document.getElementById("monReserve").textContent="₹"+fmt(Number(m.liquidity.virtual_points)*0.10);
   document.getElementById("monSettled").textContent=fmt(m.settlement.settled_matches);
   document.getElementById("monCorrect").textContent=fmt(m.settlement.correct);
   matchBox.innerHTML=m.exposure.matches.length?m.exposure.matches.map(x=>{
