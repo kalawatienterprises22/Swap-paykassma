@@ -50,10 +50,10 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
  <div class="wrap" id="overview">
   <div class="heading"><div><h1>गेमिंग ओवरव्यू</h1><div class="muted">अलग गेमिंग सिस्टम · प्लेयर डेटा और वर्चुअल पॉइंट्स का अलग रिकॉर्ड</div></div><span class="status">सेटअप जारी है</span></div>
   <div class="grid">
-   <div class="card"><div class="metric-label">रजिस्टर्ड प्लेयर</div><div class="metric">—</div><span class="pending">डेटाबेस कनेक्शन बाकी</span></div>
-   <div class="card"><div class="metric-label">कुल गेम खेले गए</div><div class="metric">—</div><span class="pending">गेम सर्विस बाकी</span></div>
+   <div class="card"><div class="metric-label">रजिस्टर्ड प्लेयर</div><div class="metric" id="playerCount">—</div><span class="pending">गेमिंग डेटाबेस</span></div>
+   <div class="card"><div class="metric-label">कुल गेम खेले गए</div><div class="metric" id="gameCount">—</div><span class="pending">सेशन रिकॉर्ड</span></div>
    <div class="card"><div class="metric-label">लाइव क्रिकेट मैच</div><div class="metric">—</div><span class="pending">लाइव API बाकी</span></div>
-   <div class="card"><div class="metric-label">कुल वर्चुअल कॉइन</div><div class="metric">—</div><span class="pending">वर्चुअल वॉलेट बाकी</span></div>
+   <div class="card"><div class="metric-label">कुल वर्चुअल कॉइन</div><div class="metric" id="coinCount">—</div><span class="pending">केवल वर्चुअल कॉइन</span></div>
   </div>
   <section class="section card" id="games"><h2>गेम और एक्टिविटी</h2>
    <div class="row"><div><b>Aviator-स्टाइल आर्केड गेम</b><p>गेम सेशन, रिजल्ट और प्लेयर एक्टिविटी रिकॉर्ड</p></div><span class="pill">अभी चालू नहीं</span></div>
@@ -68,8 +68,15 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
    <div class="row"><div><b>गेम सर्विस</b><p>सर्वर पर गेम लॉजिक और रिजल्ट वैलिडेशन</p></div><span class="pill">बाकी है</span></div>
    <div class="row"><div><b>Neon गेमिंग डेटाबेस</b><p>प्लेयर, वर्चुअल वॉलेट, सेशन और रिकॉर्ड के लिए अलग टेबल</p></div><span class="pill">कनेक्ट नहीं</span></div>
   </section>
-  <section class="section card" id="players"><h2>प्लेयर मैनेजमेंट</h2><div class="notice">प्लेयर रजिस्ट्रेशन, प्रोफाइल, अकाउंट स्टेटस और वर्चुअल कॉइन बैलेंस डेटाबेस कनेक्ट होने के बाद यहां दिखाई देंगे।</div></section>
-  <section class="section card" id="records"><h2>गेम रिकॉर्ड</h2><div class="notice">हर प्लेयर के गेम सेशन, गेम इवेंट, वर्चुअल कॉइन मूवमेंट और रिजल्ट अलग सेव होंगे। रिकॉर्ड सर्वर से लिखे जाएंगे, केवल ब्राउज़र पर भरोसा नहीं किया जाएगा।</div></section>
+  <section class="section card" id="players"><h2>प्लेयर मैनेजमेंट</h2>
+   <form id="playerForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:9px;margin-bottom:15px">
+    <input name="username" required minlength="4" maxlength="40" pattern="[a-zA-Z0-9_]+" placeholder="Player username" style="padding:11px;border:1px solid #dce3ed;border-radius:8px">
+    <input name="display_name" required minlength="2" placeholder="Player का नाम" style="padding:11px;border:1px solid #dce3ed;border-radius:8px">
+    <input name="password" required minlength="8" type="password" placeholder="Temporary password (8+)" style="padding:11px;border:1px solid #dce3ed;border-radius:8px">
+    <button class="btn" type="submit">प्लेयर बनाएं</button>
+   </form><p id="playerMsg" class="muted">प्लेयर लिस्ट लोड हो रही है…</p><div id="playerList"></div>
+  </section>
+  <section class="section card" id="records"><h2>गेम रिकॉर्ड</h2><p id="recordMsg" class="muted">रिकॉर्ड लोड हो रहे हैं…</p><div id="recordList" class="notice">अभी कोई गेम रिकॉर्ड नहीं है। गेम सर्विस जुड़ने पर रिकॉर्ड यहां दिखेंगे।</div></section>
   <section class="section card" id="settings"><h2>सिस्टम सेटिंग्स और नियम</h2><div class="notice"><b>केवल मनोरंजन के लिए।</b> वर्चुअल कॉइन का कोई नकद मूल्य नहीं होगा। इन्हें जमा, निकाल, पैसे में बदल या इनाम के रूप में रिडीम नहीं किया जा सकेगा। गेमिंग का डेटा और वर्चुअल बैलेंस Paykassma के मर्चेंट बैलेंस और पेमेंट रिकॉर्ड से पूरी तरह अलग रहेंगे।</div></section>
   <div class="footer" id="authStatus">Super Admin लॉगिन जांच रहे हैं…</div>
  </div>
@@ -77,6 +84,27 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
 <script>
 const token=sessionStorage.getItem("superpay_token");
 function goLogin(){location.replace("/super-admin-login.html")}
+async function api(url,options={}){const r=await fetch(url,{...options,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json",...(options.headers||{})}});const d=await r.json().catch(()=>({ok:false,message:"Invalid server response"}));if(!r.ok||!d.ok)throw new Error(d.message||"Request failed");return d}
+async function loadGaming(){
+ const base="/api/dashboard?module=gaming";
+ const stats=await api(base+"&action=stats");
+ document.getElementById("playerCount").textContent=stats.stats.players;
+ document.getElementById("gameCount").textContent=stats.stats.games;
+ document.getElementById("coinCount").textContent=Number(stats.stats.coins).toLocaleString("en-IN");
+ await Promise.all([loadPlayers(),loadRecords()]);
+}
+async function loadPlayers(){
+ const box=document.getElementById("playerList"),msg=document.getElementById("playerMsg");
+ try{const d=await api("/api/dashboard?module=gaming&action=players");msg.textContent=d.players.length+" प्लेयर";box.innerHTML=d.players.length?d.players.map(p=>'<div class="row"><div><b>'+safe(p.display_name)+' (@'+safe(p.username)+')</b><p>Virtual coins: '+Number(p.virtual_coins).toLocaleString("en-IN")+' · Joined: '+new Date(p.created_at).toLocaleDateString("en-IN")+'</p></div><div style="display:flex;align-items:center;gap:7px"><span class="pill">'+safe(p.status)+'</span><button class="btn" data-player="'+p.id+'" data-status="'+(p.status==="ACTIVE"?"SUSPENDED":"ACTIVE")+'">'+(p.status==="ACTIVE"?"Suspend":"Activate")+'</button></div></div>').join(""):'<div class="notice">अभी कोई प्लेयर रजिस्टर नहीं है।</div>';
+ box.querySelectorAll("[data-player]").forEach(b=>b.addEventListener("click",async()=>{try{await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"player_status",player_id:b.dataset.player,status:b.dataset.status})});await loadPlayers()}catch(e){msg.textContent=e.message}}));
+ }catch(e){msg.textContent=e.message}
+}
+async function loadRecords(){
+ const box=document.getElementById("recordList"),msg=document.getElementById("recordMsg");
+ try{const d=await api("/api/dashboard?module=gaming&action=records");msg.textContent=d.records.length+" रिकॉर्ड";box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">'+Number(x.coins_change).toLocaleString("en-IN")+' virtual</span></div>').join(""):'अभी कोई गेम रिकॉर्ड नहीं है।'}catch(e){msg.textContent=e.message}
+}
+function safe(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
+document.getElementById("playerForm").addEventListener("submit",async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector("button"),msg=document.getElementById("playerMsg");button.disabled=true;try{const payload=Object.fromEntries(new FormData(form));const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"create_player",...payload})});form.reset();msg.textContent="प्लेयर बन गया: "+d.player.username+" · शुरुआती 1,000 वर्चुअल कॉइन दिए गए।";await loadGaming()}catch(err){msg.textContent=err.message}finally{button.disabled=false}});
 async function init(){
  try{
   const user=JSON.parse(sessionStorage.getItem("superpay_user")||"null");
@@ -84,8 +112,9 @@ async function init(){
   const r=await fetch("/api/dashboard",{headers:{Authorization:"Bearer "+token}});
   const d=await r.json().catch(()=>({ok:false}));
   if(!r.ok||!d.ok)return goLogin();
-  document.getElementById("authStatus").textContent="लॉगिन: "+(user.display_name||user.user_id||"Super Admin")+" · गेमिंग डेटा सर्विस अभी कनेक्ट नहीं है।";
- }catch(e){goLogin()}
+  document.getElementById("authStatus").textContent="लॉगिन: "+(user.display_name||user.user_id||"Super Admin")+" · गेमिंग सर्विस सक्रिय।";
+  await loadGaming();
+ }catch(e){document.getElementById("authStatus").textContent="डेटा लोड नहीं हुआ: "+e.message}
 }
 document.getElementById("menu").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
 document.querySelectorAll(".sidebar nav a").forEach(a=>a.addEventListener("click",()=>document.getElementById("sidebar").classList.remove("open")));
