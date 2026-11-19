@@ -79,6 +79,14 @@ async function ensureGamingTables(pool) {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE(match_id,player_id)
     );
+    CREATE TABLE IF NOT EXISTS sp_prediction_monitor_settings (
+      id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id=1),
+      min_predictions INTEGER NOT NULL DEFAULT 5 CHECK (min_predictions BETWEEN 1 AND 10000),
+      imbalance_threshold_pct NUMERIC(5,2) NOT NULL DEFAULT 60 CHECK (imbalance_threshold_pct BETWEEN 50 AND 95),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    INSERT INTO sp_prediction_monitor_settings(id,min_predictions,imbalance_threshold_pct)
+    VALUES(1,5,60) ON CONFLICT(id) DO NOTHING;
     CREATE TABLE IF NOT EXISTS sp_prediction_settlements (
       id BIGSERIAL PRIMARY KEY,
       match_id BIGINT NOT NULL UNIQUE REFERENCES sp_prediction_matches(id) ON DELETE CASCADE,
@@ -558,6 +566,10 @@ module.exports = async (req, res) => {
           return sendJson(res,200,{ok:true,matches:result.rows});
         }
         if (action === "monitoring") {
+          const monitorSettings = await pool.query("SELECT min_predictions,imbalance_threshold_pct,updated_at FROM sp_prediction_monitor_settings WHERE id=1");
+          const monitorConfig = monitorSettings.rows[0] || {min_predictions:5,imbalance_threshold_pct:60};
+          const minPredictions = Number(monitorConfig.min_predictions);
+          const imbalanceThreshold = Number(monitorConfig.imbalance_threshold_pct);
           const [matches,exposureTotals,virtualReserve,settlements,audit] = await Promise.all([
             pool.query(`
               SELECT m.id,m.title,m.sport,m.side_a,m.side_b,m.status,m.result_side,m.result_label,m.result_source,
@@ -571,8 +583,8 @@ module.exports = async (req, res) => {
             pool.query(`
               SELECT COALESCE(SUM(prediction_count),0)::bigint AS total_predictions,
                      COUNT(*) FILTER (
-                       WHERE prediction_count >= 5
-                         AND GREATEST(side_a_count,side_b_count) * 100.0 / NULLIF(prediction_count,0) >= 60
+                       WHERE prediction_count >= $1
+                         AND GREATEST(side_a_count,side_b_count) * 100.0 / NULLIF(prediction_count,0) >= $2
                      )::int AS unbalanced_matches
               FROM (
                 SELECT m.id,COUNT(p.id)::int AS prediction_count,
@@ -581,7 +593,7 @@ module.exports = async (req, res) => {
                 FROM sp_prediction_matches m LEFT JOIN sp_predictions p ON p.match_id=m.id
                 GROUP BY m.id
               ) AS all_match_counts
-            `),
+            `,[minPredictions,imbalanceThreshold]),
             pool.query("SELECT COUNT(*)::int AS wallet_count,COALESCE(SUM(virtual_coins),0)::bigint AS virtual_points FROM sp_game_wallets"),
             pool.query("SELECT COUNT(*)::int AS settled_matches,COALESCE(SUM(prediction_count),0)::bigint AS predictions,COALESCE(SUM(correct_count),0)::bigint AS correct,COALESCE(SUM(incorrect_count),0)::bigint AS incorrect,COALESCE(SUM(void_count),0)::bigint AS void FROM sp_prediction_settlements"),
             pool.query("SELECT id,match_id,event_type,event_note,event_data,created_at FROM sp_prediction_audit_logs ORDER BY created_at DESC LIMIT 20")
@@ -594,7 +606,8 @@ module.exports = async (req, res) => {
             exposure:{matches:rows,total_predictions:String(exposureTotals.rows[0].total_predictions||0),unbalanced_matches:Number(exposureTotals.rows[0].unbalanced_matches||0)},
             liquidity:{wallet_count:virtualReserve.rows[0].wallet_count,virtual_points:String(virtualReserve.rows[0].virtual_points),unit:"virtual points only"},
             reserve:{virtual_points:String(virtualReserve.rows[0].virtual_points),unit:"virtual points only",cash_value:0},
-            settlement:{...settlements.rows[0],recent:audit.rows}
+            settlement:{...settlements.rows[0],recent:audit.rows},
+            alert_settings:{min_predictions:minPredictions,imbalance_threshold_pct:imbalanceThreshold,updated_at:monitorConfig.updated_at||null}
           }});
         }
         if (action === "players") {
@@ -638,6 +651,23 @@ module.exports = async (req, res) => {
         return sendJson(res, 400, { ok: false, message: "Unknown gaming action" });
       }
       const body = req.body || {};
+      if (req.method === "POST" && body.action === "update_monitor_settings") {
+        const minPredictions = Number(body.min_predictions);
+        const imbalanceThreshold = Number(body.imbalance_threshold_pct);
+        if (!Number.isInteger(minPredictions) || minPredictions < 1 || minPredictions > 10000 ||
+            !Number.isFinite(imbalanceThreshold) || imbalanceThreshold < 50 || imbalanceThreshold > 95) {
+          return sendJson(res,400,{ok:false,message:"Minimum predictions must be 1–10,000 and imbalance threshold must be 50–95%."});
+        }
+        const saved = await pool.query(
+          "INSERT INTO sp_prediction_monitor_settings(id,min_predictions,imbalance_threshold_pct,updated_at) VALUES(1,$1,$2,NOW()) ON CONFLICT(id) DO UPDATE SET min_predictions=EXCLUDED.min_predictions,imbalance_threshold_pct=EXCLUDED.imbalance_threshold_pct,updated_at=NOW() RETURNING min_predictions,imbalance_threshold_pct,updated_at",
+          [minPredictions,imbalanceThreshold]
+        );
+        await pool.query(
+          "INSERT INTO sp_prediction_audit_logs(match_id,event_type,event_note,event_data) VALUES(NULL,'MONITOR_SETTINGS_UPDATED','Admin updated prediction imbalance alert settings',$1::jsonb)",
+          [JSON.stringify(saved.rows[0])]
+        );
+        return sendJson(res,200,{ok:true,settings:saved.rows[0],message:"Monitoring alert settings updated."});
+      }
       if (req.method === "POST" && body.action === "create_prediction_match") {
         const sport=String(body.sport||"CRICKET").toUpperCase();
         const sideA=String(body.side_a||"").trim().slice(0,100);
