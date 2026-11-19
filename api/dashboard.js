@@ -54,6 +54,31 @@ async function ensureGamingTables(pool) {
       payload JSONB NOT NULL,
       fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS sp_prediction_matches (
+      id BIGSERIAL PRIMARY KEY,
+      sport VARCHAR(20) NOT NULL DEFAULT 'CRICKET',
+      provider_match_id VARCHAR(100),
+      title VARCHAR(200) NOT NULL,
+      side_a VARCHAR(100) NOT NULL,
+      side_b VARCHAR(100) NOT NULL,
+      scheduled_at TIMESTAMPTZ,
+      status VARCHAR(20) NOT NULL DEFAULT 'UPCOMING',
+      result_side VARCHAR(1),
+      result_label VARCHAR(100),
+      result_source VARCHAR(20),
+      result_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(sport,provider_match_id)
+    );
+    CREATE TABLE IF NOT EXISTS sp_predictions (
+      id BIGSERIAL PRIMARY KEY,
+      match_id BIGINT NOT NULL REFERENCES sp_prediction_matches(id) ON DELETE CASCADE,
+      player_id BIGINT NOT NULL REFERENCES sp_game_players(id) ON DELETE CASCADE,
+      selection_side VARCHAR(1) NOT NULL CHECK (selection_side IN ('A','B')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(match_id,player_id)
+    );
     CREATE TABLE IF NOT EXISTS sp_game_settings (
       game_code VARCHAR(40) PRIMARY KEY,
       title VARCHAR(100) NOT NULL,
@@ -362,6 +387,17 @@ module.exports = async (req, res) => {
             live_matches: null
           }});
         }
+        if (action === "prediction_matches") {
+          const result = await pool.query(`
+            SELECT m.*,
+              COUNT(p.id)::int AS prediction_count,
+              COUNT(p.id) FILTER (WHERE p.selection_side=m.result_side)::int AS correct_count
+            FROM sp_prediction_matches m
+            LEFT JOIN sp_predictions p ON p.match_id=m.id
+            GROUP BY m.id ORDER BY m.scheduled_at DESC NULLS LAST,m.id DESC LIMIT 100
+          `);
+          return sendJson(res,200,{ok:true,matches:result.rows});
+        }
         if (action === "players") {
           const result = await pool.query(`
             SELECT p.id,p.username,p.display_name,p.status,p.created_at,
@@ -403,6 +439,95 @@ module.exports = async (req, res) => {
         return sendJson(res, 400, { ok: false, message: "Unknown gaming action" });
       }
       const body = req.body || {};
+      if (req.method === "POST" && body.action === "create_prediction_match") {
+        const sport=String(body.sport||"CRICKET").toUpperCase();
+        const sideA=String(body.side_a||"").trim().slice(0,100);
+        const sideB=String(body.side_b||"").trim().slice(0,100);
+        const title=String(body.title||"").trim().slice(0,200);
+        if(!["CRICKET","FOOTBALL","OTHER"].includes(sport)||!sideA||!sideB||sideA===sideB||!title)
+          return sendJson(res,400,{ok:false,message:"Sport, match title and two different team names are required"});
+        const scheduled=body.scheduled_at?new Date(body.scheduled_at):null;
+        if(scheduled && Number.isNaN(scheduled.getTime())) return sendJson(res,400,{ok:false,message:"Invalid match date"});
+        const saved=await pool.query(
+          "INSERT INTO sp_prediction_matches(sport,title,side_a,side_b,scheduled_at,status,result_source) VALUES($1,$2,$3,$4,$5,'UPCOMING','MANUAL') RETURNING *",
+          [sport,title,sideA,sideB,scheduled]
+        );
+        return sendJson(res,201,{ok:true,match:saved.rows[0]});
+      }
+      if (req.method === "POST" && body.action === "manual_match_result") {
+        const matchId=Number(body.match_id), side=String(body.result_side||"").toUpperCase();
+        if(!Number.isSafeInteger(matchId)||matchId<1||!["A","B"].includes(side))
+          return sendJson(res,400,{ok:false,message:"Choose a valid match and result"});
+        const saved=await pool.query(
+          "UPDATE sp_prediction_matches SET result_side=$1,result_label=CASE WHEN $1='A' THEN side_a ELSE side_b END,status='FINISHED',result_source='MANUAL',updated_at=NOW() WHERE id=$2 RETURNING *",
+          [side,matchId]
+        );
+        if(!saved.rowCount)return sendJson(res,404,{ok:false,message:"Match not found"});
+        const count=await pool.query("SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE selection_side=$1)::int AS correct FROM sp_predictions WHERE match_id=$2",[side,matchId]);
+        return sendJson(res,200,{ok:true,match:saved.rows[0],predictions:count.rows[0]});
+      }
+      if (req.method === "POST" && body.action === "sync_match_results") {
+        const apiKey=process.env.FOOTBALL_API_KEY;
+        const cricketKey=process.env.SPORTMONKS_CRICKET_TOKEN;
+        let updated=0,review=0,checked=0,errors=[];
+        async function saveProviderMatch(sport,providerId,title,a,b,scheduled,resultSide,resultLabel,data){
+          if(!providerId||!a||!b)return;
+          checked++;
+          const existing=await pool.query("SELECT id,result_source,status FROM sp_prediction_matches WHERE sport=$1 AND provider_match_id=$2",[sport,String(providerId)]);
+          if(existing.rows[0]?.result_source==="MANUAL")return;
+          const status=resultSide?"FINISHED":"FINISHED";
+          await pool.query(`
+            INSERT INTO sp_prediction_matches(sport,provider_match_id,title,side_a,side_b,scheduled_at,status,result_side,result_label,result_source,result_data)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
+            ON CONFLICT(sport,provider_match_id) DO UPDATE SET
+              title=EXCLUDED.title,side_a=EXCLUDED.side_a,side_b=EXCLUDED.side_b,
+              scheduled_at=COALESCE(EXCLUDED.scheduled_at,sp_prediction_matches.scheduled_at),
+              status=CASE WHEN sp_prediction_matches.result_source='MANUAL' THEN sp_prediction_matches.status ELSE EXCLUDED.status END,
+              result_side=CASE WHEN sp_prediction_matches.result_source='MANUAL' THEN sp_prediction_matches.result_side ELSE COALESCE(EXCLUDED.result_side,sp_prediction_matches.result_side) END,
+              result_label=CASE WHEN sp_prediction_matches.result_source='MANUAL' THEN sp_prediction_matches.result_label ELSE COALESCE(EXCLUDED.result_label,sp_prediction_matches.result_label) END,
+              result_source=CASE WHEN sp_prediction_matches.result_source='MANUAL' THEN 'MANUAL' ELSE EXCLUDED.result_source END,
+              result_data=EXCLUDED.result_data,updated_at=NOW()
+          `,[sport,String(providerId),title,a,b,scheduled||null,status,resultSide||null,resultLabel||null,resultSide?"API":"API_REVIEW",JSON.stringify(data||{})]);
+          if(resultSide)updated++;else review++;
+        }
+        try {
+          if(apiKey){
+            const dates=[];const now=new Date();
+            for(let offset=-14;offset<=0;offset++){const d=new Date(now);d.setUTCDate(d.getUTCDate()+offset);dates.push(d.toISOString().slice(0,10));}
+            const lists=await Promise.all(dates.map(async date=>{
+              const resp=await fetch("https://api.sportsapi.app/v2/fixtures?date="+date+"&sport=football",{headers:{Accept:"application/json",Authorization:"Bearer "+apiKey}});
+              if(!resp.ok)throw new Error("Football API HTTP "+resp.status);
+              const payload=await resp.json();return Array.isArray(payload.data)?payload.data:[];
+            }));
+            for(const m of lists.flat()){
+              if(String(m.status?.type||"").toLowerCase()!=="finished")continue;
+              const teams=m.teams||{};
+              const a=String(m.homeTeam?.name||m.home_team?.name||m.homeTeamName||teams.home?.name||"");
+              const b=String(m.awayTeam?.name||m.away_team?.name||m.awayTeamName||teams.away?.name||"");
+              const winner=String(m.winner?.name||m.winnerName||m.status?.winner||"");
+              const side=winner&&winner.toLowerCase()===a.toLowerCase()?"A":winner&&winner.toLowerCase()===b.toLowerCase()?"B":null;
+              await saveProviderMatch("FOOTBALL",m.id||m.fixtureId||m.matchId,a+" vs "+b,a,b,m.startTime||null,side,winner||null,m);
+            }
+          }
+        } catch(e){errors.push("Football: "+e.message)}
+        try {
+          if(cricketKey){
+            const resp=await fetch("https://cricket.sportmonks.com/api/v2.0/fixtures?api_token="+encodeURIComponent(cricketKey)+"&include=localteam,visitorteam,scoreboards,winner",{headers:{Accept:"application/json"}});
+            if(!resp.ok)throw new Error("Cricket API HTTP "+resp.status);
+            const payload=await resp.json();
+            for(const m of (Array.isArray(payload.data)?payload.data:[])){
+              if(String(m.status||"").toLowerCase()!=="finished")continue;
+              const a=String(m.localteam?.name||m.localteam?.data?.name||"");
+              const b=String(m.visitorteam?.name||m.visitorteam?.data?.name||"");
+              const winnerId=m.winner_team_id||m.winner_team?.id||m.winnerteam_id;
+              const side=winnerId&&String(winnerId)===String(m.localteam_id)?"A":winnerId&&String(winnerId)===String(m.visitorteam_id)?"B":null;
+              const winner=side?(side==="A"?a:b):null;
+              await saveProviderMatch("CRICKET",m.id,a+" vs "+b,a,b,m.starting_at||null,side,winner,m);
+            }
+          }
+        } catch(e){errors.push("Cricket: "+e.message)}
+        return sendJson(res,200,{ok:true,checked,updated,needs_manual_review:review,errors});
+      }
       if (req.method === "POST" && body.action === "create_player") {
         const username = String(body.username || "").trim().toLowerCase();
         const displayName = String(body.display_name || "").trim();
