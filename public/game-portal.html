@@ -35,7 +35,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;background:rad
 <div class="brand">ParixBet <span>Gaming</span></div><div class="sports-strip" aria-label="Game categories"><div class="sport-tile"><span>🏏</span><b>Cricket</b></div><div class="sport-tile"><span>⚽</span><b>Sports</b></div><div class="sport-tile"><span>🃏</span><b>Cards</b></div><div class="sport-tile"><span>✈️</span><b>Arcade</b></div></div><div class="sub">Entertainment games · Virtual points only<br>No real money, deposits, withdrawals or cash value.</div>
 <section class="panel" id="authPanel"><div class="tabs"><button id="loginTab" class="active" type="button">Login</button><button id="registerTab" type="button">Create account</button></div>
 <form id="authForm"><div id="nameWrap" class="hidden"><label>Display name</label><input name="display_name" minlength="2" placeholder="Your name"></div><label>Username</label><input name="user_id" required minlength="4" maxlength="40" pattern="[A-Za-z0-9_]+" placeholder="4-40 letters, numbers or _"><label>Password</label><input name="password" type="password" required minlength="8" placeholder="At least 8 characters"><button class="submit" id="submitBtn">Login</button></form><div class="msg" id="msg"></div><div class="disclose">New accounts receive 1,000 virtual welcome points. These points cannot be purchased, transferred, withdrawn or redeemed for cash or prizes.</div></section>
-<section class="panel hidden" id="playerPanel"><h2 id="welcome" style="margin:0">Welcome</h2><div class="wallet"><small>YOUR VIRTUAL POINTS</small><div class="coins" id="coins">0</div><small>No cash value</small></div><h3>Games & activities</h3><div class="game" id="tapGame"><h3>Tap Speed Challenge</h3><div class="muted">Tap as many times as you can in 10 seconds. Score only—no wagers, prizes, or coin deductions.</div><div id="tapScore" style="font-size:24px;font-weight:800;margin:12px 0">0 taps</div><button class="submit" id="tapStart" type="button">Start 10-second challenge</button><button class="submit hidden" id="tapButton" type="button" style="background:#15945d">TAP!</button><div class="muted" id="tapMsg" style="margin-top:9px"></div></div><div class="game" id="cricketGame"><h3>Cricket Centre</h3><div class="muted">Live scores and match information from the connected cricket data provider.</div><button class="submit" id="cricketRefresh" type="button" style="margin-top:12px">Refresh live scores</button><div id="cricketLive" class="muted" style="margin-top:12px">Checking cricket data connection…</div></div><div class="muted" id="gameAvailability" style="margin-top:10px"></div><h3 style="margin-top:20px">Recent activity</h3><div class="muted" id="history">No game activity yet.</div><button class="logout" id="logout">Log out</button></section>
+<section class="panel hidden" id="playerPanel"><h2 id="welcome" style="margin:0">Welcome</h2><div class="wallet"><small>YOUR VIRTUAL POINTS</small><div class="coins" id="coins">0</div><small>No cash value</small></div><h3>Games & activities</h3><div class="game" id="tapGame"><h3>Tap Speed Challenge</h3><div class="muted">Tap as many times as you can in 10 seconds. Score only—no wagers, prizes, or coin deductions.</div><div id="tapScore" style="font-size:24px;font-weight:800;margin:12px 0">0 taps</div><button class="submit" id="tapStart" type="button">Start 10-second challenge</button><button class="submit hidden" id="tapButton" type="button" style="background:#15945d">TAP!</button><div class="muted" id="tapMsg" style="margin-top:9px"></div></div><div class="game" id="cricketGame"><h3>Cricket Centre</h3><div class="muted">Live scores, upcoming matches and recent results from the connected cricket data provider.</div><button class="submit" id="cricketRefresh" type="button" style="margin-top:12px">Refresh cricket data</button><div id="cricketLive" class="muted" style="margin-top:12px">Checking cricket data connection…</div><h3 style="margin-top:18px">Upcoming Matches</h3><div id="cricketUpcoming" class="muted">Loading schedule…</div><h3 style="margin-top:18px">Recent Results</h3><div id="cricketResults" class="muted">Loading results…</div></div><div class="muted" id="gameAvailability" style="margin-top:10px"></div><h3 style="margin-top:20px">Recent activity</h3><div class="muted" id="history">No game activity yet.</div><button class="logout" id="logout">Log out</button></section>
 </div>
 <script>
 let mode="login";const form=document.getElementById("authForm"),msg=document.getElementById("msg");
@@ -49,22 +49,48 @@ tapButton.addEventListener("click",()=>{if(!tapActive)return;tapCount=Math.min(5
 async function finishTap(){if(!tapActive)return;tapActive=false;clearTimeout(tapTimer);tapButton.classList.add("hidden");tapStart.classList.remove("hidden");tapStart.textContent="Play again";const elapsed=Math.max(5000,Math.min(60000,Date.now()-tapStarted));document.getElementById("tapMsg").textContent="Saving your score…";try{const token=sessionStorage.getItem("game_token");const d=await request("/api/dashboard?module=gaming-play",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({taps:tapCount,duration_ms:elapsed})});document.getElementById("tapMsg").textContent="Score saved: "+d.score+" taps · Your virtual coin balance was not changed.";await showPlayer()}catch(e){document.getElementById("tapMsg").textContent="Score was not saved: "+e.message}}
 async function showPlayer(){const token=sessionStorage.getItem("game_token");if(!token)return;try{const d=await request("/api/dashboard?module=gaming-player",{headers:{Authorization:"Bearer "+token}});document.getElementById("authPanel").classList.add("hidden");document.getElementById("playerPanel").classList.remove("hidden");document.getElementById("welcome").textContent="Welcome, "+d.player.display_name;document.getElementById("coins").textContent=Number(d.player.virtual_coins).toLocaleString("en-IN");const enabled=new Set((d.games||[]).filter(g=>g.enabled).map(g=>g.game_code));document.getElementById("tapGame").classList.toggle("hidden",!enabled.has("TAP_CHALLENGE"));document.getElementById("cricketGame").classList.toggle("hidden",!enabled.has("CRICKET_CENTRE"));document.getElementById("gameAvailability").textContent=enabled.has("TAP_CHALLENGE")||enabled.has("CRICKET_CENTRE")?"Games shown here are controlled by ParixBet administration.":"All games are temporarily unavailable.";document.getElementById("history").innerHTML=d.history.length?d.history.map(x=>"<div>"+String(x.game_code).replace(/[<>]/g,"")+" · "+new Date(x.created_at).toLocaleString()+"</div>").join(""):"No game activity yet.";loadCricketData()}catch(e){sessionStorage.removeItem("game_token");sessionStorage.removeItem("game_user")}}
 async function loadCricketData(){
- const box=document.getElementById("cricketLive");if(!box)return;
- box.textContent="Loading verified live cricket data…";
+ const box=document.getElementById("cricketLive");
+ const upcomingBox=document.getElementById("cricketUpcoming");
+ const resultsBox=document.getElementById("cricketResults");
+ if(!box)return;
+ box.textContent="Loading live cricket data…";
+ if(upcomingBox)upcomingBox.textContent="Loading upcoming matches…";
+ if(resultsBox)resultsBox.textContent="Loading recent results…";
+ const makeCard=(match,kind)=>{
+  const card=document.createElement("div");
+  card.style.cssText="padding:12px;margin:9px 0;border:1px solid #36527b;border-radius:11px;background:#0c1a30";
+  const teams=document.createElement("b");
+  teams.style.cssText="display:block;color:#f3f7ff;font-size:13px";
+  teams.textContent=(match.localteam&&match.localteam.name?match.localteam.name:"Team 1")+" vs "+(match.visitorteam&&match.visitorteam.name?match.visitorteam.name:"Team 2");
+  const info=document.createElement("div");
+  info.style.cssText="margin-top:6px;color:#a9bad5;font-size:11px;line-height:1.6";
+  const date=match.starting_at?new Date(match.starting_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"";
+  info.textContent=[match.note,match.status,date].filter(Boolean).join(" · ")||kind;
+  card.append(teams,info);
+  return card;
+ };
+ const renderList=(target,items,emptyText,kind)=>{
+  if(!target)return;
+  target.replaceChildren();
+  if(!Array.isArray(items)||!items.length){target.textContent=emptyText;return}
+  items.slice(0,12).forEach(item=>target.append(makeCard(item,kind)));
+ };
  try{
   const d=await request("/api/dashboard?module=gaming-cricket",{headers:{Authorization:"Bearer "+sessionStorage.getItem("game_token")}});
-  if(!d.connected){box.textContent=d.message||"Live cricket API is not connected.";return}
-  if(!Array.isArray(d.matches)||!d.matches.length){box.textContent="No live matches are available right now.";return}
-  box.replaceChildren();
-  d.matches.slice(0,12).forEach(m=>{
-   const card=document.createElement("div");card.style.cssText="padding:12px;margin:9px 0;border:1px solid #36527b;border-radius:11px;background:#0c1a30";
-   const teams=document.createElement("b");teams.style.cssText="display:block;color:#f3f7ff;font-size:13px";
-   teams.textContent=(m.localteam&&m.localteam.name?m.localteam.name:"Team 1")+" vs "+(m.visitorteam&&m.visitorteam.name?m.visitorteam.name:"Team 2");
-   const info=document.createElement("div");info.style.cssText="margin-top:6px;color:#a9bad5;font-size:11px;line-height:1.6";
-   info.textContent=[m.note,m.status].filter(Boolean).join(" · ")||"Live match information";
-   card.append(teams,info);box.append(card);
-  });
- }catch(e){box.textContent=e.message||"Cricket data could not be loaded."}
+  if(!d.connected){
+   box.textContent=d.message||"Live cricket API is not connected.";
+   if(upcomingBox)upcomingBox.textContent="Schedule is not available until the API is connected.";
+   if(resultsBox)resultsBox.textContent="Results are not available until the API is connected.";
+   return;
+  }
+  renderList(box,d.matches,"No live matches are available right now.","Live match");
+  renderList(upcomingBox,d.upcoming,"No upcoming matches are available in your API plan for the next 14 days.","Upcoming match");
+  renderList(resultsBox,d.results,"No completed matches were found in the last 14 days.","Recent result");
+ }catch(e){
+  box.textContent=e.message||"Cricket data could not be loaded.";
+  if(upcomingBox)upcomingBox.textContent="Schedule could not be loaded.";
+  if(resultsBox)resultsBox.textContent="Results could not be loaded.";
+ }
 }
 document.getElementById("cricketRefresh")?.addEventListener("click",loadCricketData);
 form.addEventListener("submit",async e=>{e.preventDefault();const btn=document.getElementById("submitBtn");btn.disabled=true;msg.textContent="Please wait…";try{const values=Object.fromEntries(new FormData(form));const d=await request("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...values,login_type:mode==="register"?"gaming_register":"gaming"})});sessionStorage.setItem("game_token",d.token);sessionStorage.setItem("game_user",JSON.stringify(d.user));msg.textContent="";await showPlayer()}catch(err){msg.textContent=err.message}finally{btn.disabled=false}});
