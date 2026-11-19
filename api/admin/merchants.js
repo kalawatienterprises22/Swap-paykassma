@@ -137,8 +137,8 @@ module.exports = async (req, res) => {
     if (req.method === "GET") {
 
       if(actor.role==="SUPER_ADMIN"&&req.query?.action==="pending_signups"){
-        const pending=await pool.query("SELECT u.id,u.user_id,u.display_name,u.email,u.created_at,o.phone,o.full_address,o.telegram_username,o.telegram_verified_at FROM sp_users u JOIN sp_merchant_onboarding o ON o.merchant_id=u.id WHERE u.role='MERCHANT' AND u.status='SUSPENDED' AND o.review_status='PENDING' ORDER BY u.created_at DESC LIMIT 200");
-        return sendJson(res,200,{ok:true,signups:pending.rows});
+        const pending=await pool.query("SELECT u.id,u.user_id,u.display_name,u.email,u.created_at,o.phone,o.full_address,o.pan_number_encrypted,o.aadhaar_number_encrypted,o.telegram_username,o.telegram_verified_at FROM sp_users u JOIN sp_merchant_onboarding o ON o.merchant_id=u.id WHERE u.role='MERCHANT' AND u.status='SUSPENDED' AND o.review_status='PENDING' ORDER BY u.created_at DESC LIMIT 200");
+        return sendJson(res,200,{ok:true,signups:pending.rows.map(row=>({ ...row, pan_number: decryptKyc(row.pan_number_encrypted), aadhaar_last4: decryptKyc(row.aadhaar_number_encrypted).slice(-4) }))});
       }
       if (actor.role === "ADMIN" && req.query?.action === "referral_link") {
         let referral = await pool.query("SELECT code FROM sp_admin_referrals WHERE admin_id=$1 AND active=TRUE", [actor.sub]);
