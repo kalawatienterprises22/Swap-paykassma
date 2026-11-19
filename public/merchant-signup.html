@@ -1,17 +1,17 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Join SuperPay</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Join Paykassma</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#f1f5f9;font:15px Arial;color:#172033}.wrap{max-width:540px;margin:28px auto;padding:16px}.panel{background:#fff;padding:22px;border-radius:14px;box-shadow:0 3px 14px #00000010}label{display:block;font-weight:bold;font-size:13px;margin:13px 0;color:#475569}input,textarea{display:block;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;margin-top:6px;font:inherit}button{width:100%;padding:13px;border:0;border-radius:8px;background:#175bd5;color:#fff;font-weight:bold;margin-top:15px}button:disabled{opacity:.6}#message{line-height:1.5;color:#475569;overflow-wrap:anywhere}.hint{font-size:12px;color:#64748b;line-height:1.5}</style></head>
-<body><div class="wrap"><section class="panel"><h2>Join SuperPay as Merchant</h2><p>Complete your details. After registration, connect Telegram and wait for Super Admin approval.</p>
+<body><div class="wrap"><section class="panel"><h2>Join Paykassma as Merchant</h2><p>Complete your details. After registration, connect Telegram and wait for Super Admin approval.</p>
 <form id="signup">
 <label>Full Name<input name="display_name" required minlength="2" maxlength="80"></label>
-<label>Merchant ID <input value="Registration के बाद अपने आप बनेगी" disabled></label><p class="hint">Merchant ID आपको खुद नहीं भरनी है। SuperPay रजिस्ट्रेशन पर अपने आप ID बनाएगा और आपको दिखाएगा।</p>
+<label>Merchant ID <input value="Registration के बाद अपने आप बनेगी" disabled></label><p class="hint">Merchant ID आपको खुद नहीं भरनी है। Paykassma रजिस्ट्रेशन पर अपने आप ID बनाएगा और आपको दिखाएगा।</p>
 <label>Mobile Number<input name="phone" type="tel" required minlength="8" maxlength="20"></label>
 <label>PAN Card Number <span style="color:#dc2626">* Required</span><input name="pan_number" type="text" required minlength="10" maxlength="10" pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]" placeholder="ABCDE1234F" style="text-transform:uppercase" autocomplete="off"></label>
 <label>Aadhaar Card Number (Optional)<input name="aadhaar_number" type="text" inputmode="numeric" minlength="12" maxlength="12" pattern="[0-9]{12}" placeholder="12-digit Aadhaar number" autocomplete="off"></label>
 <p class="hint">PAN number is mandatory. Aadhaar number is optional. No document photo upload is required.</p>
 <label>Full Address<textarea name="address" required minlength="8" maxlength="500" rows="3"></textarea></label>
 <label>Email (optional)<input name="email" type="email" maxlength="254"></label>
-<p class="hint">You will create your password securely only after Super Admin approval. SuperPay will never send a password in Telegram.</p>
+<p class="hint">You will create your password securely only after Super Admin approval. Paykassma will never send a password in Telegram.</p>
 <button id="submit" type="submit">Submit Registration</button></form>
 <p id="message" role="status"></p><p><a href="/login.html">Already have an account? Login</a></p></section></div>
 <script>
