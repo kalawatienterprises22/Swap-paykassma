@@ -127,8 +127,8 @@ module.exports = async (req, res) => {
       } else {
         await pool.query("INSERT INTO sp_merchant_onboarding(merchant_id,phone,full_address,pan_number_encrypted,aadhaar_number_encrypted,phone_normalized,pan_fingerprint,telegram_link_token_hash,telegram_link_expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()+interval '30 minutes')",[createdMerchant.id,mobile,fullAddress,encryptKyc(pan),encryptKyc(aadhaar),normalizedMobile,panHash,linkHash]);
       }
-      await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REFERRED_SIGNUP','MERCHANT',$2,$3)",[referral.rows[0].admin_id,created.rows[0].id,JSON.stringify({merchant_user_id:accountId,referral_admin_user_id:referral.rows[0].admin_user_id})]);
-      await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE (id=$2 OR role='SUPER_ADMIN') AND status='ACTIVE'",[`Merchant ${accountId} registered. Telegram connection and Super Admin approval are required.`,referral.rows[0].admin_id]);
+      await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REFERRED_SIGNUP','MERCHANT',$2,$3)",[referral.rows[0].admin_id,createdMerchant.id,JSON.stringify({merchant_user_id:createdMerchant.user_id,referral_admin_user_id:referral.rows[0].admin_user_id,reused_after_reset:duplicate.rowCount>0})]);
+      await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE (id=$2 OR role='SUPER_ADMIN') AND status='ACTIVE'",[`Merchant ${createdMerchant.user_id} registered. Telegram connection and Super Admin approval are required.`,referral.rows[0].admin_id]);
       return sendJson(res,201,{ok:true,message:"Registration saved. Connect Telegram to finish verification.",bot_url:"https://t.me/superpay_notification_bot?start=link_"+linkToken,merchant:createdMerchant});
     }
 
