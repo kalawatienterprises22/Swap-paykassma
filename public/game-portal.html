@@ -24,7 +24,7 @@ button.submit:active{transform:scale(.99)}button.submit:disabled{opacity:.55}
 .game{padding:18px;border:1px solid #30476b;background:linear-gradient(145deg,#172b4b,#101d34);border-radius:15px;margin-top:13px;box-shadow:0 8px 22px #0002}
 .game h3{margin:0 0 8px;font-size:16px;font-weight:950;color:#f4f7ff}.muted{color:#a9bad5;font-size:12px;line-height:1.7;font-weight:550}
 #tapScore{color:#7ce6ef!important;font-size:30px!important;font-weight:1000!important}
-.view-more-btn{display:block;width:100%;margin:10px 0 2px;padding:10px;border:1px solid #42618d;border-radius:10px;background:#142747;color:#83c5ff;font-size:12px;font-weight:900;cursor:pointer}.logout{background:#1c2c49;color:#dce8fb;border:1px solid #3a5278;padding:12px;border-radius:10px;width:100%;margin-top:18px;font-weight:850}
+[hidden]{display:none!important}.view-more-btn{display:block;width:100%;margin:10px 0 2px;padding:10px;border:1px solid #42618d;border-radius:10px;background:#142747;color:#83c5ff;font-size:12px;font-weight:900;cursor:pointer}.logout{background:#1c2c49;color:#dce8fb;border:1px solid #3a5278;padding:12px;border-radius:10px;width:100%;margin-top:18px;font-weight:850}
 @media(max-width:420px){.wrap{padding:16px 12px 35px}.panel{padding:18px}.brand{font-size:29px}.coins{font-size:38px}}
 /* Colorful arcade and sports background accents */
 body:before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 4% 22%,#ff9b3d25,transparent 24%),radial-gradient(circle at 100% 42%,#31d7ce20,transparent 24%),radial-gradient(circle at 50% 100%,#9868ff22,transparent 30%);z-index:0}
@@ -154,6 +154,7 @@ async function loadCricketData(){
   target.replaceChildren();
   if(!Array.isArray(items)||!items.length){target.textContent=emptyText;return}
   items.slice(0,12).forEach(item=>target.append(makeCard(item,kind)));
+  applyViewMore(target,3);
  };
  try{
   const d=await request("/api/dashboard?module=gaming-cricket",{headers:{Authorization:"Bearer "+sessionStorage.getItem("game_token")}});
@@ -209,6 +210,7 @@ async function loadFootballData(){
   target.replaceChildren();
   if(!Array.isArray(items)||!items.length){target.textContent=empty;return}
   items.slice(0,15).forEach(match=>target.append(makeFootballCard(match,kind)));
+  applyViewMore(target,3);
  };
  try{
   const d=await request("/api/dashboard?module=gaming-football",{headers:{Authorization:"Bearer "+sessionStorage.getItem("game_token")}});
