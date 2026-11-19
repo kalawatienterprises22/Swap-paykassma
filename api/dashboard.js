@@ -126,21 +126,43 @@ module.exports = async (req, res) => {
       if (!active.rowCount) return sendJson(res, 403, { ok: false, message: "Player account is unavailable" });
       const setting = await pool.query("SELECT enabled FROM sp_game_settings WHERE game_code='CRICKET_CENTRE' LIMIT 1");
       if (!setting.rows[0]?.enabled) return sendJson(res, 403, { ok: false, message: "Cricket Centre is currently disabled" });
-      const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key='livescores' LIMIT 1");
-      const age = cached.rows[0] ? Date.now() - new Date(cached.rows[0].fetched_at).getTime() : Infinity;
-      if (age < 30000) return sendJson(res, 200, { ok: true, connected: true, cached: true, matches: cached.rows[0].payload });
       const apiKey = process.env.SPORTMONKS_CRICKET_TOKEN;
-      if (!apiKey) return sendJson(res, 200, { ok: true, connected: false, message: "Live cricket data is not connected yet.", matches: [] });
-      const url = "https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" + encodeURIComponent(apiKey) + "&include=localteam,visitorteam,scoreboards";
-      const response = await fetch(url, { headers: { Accept: "application/json" } });
-      if (!response.ok) throw new Error("Cricket provider returned HTTP " + response.status);
-      const payload = await response.json();
-      const matches = Array.isArray(payload.data) ? payload.data : [];
-      await pool.query(
-        "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES('livescores',$1::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
-        [JSON.stringify(matches)]
-      );
-      return sendJson(res, 200, { ok: true, connected: true, cached: false, matches });
+      if (!apiKey) return sendJson(res, 200, { ok: true, connected: false, message: "Live cricket data is not connected yet.", matches: [], upcoming: [], results: [] });
+
+      async function getCricketData(cacheKey, url, maxAge) {
+        const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key=$1 LIMIT 1", [cacheKey]);
+        const age = cached.rows[0] ? Date.now() - new Date(cached.rows[0].fetched_at).getTime() : Infinity;
+        if (age < maxAge) return cached.rows[0].payload;
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error("Cricket provider returned HTTP " + response.status);
+        const payload = await response.json();
+        const data = Array.isArray(payload.data) ? payload.data : [];
+        await pool.query(
+          "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES($1,$2::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
+          [cacheKey, JSON.stringify(data)]
+        );
+        return data;
+      }
+
+      const now = new Date();
+      const day = value => value.toISOString().slice(0, 10);
+      const pastStart = new Date(now.getTime() - 14 * 86400000);
+      const futureEnd = new Date(now.getTime() + 14 * 86400000);
+      const liveUrl = "https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" + encodeURIComponent(apiKey) + "&include=localteam,visitorteam,scoreboards";
+      const fixtureBase = "https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=" + encodeURIComponent(apiKey) + "&include=localteam,visitorteam,scoreboards&filter[starts_between]=";
+      const [matches, fixturePast, fixtureFuture] = await Promise.all([
+        getCricketData("livescores", liveUrl, 30000),
+        getCricketData("fixtures-recent", fixtureBase + day(pastStart) + "," + day(now), 900000),
+        getCricketData("fixtures-upcoming", fixtureBase + day(now) + "," + day(futureEnd), 900000)
+      ]);
+      const results = fixturePast.filter(match => String(match.status || "").toLowerCase() === "finished")
+        .sort((a,b) => new Date(b.starting_at || 0) - new Date(a.starting_at || 0)).slice(0, 12);
+      const upcoming = fixtureFuture.filter(match => {
+        const start = new Date(match.starting_at || 0);
+        const status = String(match.status || "").toLowerCase();
+        return !Number.isNaN(start.getTime()) && start >= now && status !== "finished" && status !== "cancelled";
+      }).sort((a,b) => new Date(a.starting_at) - new Date(b.starting_at)).slice(0, 12);
+      return sendJson(res, 200, { ok: true, connected: true, cached: false, matches, upcoming, results });
     } catch (error) {
       console.error("ParixBet player cricket API error:", error.message);
       return sendJson(res, 502, { ok: false, message: "Live cricket data is temporarily unavailable" });
