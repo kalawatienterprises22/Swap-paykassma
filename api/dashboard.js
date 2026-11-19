@@ -54,6 +54,19 @@ async function ensureGamingTables(pool) {
       payload JSONB NOT NULL,
       fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS sp_game_settings (
+      game_code VARCHAR(40) PRIMARY KEY,
+      title VARCHAR(100) NOT NULL,
+      description VARCHAR(240) NOT NULL DEFAULT '',
+      enabled BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    INSERT INTO sp_game_settings(game_code,title,description,enabled) VALUES
+      ('TAP_CHALLENGE','Tap Speed Challenge','10-second reaction and tapping game',TRUE),
+      ('CRICKET_CENTRE','Cricket Centre','Cricket information and verified live data',TRUE),
+      ('ARCADE_CRASH','Arcade Challenge','Casual arcade game; no wagering or cash prizes',FALSE),
+      ('MEMORY_MATCH','Memory Match','Casual memory mini-game',FALSE)
+    ON CONFLICT(game_code) DO NOTHING;
   `);
 }
 
@@ -124,7 +137,8 @@ module.exports = async (req, res) => {
         "SELECT id,game_code,result,coins_change,created_at FROM sp_game_sessions WHERE player_id=$1 ORDER BY created_at DESC LIMIT 30",
         [player.sub]
       );
-      return sendJson(res, 200, { ok: true, player: profile.rows[0], history: history.rows });
+      const games = await pool.query("SELECT game_code,title,description,enabled FROM sp_game_settings ORDER BY title");
+      return sendJson(res, 200, { ok: true, player: profile.rows[0], history: history.rows, games: games.rows });
     } catch (error) {
       console.error("Gaming player API error:", error.message);
       return sendJson(res, 500, { ok: false, message: "Gaming profile unavailable" });
@@ -152,6 +166,8 @@ module.exports = async (req, res) => {
       }
       const active = await pool.query("SELECT id FROM sp_game_players WHERE id=$1 AND status='ACTIVE' LIMIT 1",[player.sub]);
       if (!active.rowCount) return sendJson(res,403,{ok:false,message:"Player account is unavailable"});
+      const gameSetting = await pool.query("SELECT enabled FROM sp_game_settings WHERE game_code='TAP_CHALLENGE' LIMIT 1");
+      if (!gameSetting.rows[0]?.enabled) return sendJson(res,403,{ok:false,message:"This game is currently disabled by the administrator"});
       const saved = await pool.query(
         "INSERT INTO sp_game_sessions(player_id,game_code,result,coins_change) VALUES($1,'TAP_CHALLENGE',$2::jsonb,0) RETURNING id,created_at",
         [player.sub,JSON.stringify({taps,duration_ms:durationMs,points_awarded:0})]
@@ -213,6 +229,10 @@ module.exports = async (req, res) => {
           );
           return sendJson(res,200,{ok:true,source:"Sportmonks Cricket API",cached:false,matches});
         }
+        if (action === "games") {
+          const result = await pool.query("SELECT game_code,title,description,enabled,updated_at FROM sp_game_settings ORDER BY title");
+          return sendJson(res,200,{ok:true,games:result.rows});
+        }
         if (action === "records") {
           const result = await pool.query(`
             SELECT s.id,p.username,p.display_name,s.game_code,s.result,s.coins_change,s.created_at
@@ -248,6 +268,18 @@ module.exports = async (req, res) => {
           if (e.code === "23505") return sendJson(res, 409, { ok: false, message: "This username is already registered." });
           throw e;
         } finally { client.release(); }
+      }
+      if (req.method === "PATCH" && body.action === "game_status") {
+        const gameCode = String(body.game_code || "");
+        if (!/^[A-Z0-9_]{3,40}$/.test(gameCode) || typeof body.enabled !== "boolean") {
+          return sendJson(res,400,{ok:false,message:"Invalid game or status"});
+        }
+        const result = await pool.query(
+          "UPDATE sp_game_settings SET enabled=$1,updated_at=NOW() WHERE game_code=$2 RETURNING game_code,title,enabled",
+          [body.enabled,gameCode]
+        );
+        if (!result.rowCount) return sendJson(res,404,{ok:false,message:"Game not found"});
+        return sendJson(res,200,{ok:true,game:result.rows[0]});
       }
       if (req.method === "PATCH" && body.action === "player_status") {
         const id = Number(body.player_id);
