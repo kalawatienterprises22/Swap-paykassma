@@ -1,30 +1,95 @@
 <!doctype html>
-<html lang="en">
+<html lang="hi">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Paykassma Gaming — Control Dashboard</title>
+<title>Paykassma Gaming | Admin Dashboard</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f4f6fb;color:#182238;font:14px Arial,sans-serif}.side{position:fixed;inset:0 auto 0 0;width:238px;background:#111c32;color:#eaf0ff;padding:22px 14px;overflow:auto}.brand{font-size:21px;font-weight:800;padding:5px 10px 24px}.brand span{color:#65a5ff}.side small{display:block;color:#8190aa;font-size:10px;letter-spacing:1px;margin:22px 10px 8px}.nav a{display:block;padding:12px 11px;color:#cbd5e5;text-decoration:none;border-radius:8px;margin:3px 0}.nav a.active,.nav a:hover{background:#243b60;color:white}.main{margin-left:238px}.top{height:62px;background:white;border-bottom:1px solid #e7ebf2;display:flex;align-items:center;justify-content:space-between;padding:0 24px}.top strong{font-size:14px}.top a{color:#316fd1;text-decoration:none;font-size:12px}.wrap{max-width:1300px;padding:24px;margin:auto}.heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}h1{font-size:23px;margin:0 0 6px}.muted{color:#7b8799;font-size:12px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.card{background:white;border:1px solid #e6eaf1;border-radius:12px;padding:17px;margin-bottom:14px}.metric{font-size:25px;font-weight:750;margin:9px 0}.tag{font-size:10px;border-radius:20px;padding:5px 8px;background:#fff4dc;color:#986500}.tag.off{background:#eef1f5;color:#596579}.section{margin-top:22px}.section h2{font-size:16px;margin:0 0 12px}.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0;border-top:1px solid #edf0f5}.row:first-of-type{border-top:0}.row b{font-size:12px}.row p{font-size:11px;color:#7b8799;margin:4px 0 0}.pill{font-size:10px;padding:5px 8px;border-radius:20px;background:#eef1f5;color:#596579;white-space:nowrap}.note{background:#f8fafc;border:1px solid #e7ebf2;padding:13px;border-radius:9px;color:#596579;font-size:12px;line-height:1.6}.btn{border:0;background:#286bd6;color:white;border-radius:7px;padding:10px 13px;font-weight:700;font-size:12px;cursor:pointer}.menu{display:none;background:none;border:0;font-size:22px}
-@media(max-width:850px){.side{transform:translateX(-100%);z-index:4;transition:.2s}.side.open{transform:translateX(0)}.main{margin-left:0}.menu{display:block}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wrap{padding:16px}.top{padding:0 15px}}
-@media(max-width:480px){.grid{grid-template-columns:1fr 1fr}.metric{font-size:21px}.heading{align-items:flex-start;flex-direction:column}}
+:root{--navy:#111d35;--blue:#286bd6;--bg:#f3f6fb;--line:#e5eaf2;--muted:#718096;--ink:#19253a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px Arial,sans-serif}
+.sidebar{position:fixed;inset:0 auto 0 0;width:245px;background:var(--navy);color:#edf3ff;padding:20px 14px;overflow:auto;z-index:5}
+.brand{font-size:20px;font-weight:800;padding:7px 10px 23px}.brand span{color:#72aaff}
+.nav-label{color:#8292ae;font-size:10px;letter-spacing:1px;margin:16px 10px 8px}
+nav a{display:flex;align-items:center;gap:10px;padding:12px 11px;color:#cbd6e8;text-decoration:none;border-radius:9px;margin:3px 0;font-size:13px}
+nav a:hover,nav a.active{background:#263e65;color:#fff}
+.main{margin-left:245px;min-height:100vh}.topbar{height:64px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 25px;position:sticky;top:0;z-index:3}
+.topbar strong{font-size:14px}.topbar a{color:var(--blue);text-decoration:none;font-size:12px}
+.wrap{max-width:1350px;margin:auto;padding:25px}.heading{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:20px}
+h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-height:1.5}
+.status{font-size:10px;font-weight:700;letter-spacing:.4px;padding:7px 10px;border-radius:20px;background:#fff3d9;color:#8a5b00;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.card{background:#fff;border:1px solid var(--line);border-radius:13px;padding:17px;margin-bottom:14px}
+.metric-label{font-size:12px;color:var(--muted)}.metric{font-size:26px;font-weight:800;margin:9px 0}.pending{font-size:10px;color:#78869a;background:#f0f3f7;padding:5px 8px;border-radius:20px}
+.section{padding-top:8px;margin-top:18px;scroll-margin-top:80px}.section h2{font-size:16px;margin:0 0 13px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-top:1px solid #edf0f5}.row:first-of-type{border-top:0}
+.row b{font-size:12px}.row p{font-size:11px;color:var(--muted);margin:5px 0 0;line-height:1.5}
+.pill{font-size:10px;padding:5px 8px;border-radius:20px;background:#eef1f5;color:#596579;white-space:nowrap}
+.notice{background:#f7f9fc;border:1px solid var(--line);padding:14px;border-radius:10px;color:#5f6d82;font-size:12px;line-height:1.7}
+.menu{display:none;background:none;border:0;font-size:22px;color:var(--ink);padding:4px 8px}
+.footer{padding:15px 0;color:var(--muted);font-size:11px}
+@media(max-width:900px){.sidebar{transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.menu{display:block}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wrap{padding:17px}.topbar{padding:0 15px}}
+@media(max-width:480px){.heading{align-items:flex-start;flex-direction:column}.grid{gap:9px}.card{padding:13px}.metric{font-size:22px}.topbar strong{font-size:12px}}
 </style>
 </head>
 <body>
-<aside class="side" id="side"><div class="brand">Paykassma <span>Gaming</span></div><nav class="nav">
-<a class="active" href="#overview">▦ &nbsp; Overview</a><a href="#games">🎮 &nbsp; Games & Activities</a><a href="#sports">🏏 &nbsp; Cricket Data</a><a href="#providers">🔌 &nbsp; API Connections</a><a href="#players">👥 &nbsp; Players</a><a href="#records">▤ &nbsp; Game Records</a><a href="#settings">⚙ &nbsp; Settings</a></nav><small>SEPARATE ENTERTAINMENT SYSTEM</small></aside>
-<main class="main"><header class="top"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu">☰</button><strong>Gaming Control Dashboard</strong></div><a href="/dashboard.html">← Paykassma Super Admin</a></header>
-<div class="wrap" id="overview"><div class="heading"><div><h1>Gaming Overview</h1><div class="muted">Separate gaming environment · independent player records and virtual points</div></div><span class="tag">SETUP IN PROGRESS</span></div>
-<div class="grid"><div class="card"><div class="muted">Registered players</div><div class="metric">—</div><span class="pill">Database not connected</span></div><div class="card"><div class="muted">Games played</div><div class="metric">—</div><span class="pill">Awaiting game service</span></div><div class="card"><div class="muted">Live cricket matches</div><div class="metric">—</div><span class="pill">Live feed not connected</span></div><div class="card"><div class="muted">Virtual points in circulation</div><div class="metric">—</div><span class="pill">Wallet not connected</span></div></div>
-<section class="section card" id="games"><h2>Games & Activities</h2><div class="row"><div><b>Aviator-style skill/arcade game</b><p>Game engine and session records</p></div><span class="pill">Not enabled</span></div><div class="row"><div><b>Live Cricket Centre</b><p>Fixtures, scorecards, commentary and match status</p></div><span class="pill">Waiting for provider</span></div><div class="row"><div><b>Casual Casino-style mini-games</b><p>Entertainment mini-games using virtual points only</p></div><span class="pill">Not enabled</span></div><div class="row"><div><b>Player Activity & History</b><p>Per-player sessions and event history</p></div><span class="pill">Database pending</span></div></section>
-<section class="section card" id="sports"><h2>Cricket Data Services</h2><div class="note">The live cricket feed has not been connected. No sample scores, invented fixtures, odds or simulated match data are shown as live information. After selecting a licensed provider, this area will display verified fixtures, live scores, scorecards and commentary according to the provider's plan.</div></section>
-<section class="section card" id="providers"><h2>API Connections</h2><div class="row"><div><b>Cricket live scores & fixtures</b><p>Official data provider credentials and plan required</p></div><span class="tag off">Not connected</span></div><div class="row"><div><b>Ball-by-ball / commentary</b><p>May require a higher API tier</p></div><span class="tag off">Not connected</span></div><div class="row"><div><b>Game engine service</b><p>Original game logic, server validation and session tracking</p></div><span class="tag off">Not connected</span></div><div class="row"><div><b>Neon database</b><p>Separate tables for players, virtual wallets, sessions and audit events</p></div><span class="tag off">Not connected to gaming</span></div></section>
-<section class="section card" id="players"><h2>Player Management</h2><div class="note">Player accounts, status, profile and virtual-point balance will appear here after the separate player authentication and database layer are implemented.</div></section>
-<section class="section card" id="records"><h2>Game Records</h2><div class="note">Each player's game sessions, events, point movements and results will be stored separately. Records will be written by the server, not trusted from the browser.</div></section>
-<section class="section card" id="settings"><h2>System Rules</h2><div class="note"><b>Virtual entertainment only.</b> Points have no cash value and cannot be deposited, withdrawn, exchanged for money or redeemed for prizes. Gaming balances and records will remain separate from Paykassma merchant/payment balances.</div></section>
-<p class="muted" id="authStatus">Checking Super Admin session…</p></div></main>
+<aside class="sidebar" id="sidebar">
+ <div class="brand">Paykassma <span>Gaming</span></div>
+ <nav>
+  <div class="nav-label">मुख्य मेन्यू</div>
+  <a class="active" href="#overview">▦ <span>ओवरव्यू</span></a>
+  <a href="#games">🎮 <span>गेम और एक्टिविटी</span></a>
+  <a href="#cricket">🏏 <span>क्रिकेट डेटा</span></a>
+  <a href="#apis">🔌 <span>API कनेक्शन</span></a>
+  <a href="#players">👥 <span>प्लेयर मैनेजमेंट</span></a>
+  <a href="#records">▤ <span>गेम रिकॉर्ड</span></a>
+  <a href="#settings">⚙ <span>सेटिंग्स</span></a>
+  <div class="nav-label">अलग एंटरटेनमेंट सिस्टम</div>
+ </nav>
+</aside>
+<main class="main">
+ <header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu" aria-label="मेन्यू खोलें">☰</button><strong>Gaming Control Dashboard</strong></div><a href="/dashboard.html">← Paykassma Super Admin</a></header>
+ <div class="wrap" id="overview">
+  <div class="heading"><div><h1>गेमिंग ओवरव्यू</h1><div class="muted">अलग गेमिंग सिस्टम · प्लेयर डेटा और वर्चुअल पॉइंट्स का अलग रिकॉर्ड</div></div><span class="status">सेटअप जारी है</span></div>
+  <div class="grid">
+   <div class="card"><div class="metric-label">रजिस्टर्ड प्लेयर</div><div class="metric">—</div><span class="pending">डेटाबेस कनेक्शन बाकी</span></div>
+   <div class="card"><div class="metric-label">कुल गेम खेले गए</div><div class="metric">—</div><span class="pending">गेम सर्विस बाकी</span></div>
+   <div class="card"><div class="metric-label">लाइव क्रिकेट मैच</div><div class="metric">—</div><span class="pending">लाइव API बाकी</span></div>
+   <div class="card"><div class="metric-label">कुल वर्चुअल कॉइन</div><div class="metric">—</div><span class="pending">वर्चुअल वॉलेट बाकी</span></div>
+  </div>
+  <section class="section card" id="games"><h2>गेम और एक्टिविटी</h2>
+   <div class="row"><div><b>Aviator-स्टाइल आर्केड गेम</b><p>गेम सेशन, रिजल्ट और प्लेयर एक्टिविटी रिकॉर्ड</p></div><span class="pill">अभी चालू नहीं</span></div>
+   <div class="row"><div><b>क्रिकेट सेंटर</b><p>फिक्स्चर, लाइव स्कोर, स्कोरकार्ड और कमेंट्री</p></div><span class="pill">API का इंतजार</span></div>
+   <div class="row"><div><b>कैजुअल मिनी गेम्स</b><p>केवल वर्चुअल पॉइंट्स के साथ मनोरंजन</p></div><span class="pill">अभी चालू नहीं</span></div>
+   <div class="row"><div><b>प्लेयर एक्टिविटी</b><p>हर प्लेयर के अलग सेशन और हिस्ट्री</p></div><span class="pill">डेटाबेस बाकी</span></div>
+  </section>
+  <section class="section card" id="cricket"><h2>क्रिकेट डेटा</h2><div class="notice">अभी कोई लाइव क्रिकेट डेटा कनेक्ट नहीं है। इसलिए यहां नकली स्कोर या फिक्स्चर नहीं दिखाए जा रहे। सही डेटा प्रोवाइडर जुड़ने के बाद उपलब्ध प्लान के अनुसार असली फिक्स्चर, लाइव स्कोर, स्कोरकार्ड और कमेंट्री दिखाई जाएगी।</div></section>
+  <section class="section card" id="apis"><h2>API और सर्विस कनेक्शन</h2>
+   <div class="row"><div><b>क्रिकेट लाइव स्कोर और फिक्स्चर API</b><p>प्रोवाइडर अकाउंट और API क्रेडेंशियल आवश्यक</p></div><span class="pill">कनेक्ट नहीं</span></div>
+   <div class="row"><div><b>बॉल-बाय-बॉल / कमेंट्री API</b><p>प्रोवाइडर के प्लान पर निर्भर</p></div><span class="pill">कनेक्ट नहीं</span></div>
+   <div class="row"><div><b>गेम सर्विस</b><p>सर्वर पर गेम लॉजिक और रिजल्ट वैलिडेशन</p></div><span class="pill">बाकी है</span></div>
+   <div class="row"><div><b>Neon गेमिंग डेटाबेस</b><p>प्लेयर, वर्चुअल वॉलेट, सेशन और रिकॉर्ड के लिए अलग टेबल</p></div><span class="pill">कनेक्ट नहीं</span></div>
+  </section>
+  <section class="section card" id="players"><h2>प्लेयर मैनेजमेंट</h2><div class="notice">प्लेयर रजिस्ट्रेशन, प्रोफाइल, अकाउंट स्टेटस और वर्चुअल कॉइन बैलेंस डेटाबेस कनेक्ट होने के बाद यहां दिखाई देंगे।</div></section>
+  <section class="section card" id="records"><h2>गेम रिकॉर्ड</h2><div class="notice">हर प्लेयर के गेम सेशन, गेम इवेंट, वर्चुअल कॉइन मूवमेंट और रिजल्ट अलग सेव होंगे। रिकॉर्ड सर्वर से लिखे जाएंगे, केवल ब्राउज़र पर भरोसा नहीं किया जाएगा।</div></section>
+  <section class="section card" id="settings"><h2>सिस्टम सेटिंग्स और नियम</h2><div class="notice"><b>केवल मनोरंजन के लिए।</b> वर्चुअल कॉइन का कोई नकद मूल्य नहीं होगा। इन्हें जमा, निकाल, पैसे में बदल या इनाम के रूप में रिडीम नहीं किया जा सकेगा। गेमिंग का डेटा और वर्चुअल बैलेंस Paykassma के मर्चेंट बैलेंस और पेमेंट रिकॉर्ड से पूरी तरह अलग रहेंगे।</div></section>
+  <div class="footer" id="authStatus">Super Admin लॉगिन जांच रहे हैं…</div>
+ </div>
+</main>
 <script>
-const token=sessionStorage.getItem("superpay_token");let user=null;
-function logout(){location.replace("/super-admin-login.html")}
-async function init(){try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null");if(!token||user?.role!=="SUPER_ADMIN")return logout();const r=await fetch("/api/dashboard",{headers:{Authorization:"Bearer "+token}});const d=await r.json().catch(()=>({ok:false}));if(!r.ok||!d.ok)return logout();document.getElementById("authStatus").textContent="Signed in as "+(user.display_name||user.user_id||"Super Admin")+". Gaming data services are not connected yet.";}catch(e){logout()}}
-document.getElementById("menu").onclick=()=>document.getElementById("side").classList.toggle("open");init();
-</script></body></html>
+const token=sessionStorage.getItem("superpay_token");
+function goLogin(){location.replace("/super-admin-login.html")}
+async function init(){
+ try{
+  const user=JSON.parse(sessionStorage.getItem("superpay_user")||"null");
+  if(!token||user?.role!=="SUPER_ADMIN")return goLogin();
+  const r=await fetch("/api/dashboard",{headers:{Authorization:"Bearer "+token}});
+  const d=await r.json().catch(()=>({ok:false}));
+  if(!r.ok||!d.ok)return goLogin();
+  document.getElementById("authStatus").textContent="लॉगिन: "+(user.display_name||user.user_id||"Super Admin")+" · गेमिंग डेटा सर्विस अभी कनेक्ट नहीं है।";
+ }catch(e){goLogin()}
+}
+document.getElementById("menu").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
+document.querySelectorAll(".sidebar nav a").forEach(a=>a.addEventListener("click",()=>document.getElementById("sidebar").classList.remove("open")));
+init();
+</script>
+</body>
+</html>
