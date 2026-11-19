@@ -8,7 +8,70 @@ module.exports = async (req, res) => {
   if (!allowMethods(req, res, ["POST"])) return;
 
   try {
-    const { user_id, password, login_type } = req.body || {};
+    const { user_id, password, login_type, display_name } = req.body || {};
+    if (login_type === "gaming_register" || login_type === "gaming") {
+      const pool = getPool();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS sp_game_players (
+          id BIGSERIAL PRIMARY KEY,
+          username VARCHAR(40) NOT NULL UNIQUE,
+          display_name VARCHAR(100) NOT NULL,
+          password_hash TEXT NOT NULL,
+          status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','SUSPENDED')),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS sp_game_wallets (
+          player_id BIGINT PRIMARY KEY REFERENCES sp_game_players(id) ON DELETE CASCADE,
+          virtual_coins BIGINT NOT NULL DEFAULT 1000 CHECK (virtual_coins >= 0),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS sp_game_coin_ledger (
+          id BIGSERIAL PRIMARY KEY,
+          player_id BIGINT NOT NULL REFERENCES sp_game_players(id) ON DELETE CASCADE,
+          amount BIGINT NOT NULL,
+          entry_type VARCHAR(24) NOT NULL,
+          note VARCHAR(240),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+      const username = String(user_id || "").trim().toLowerCase();
+      if (!/^[a-z0-9_]{4,40}$/.test(username) || typeof password !== "string" || password.length < 8) {
+        return sendJson(res, 400, { ok: false, message: "Username 4-40 letters/numbers/_ and password 8+ characters are required." });
+      }
+      if (login_type === "gaming_register") {
+        const name = String(display_name || username).trim().slice(0,100);
+        if (name.length < 2) return sendJson(res,400,{ok:false,message:"Enter your display name."});
+        const hash = await bcrypt.hash(password,12);
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const created = await client.query(
+            "INSERT INTO sp_game_players (username,display_name,password_hash) VALUES ($1,$2,$3) RETURNING id,user_name",
+            [username,name,hash]
+          );
+          await client.query("INSERT INTO sp_game_wallets (player_id,virtual_coins) VALUES ($1,1000)",[created.rows[0].id]);
+          await client.query("INSERT INTO sp_game_coin_ledger (player_id,amount,entry_type,note) VALUES ($1,1000,'WELCOME','Starting virtual points')",[created.rows[0].id]);
+          await client.query("COMMIT");
+          const player={id:created.rows[0].id,user_id:username,display_name:name,role:"GAMING_PLAYER"};
+          return sendJson(res,201,{ok:true,token:createToken(player),user:player});
+        } catch(e) {
+          await client.query("ROLLBACK");
+          if(e.code==="23505")return sendJson(res,409,{ok:false,message:"This username is already taken."});
+          throw e;
+        } finally {client.release();}
+      }
+      const found = await pool.query(
+        "SELECT id,username,display_name,password_hash,status FROM sp_game_players WHERE username=$1 LIMIT 1",
+        [username]
+      );
+      if (!found.rows.length || !(await bcrypt.compare(password,found.rows[0].password_hash))) {
+        return sendJson(res,401,{ok:false,message:"Invalid gaming username or password."});
+      }
+      const player=found.rows[0];
+      if(player.status!=="ACTIVE")return sendJson(res,403,{ok:false,message:"This gaming account is suspended."});
+      const sessionUser={id:player.id,user_id:player.username,display_name:player.display_name,role:"GAMING_PLAYER"};
+      return sendJson(res,200,{ok:true,token:createToken(sessionUser),user:sessionUser});
+    }
 
     if (
       !["standard", "super_admin"].includes(login_type) ||
