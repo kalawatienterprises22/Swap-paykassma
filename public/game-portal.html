@@ -59,14 +59,65 @@ async function loadCricketData(){
  const makeCard=(match,kind)=>{
   const card=document.createElement("div");
   card.style.cssText="padding:12px;margin:9px 0;border:1px solid #36527b;border-radius:11px;background:#0c1a30";
-  const teams=document.createElement("b");
-  teams.style.cssText="display:block;color:#f3f7ff;font-size:13px";
-  teams.textContent=(match.localteam&&match.localteam.name?match.localteam.name:"Team 1")+" vs "+(match.visitorteam&&match.visitorteam.name?match.visitorteam.name:"Team 2");
+  const toggle=document.createElement("button");
+  toggle.type="button";
+  toggle.style.cssText="display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;padding:0;border:0;background:transparent;color:#f3f7ff;text-align:left;cursor:pointer";
+  const title=document.createElement("span");
+  title.style.cssText="font-size:13px;font-weight:800";
+  title.textContent=(match.localteam&&match.localteam.name?match.localteam.name:"Team 1")+" vs "+(match.visitorteam&&match.visitorteam.name?match.visitorteam.name:"Team 2");
+  const hint=document.createElement("span");
+  hint.style.cssText="color:#63b3ff;font-size:11px;white-space:nowrap";
+  hint.textContent="View details ＋";
+  toggle.append(title,hint);
   const info=document.createElement("div");
   info.style.cssText="margin-top:6px;color:#a9bad5;font-size:11px;line-height:1.6";
   const date=match.starting_at?new Date(match.starting_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"";
   info.textContent=[match.note,match.status,date].filter(Boolean).join(" · ")||kind;
-  card.append(teams,info);
+  const details=document.createElement("div");
+  details.hidden=true;
+  details.style.cssText="margin-top:12px;padding-top:10px;border-top:1px solid #294263;color:#d5e2f5;font-size:12px;line-height:1.8";
+  const addLine=(label,value)=>{
+   if(value===undefined||value===null||value==="")return;
+   const line=document.createElement("div");
+   const strong=document.createElement("b");
+   strong.textContent=label+": ";
+   line.append(strong,document.createTextNode(String(value)));
+   details.append(line);
+  };
+  addLine("Match",match.note||match.round||kind);
+  addLine("Status",match.status);
+  addLine("Date",date);
+  addLine("Venue",match.venue&&match.venue.name);
+  addLine("League",match.league&&match.league.name);
+  addLine("Toss",match.tosswon&&match.tosswon.name ? match.tosswon.name+" won the toss" : "");
+  const boards=Array.isArray(match.scoreboards)?match.scoreboards:[];
+  if(boards.length){
+   const heading=document.createElement("div");
+   heading.style.cssText="margin-top:8px;color:#75c5ff;font-weight:800";
+   heading.textContent="Scorecard";
+   details.append(heading);
+   boards.forEach(board=>{
+    const teamId=board.team_id;
+    const team=(match.localteam&&String(match.localteam.id)===String(teamId))?match.localteam.name:
+      (match.visitorteam&&String(match.visitorteam.id)===String(teamId))?match.visitorteam.name:"";
+    const score=[board.total!==undefined?board.total+" runs":null,board.wickets!==undefined?board.wickets+" wickets":null,board.overs!==undefined?board.overs+" overs":null].filter(Boolean).join(" · ");
+    addLine((team||"Innings")+(board.type?" ("+board.type+")":""),score||board.result||"Score details unavailable");
+   });
+  }else{
+   const empty=document.createElement("div");
+   empty.style.cssText="margin-top:8px;color:#a9bad5";
+   empty.textContent="Detailed scorecard is not supplied for this match yet.";
+   details.append(empty);
+  }
+  const more=document.createElement("div");
+  more.style.cssText="margin-top:8px;color:#a9bad5;font-size:11px";
+  more.textContent="Tap again to hide match details.";
+  details.append(more);
+  toggle.addEventListener("click",()=>{
+   details.hidden=!details.hidden;
+   hint.textContent=details.hidden?"View details ＋":"Hide details −";
+  });
+  card.append(toggle,info,details);
   return card;
  };
  const renderList=(target,items,emptyText,kind)=>{
