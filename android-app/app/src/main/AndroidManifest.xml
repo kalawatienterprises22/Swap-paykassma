@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
-    <application android:allowBackup="false" android:label="SuperPay Merchant"
+    <application android:allowBackup="false" android:label="Paykassma Merchant"
         android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
@@ -9,7 +9,7 @@
             </intent-filter>
         </activity>
         <service android:name=".PaymentNotificationListener"
-            android:label="SuperPay payment notification reader"
+            android:label="Paykassma payment notification reader"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="true">
             <intent-filter>
