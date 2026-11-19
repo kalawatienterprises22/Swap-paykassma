@@ -493,7 +493,7 @@ module.exports = async (req, res) => {
         try {
           if(apiKey){
             const dates=[];const now=new Date();
-            for(let offset=-14;offset<=0;offset++){const d=new Date(now);d.setUTCDate(d.getUTCDate()+offset);dates.push(d.toISOString().slice(0,10));}
+            for(let offset=-7;offset<=0;offset++){const d=new Date(now);d.setUTCDate(d.getUTCDate()+offset);dates.push(d.toISOString().slice(0,10));}
             const lists=await Promise.all(dates.map(async date=>{
               const resp=await fetch("https://api.sportsapi.app/v2/fixtures?date="+date+"&sport=football",{headers:{Accept:"application/json",Authorization:"Bearer "+apiKey}});
               if(!resp.ok)throw new Error("Football API HTTP "+resp.status);
