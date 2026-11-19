@@ -75,6 +75,7 @@ async function loadCricketData(){
   info.textContent=[match.note,match.status,date].filter(Boolean).join(" · ")||kind;
   const details=document.createElement("div");
   details.hidden=true;
+  details.dataset.detailsOpen="false";
   details.style.cssText="margin-top:12px;padding-top:10px;border-top:1px solid #294263;color:#d5e2f5;font-size:12px;line-height:1.8";
   const addLine=(label,value)=>{
    if(value===undefined||value===null||value==="")return;
@@ -109,12 +110,30 @@ async function loadCricketData(){
    empty.textContent="Detailed scorecard is not supplied for this match yet.";
    details.append(empty);
   }
+  const batters=Array.isArray(match.batting)?match.batting:[];
+  const bowlers=Array.isArray(match.bowling)?match.bowling:[];
+  const playerName=row=>row.player?.fullname||row.player?.name||row.batsman?.fullname||row.bowler?.fullname||row.fullname||("Player #"+(row.player_id||""));
+  if(batters.length){
+   const heading=document.createElement("div");
+   heading.style.cssText="margin-top:10px;color:#75c5ff;font-weight:800";
+   heading.textContent="Batting";
+   details.append(heading);
+   batters.slice(0,22).forEach(row=>addLine(playerName(row),[row.score!==undefined?row.score+" runs":null,row.ball!==undefined?row.ball+" balls":null,row.four_x!==undefined?row.four_x+" fours":null,row.six_x!==undefined?row.six_x+" sixes":null].filter(Boolean).join(" · ")));
+  }
+  if(bowlers.length){
+   const heading=document.createElement("div");
+   heading.style.cssText="margin-top:10px;color:#75c5ff;font-weight:800";
+   heading.textContent="Bowling";
+   details.append(heading);
+   bowlers.slice(0,22).forEach(row=>addLine(playerName(row),[row.overs!==undefined?row.overs+" overs":null,row.medians!==undefined?row.medians+" maidens":null,row.runs!==undefined?row.runs+" runs":null,row.wickets!==undefined?row.wickets+" wickets":null].filter(Boolean).join(" · ")));
+  }
   const more=document.createElement("div");
   more.style.cssText="margin-top:8px;color:#a9bad5;font-size:11px";
   more.textContent="Tap again to hide match details.";
   details.append(more);
   toggle.addEventListener("click",()=>{
    details.hidden=!details.hidden;
+   details.dataset.detailsOpen=details.hidden?"false":"true";
    hint.textContent=details.hidden?"View details ＋":"Hide details −";
   });
   card.append(toggle,info,details);
@@ -144,6 +163,8 @@ async function loadCricketData(){
  }
 }
 document.getElementById("cricketRefresh")?.addEventListener("click",loadCricketData);
+// Refresh live cricket data every 30 seconds; pause while a match detail card is open or the tab is hidden.
+setInterval(()=>{const panel=document.getElementById("playerPanel");const token=sessionStorage.getItem("game_token");const detailOpen=document.querySelector("#cricketGame [data-details-open=\"true\"]");if(token&&panel&&!panel.classList.contains("hidden")&&!document.hidden&&!detailOpen)loadCricketData()},30000);
 form.addEventListener("submit",async e=>{e.preventDefault();const btn=document.getElementById("submitBtn");btn.disabled=true;msg.textContent="Please wait…";try{const values=Object.fromEntries(new FormData(form));const d=await request("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...values,login_type:mode==="register"?"gaming_register":"gaming"})});sessionStorage.setItem("game_token",d.token);sessionStorage.setItem("game_user",JSON.stringify(d.user));msg.textContent="";await showPlayer()}catch(err){msg.textContent=err.message}finally{btn.disabled=false}});
 document.getElementById("logout").onclick=()=>{sessionStorage.removeItem("game_token");sessionStorage.removeItem("game_user");location.reload()};
 showPlayer();
