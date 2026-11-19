@@ -79,6 +79,25 @@ async function ensureGamingTables(pool) {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE(match_id,player_id)
     );
+    CREATE TABLE IF NOT EXISTS sp_prediction_settlements (
+      id BIGSERIAL PRIMARY KEY,
+      match_id BIGINT NOT NULL UNIQUE REFERENCES sp_prediction_matches(id) ON DELETE CASCADE,
+      prediction_count INTEGER NOT NULL DEFAULT 0,
+      correct_count INTEGER NOT NULL DEFAULT 0,
+      incorrect_count INTEGER NOT NULL DEFAULT 0,
+      void_count INTEGER NOT NULL DEFAULT 0,
+      result_side VARCHAR(1),
+      result_source VARCHAR(20),
+      settled_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS sp_prediction_audit_logs (
+      id BIGSERIAL PRIMARY KEY,
+      match_id BIGINT REFERENCES sp_prediction_matches(id) ON DELETE SET NULL,
+      event_type VARCHAR(40) NOT NULL,
+      event_note VARCHAR(240) NOT NULL DEFAULT '',
+      event_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS sp_game_settings (
       game_code VARCHAR(40) PRIMARY KEY,
       title VARCHAR(100) NOT NULL,
@@ -398,6 +417,32 @@ module.exports = async (req, res) => {
           `);
           return sendJson(res,200,{ok:true,matches:result.rows});
         }
+        if (action === "monitoring") {
+          const [matches,virtualReserve,settlements,audit] = await Promise.all([
+            pool.query(`
+              SELECT m.id,m.title,m.sport,m.side_a,m.side_b,m.status,m.result_side,m.result_label,m.result_source,
+                     COUNT(p.id)::int AS prediction_count,
+                     COUNT(p.id) FILTER (WHERE p.selection_side='A')::int AS side_a_count,
+                     COUNT(p.id) FILTER (WHERE p.selection_side='B')::int AS side_b_count,
+                     COUNT(p.id) FILTER (WHERE p.selection_side=m.result_side)::int AS correct_count
+              FROM sp_prediction_matches m LEFT JOIN sp_predictions p ON p.match_id=m.id
+              GROUP BY m.id ORDER BY m.updated_at DESC,m.id DESC LIMIT 50
+            `),
+            pool.query("SELECT COUNT(*)::int AS wallet_count,COALESCE(SUM(virtual_coins),0)::bigint AS virtual_points FROM sp_game_wallets"),
+            pool.query("SELECT COUNT(*)::int AS settled_matches,COALESCE(SUM(prediction_count),0)::bigint AS predictions,COALESCE(SUM(correct_count),0)::bigint AS correct,COALESCE(SUM(incorrect_count),0)::bigint AS incorrect,COALESCE(SUM(void_count),0)::bigint AS void FROM sp_prediction_settlements"),
+            pool.query("SELECT id,match_id,event_type,event_note,event_data,created_at FROM sp_prediction_audit_logs ORDER BY created_at DESC LIMIT 20")
+          ]);
+          const rows=matches.rows.map(m=>{
+            const total=Number(m.prediction_count||0),a=Number(m.side_a_count||0),b=Number(m.side_b_count||0);
+            return {...m,side_a_count:a,side_b_count:b,imbalance_percent:total?Math.round(Math.abs(a-b)*100/total):0};
+          });
+          return sendJson(res,200,{ok:true,monitoring:{
+            exposure:{matches:rows,total_predictions:rows.reduce((n,m)=>n+Number(m.prediction_count||0),0),unbalanced_matches:rows.filter(m=>m.imbalance_percent>=60&&Number(m.prediction_count)>=5).length},
+            liquidity:{wallet_count:virtualReserve.rows[0].wallet_count,virtual_points:String(virtualReserve.rows[0].virtual_points),unit:"virtual points only"},
+            reserve:{virtual_points:String(virtualReserve.rows[0].virtual_points),unit:"virtual points only",cash_value:0},
+            settlement:{...settlements.rows[0],recent:audit.rows}
+          }});
+        }
         if (action === "players") {
           const result = await pool.query(`
             SELECT p.id,p.username,p.display_name,p.status,p.created_at,
@@ -463,8 +508,15 @@ module.exports = async (req, res) => {
           [side,matchId]
         );
         if(!saved.rowCount)return sendJson(res,404,{ok:false,message:"Match not found"});
-        const count=await pool.query("SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE selection_side=$1)::int AS correct FROM sp_predictions WHERE match_id=$2",[side,matchId]);
-        return sendJson(res,200,{ok:true,match:saved.rows[0],predictions:count.rows[0]});
+        const count=await pool.query("SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE selection_side=$1)::int AS correct FROM sp_predictions WHERE match_id=$1",[side,matchId]);
+        const total=Number(count.rows[0].total||0),correct=side==="D"?0:Number(count.rows[0].correct||0),voidCount=side==="D"?total:0,incorrect=side==="D"?0:total-correct;
+        await pool.query(`
+          INSERT INTO sp_prediction_settlements(match_id,prediction_count,correct_count,incorrect_count,void_count,result_side,result_source,settled_at)
+          VALUES($1,$2,$3,$4,$5,$6,'MANUAL',NOW())
+          ON CONFLICT(match_id) DO UPDATE SET prediction_count=EXCLUDED.prediction_count,correct_count=EXCLUDED.correct_count,incorrect_count=EXCLUDED.incorrect_count,void_count=EXCLUDED.void_count,result_side=EXCLUDED.result_side,result_source='MANUAL',settled_at=NOW()
+        `,[matchId,total,correct,incorrect,voidCount,side]);
+        await pool.query("INSERT INTO sp_prediction_audit_logs(match_id,event_type,event_note,event_data) VALUES($1,'MANUAL_RESULT','Admin saved a manual match result',$2::jsonb)",[matchId,JSON.stringify({result_side:side,prediction_count:total,correct_count:correct,incorrect_count:incorrect,void_count:voidCount})]);
+        return sendJson(res,200,{ok:true,match:saved.rows[0],predictions:{total,correct,incorrect,void:voidCount}});
       }
       if (req.method === "POST" && body.action === "sync_match_results") {
         const apiKey=process.env.FOOTBALL_API_KEY;
@@ -475,7 +527,7 @@ module.exports = async (req, res) => {
         async function saveProviderMatch(sport,providerId,title,a,b,scheduled,resultSide,resultLabel,data){
           if(!providerId||!a||!b||same(a,b))return;
           checked++;
-          const existing=await pool.query("SELECT id,result_source,status FROM sp_prediction_matches WHERE sport=$1 AND provider_match_id=$2",[sport,String(providerId)]);
+          const existing=await pool.query("SELECT id,result_source,status,result_side FROM sp_prediction_matches WHERE sport=$1 AND provider_match_id=$2",[sport,String(providerId)]);
           if(existing.rows[0]?.result_source==="MANUAL"){skippedManual++;return;}
           const status="FINISHED";
           await pool.query(`
@@ -489,8 +541,24 @@ module.exports = async (req, res) => {
               result_label=CASE WHEN sp_prediction_matches.result_source='MANUAL' THEN sp_prediction_matches.result_label ELSE COALESCE(EXCLUDED.result_label,sp_prediction_matches.result_label) END,
               result_source=CASE WHEN sp_prediction_matches.result_source='MANUAL' THEN 'MANUAL' ELSE EXCLUDED.result_source END,
               result_data=EXCLUDED.result_data,updated_at=NOW()
+            RETURNING id
           `,[sport,String(providerId),title,a,b,scheduled||null,status,resultSide||null,resultLabel||null,resultSide?"API":"API_REVIEW",JSON.stringify(data||{})]);
-          if(resultSide)updated++;else review++;
+          if(resultSide) {
+            updated++;
+            if(existing.rows[0]?.result_side!==resultSide) {
+              const matchId=Number((await pool.query("SELECT id FROM sp_prediction_matches WHERE sport=$1 AND provider_match_id=$2",[sport,String(providerId)])).rows[0]?.id||0);
+              if(matchId) {
+                const counts=await pool.query("SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE selection_side=$1)::int AS correct FROM sp_predictions WHERE match_id=$2",[resultSide,matchId]);
+                const total=Number(counts.rows[0].total||0),correct=Number(counts.rows[0].correct||0);
+                await pool.query(`
+                  INSERT INTO sp_prediction_settlements(match_id,prediction_count,correct_count,incorrect_count,void_count,result_side,result_source,settled_at)
+                  VALUES($1,$2,$3,$4,0,$5,'API',NOW())
+                  ON CONFLICT(match_id) DO UPDATE SET prediction_count=EXCLUDED.prediction_count,correct_count=EXCLUDED.correct_count,incorrect_count=EXCLUDED.incorrect_count,void_count=0,result_side=EXCLUDED.result_side,result_source='API',settled_at=NOW()
+                `,[matchId,total,correct,total-correct,resultSide]);
+                await pool.query("INSERT INTO sp_prediction_audit_logs(match_id,event_type,event_note,event_data) VALUES($1,'API_RESULT','Provider result imported',$2::jsonb)",[matchId,JSON.stringify({result_side:resultSide,prediction_count:total,correct_count:correct,incorrect_count:total-correct})]);
+              }
+            }
+          } else review++;
         }
         try {
           if(apiKey){
