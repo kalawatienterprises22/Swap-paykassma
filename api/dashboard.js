@@ -508,7 +508,7 @@ module.exports = async (req, res) => {
           [side,matchId]
         );
         if(!saved.rowCount)return sendJson(res,404,{ok:false,message:"Match not found"});
-        const count=await pool.query("SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE selection_side=$1)::int AS correct FROM sp_predictions WHERE match_id=$1",[side,matchId]);
+        const count=await pool.query("SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE selection_side=$1)::int AS correct FROM sp_predictions WHERE match_id=$2",[side,matchId]);
         const total=Number(count.rows[0].total||0),correct=side==="D"?0:Number(count.rows[0].correct||0),voidCount=side==="D"?total:0,incorrect=side==="D"?0:total-correct;
         await pool.query(`
           INSERT INTO sp_prediction_settlements(match_id,prediction_count,correct_count,incorrect_count,void_count,result_side,result_source,settled_at)
