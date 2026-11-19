@@ -234,6 +234,49 @@ module.exports = async (req, res) => {
       return sendJson(res, 502, { ok: false, message: "Live football data is temporarily unavailable" });
     }
   }
+  const isPlayerPredictions = req.query && req.query.module === "gaming-predictions";
+  if (isPlayerPredictions) {
+    if (!allowMethods(req,res,["GET","POST"])) return;
+    const auth=req.headers.authorization||"";
+    const token=auth.startsWith("Bearer ")?auth.slice(7):"";
+    let player;
+    try { player=token?verifyToken(token):null; } catch {}
+    if(!player||player.role!=="GAMING_PLAYER"||!player.sub)
+      return sendJson(res,401,{ok:false,message:"ParixBet player login required"});
+    try {
+      const pool=getPool();
+      await ensureGamingTables(pool);
+      const active=await pool.query("SELECT id FROM sp_game_players WHERE id=$1 AND status='ACTIVE' LIMIT 1",[player.sub]);
+      if(!active.rowCount)return sendJson(res,403,{ok:false,message:"Player account is unavailable"});
+      if(req.method==="GET"){
+        const result=await pool.query(`
+          SELECT m.id,m.sport,m.title,m.side_a,m.side_b,m.scheduled_at,m.status,m.result_side,m.result_label,
+                 p.selection_side AS my_selection
+          FROM sp_prediction_matches m
+          LEFT JOIN sp_predictions p ON p.match_id=m.id AND p.player_id=$1
+          ORDER BY CASE WHEN m.status='FINISHED' THEN 1 ELSE 0 END,m.scheduled_at ASC NULLS LAST,m.id DESC
+          LIMIT 40
+        `,[player.sub]);
+        return sendJson(res,200,{ok:true,matches:result.rows});
+      }
+      const body=req.body||{},matchId=Number(body.match_id),side=String(body.selection_side||"").toUpperCase();
+      if(!Number.isSafeInteger(matchId)||matchId<1||!["A","B"].includes(side))
+        return sendJson(res,400,{ok:false,message:"Choose a match and side"});
+      const saved=await pool.query(`
+        INSERT INTO sp_predictions(match_id,player_id,selection_side)
+        SELECT m.id,$2,$3 FROM sp_prediction_matches m
+        WHERE m.id=$1 AND m.status<>'FINISHED'
+        ON CONFLICT(match_id,player_id) DO UPDATE SET selection_side=EXCLUDED.selection_side,created_at=NOW()
+        RETURNING id,match_id,selection_side,created_at
+      `,[matchId,player.sub,side]);
+      if(!saved.rowCount)return sendJson(res,409,{ok:false,message:"This match is closed for predictions"});
+      await pool.query("INSERT INTO sp_prediction_audit_logs(match_id,event_type,event_note,event_data) VALUES($1,'PREDICTION_SAVED','Player saved or updated a match prediction',$2::jsonb)",[matchId,JSON.stringify({player_id:Number(player.sub),selection_side:side})]);
+      return sendJson(res,200,{ok:true,prediction:saved.rows[0],message:"Prediction saved."});
+    } catch(error) {
+      console.error("ParixBet player prediction error:",error.message);
+      return sendJson(res,500,{ok:false,message:"Prediction could not be saved"});
+    }
+  }
   const isPlayerCricket = req.query && req.query.module === "gaming-cricket";
   if (isPlayerCricket) {
     if (!allowMethods(req, res, ["GET"])) return;
