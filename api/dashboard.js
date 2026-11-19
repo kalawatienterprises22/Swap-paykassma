@@ -148,8 +148,8 @@ module.exports = async (req, res) => {
       const day = value => value.toISOString().slice(0, 10);
       const pastStart = new Date(now.getTime() - 14 * 86400000);
       const futureEnd = new Date(now.getTime() + 14 * 86400000);
-      const liveUrl = "https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" + encodeURIComponent(apiKey) + "&include=localteam,visitorteam,scoreboards";
-      const fixtureBase = "https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=" + encodeURIComponent(apiKey) + "&include=localteam,visitorteam,scoreboards&filter[starts_between]=";
+      const liveUrl = "https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" + encodeURIComponent(apiKey) + "&include=localteam,visitorteam,scoreboards,runs,batting,bowling,venue,tosswon";
+      const fixtureBase = "https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=" + encodeURIComponent(apiKey) + "&include=localteam,visitorteam,scoreboards,runs,batting,bowling,venue,tosswon&filter[starts_between]=";
       const [matches, fixturePast, fixtureFuture] = await Promise.all([
         getCricketData("livescores", liveUrl, 30000),
         getCricketData("fixtures-recent", fixtureBase + day(pastStart) + "," + day(now), 900000),
