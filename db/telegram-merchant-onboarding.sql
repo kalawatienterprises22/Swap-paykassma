@@ -17,3 +17,7 @@ CREATE TABLE IF NOT EXISTS sp_merchant_onboarding (
 );
 CREATE INDEX IF NOT EXISTS sp_merchant_onboarding_pending_idx
   ON sp_merchant_onboarding(telegram_verified_at, created_at DESC);
+
+-- Encrypted KYC fields for referral-based Merchant registrations.
+ALTER TABLE sp_merchant_onboarding ADD COLUMN IF NOT EXISTS pan_number_encrypted TEXT;
+ALTER TABLE sp_merchant_onboarding ADD COLUMN IF NOT EXISTS aadhaar_number_encrypted TEXT;
