@@ -461,7 +461,7 @@ module.exports = async (req, res) => {
           return sendJson(res,200,{ok:true,matches:result.rows});
         }
         if (action === "monitoring") {
-          const [matches,virtualReserve,settlements,audit] = await Promise.all([
+          const [matches,exposureTotals,virtualReserve,settlements,audit] = await Promise.all([
             pool.query(`
               SELECT m.id,m.title,m.sport,m.side_a,m.side_b,m.status,m.result_side,m.result_label,m.result_source,
                      COUNT(p.id)::int AS prediction_count,
@@ -470,6 +470,20 @@ module.exports = async (req, res) => {
                      COUNT(p.id) FILTER (WHERE p.selection_side=m.result_side)::int AS correct_count
               FROM sp_prediction_matches m LEFT JOIN sp_predictions p ON p.match_id=m.id
               GROUP BY m.id ORDER BY m.updated_at DESC,m.id DESC LIMIT 50
+            `),
+            pool.query(`
+              SELECT COALESCE(SUM(prediction_count),0)::bigint AS total_predictions,
+                     COUNT(*) FILTER (
+                       WHERE prediction_count >= 5
+                         AND GREATEST(side_a_count,side_b_count) * 100.0 / NULLIF(prediction_count,0) >= 60
+                     )::int AS unbalanced_matches
+              FROM (
+                SELECT m.id,COUNT(p.id)::int AS prediction_count,
+                       COUNT(p.id) FILTER (WHERE p.selection_side='A')::int AS side_a_count,
+                       COUNT(p.id) FILTER (WHERE p.selection_side='B')::int AS side_b_count
+                FROM sp_prediction_matches m LEFT JOIN sp_predictions p ON p.match_id=m.id
+                GROUP BY m.id
+              ) AS all_match_counts
             `),
             pool.query("SELECT COUNT(*)::int AS wallet_count,COALESCE(SUM(virtual_coins),0)::bigint AS virtual_points FROM sp_game_wallets"),
             pool.query("SELECT COUNT(*)::int AS settled_matches,COALESCE(SUM(prediction_count),0)::bigint AS predictions,COALESCE(SUM(correct_count),0)::bigint AS correct,COALESCE(SUM(incorrect_count),0)::bigint AS incorrect,COALESCE(SUM(void_count),0)::bigint AS void FROM sp_prediction_settlements"),
@@ -480,7 +494,7 @@ module.exports = async (req, res) => {
             return {...m,side_a_count:a,side_b_count:b,imbalance_percent:total?Math.round(Math.abs(a-b)*100/total):0};
           });
           return sendJson(res,200,{ok:true,monitoring:{
-            exposure:{matches:rows,total_predictions:rows.reduce((n,m)=>n+Number(m.prediction_count||0),0),unbalanced_matches:rows.filter(m=>m.imbalance_percent>=60&&Number(m.prediction_count)>=5).length},
+            exposure:{matches:rows,total_predictions:String(exposureTotals.rows[0].total_predictions||0),unbalanced_matches:Number(exposureTotals.rows[0].unbalanced_matches||0)},
             liquidity:{wallet_count:virtualReserve.rows[0].wallet_count,virtual_points:String(virtualReserve.rows[0].virtual_points),unit:"virtual points only"},
             reserve:{virtual_points:String(virtualReserve.rows[0].virtual_points),unit:"virtual points only",cash_value:0},
             settlement:{...settlements.rows[0],recent:audit.rows}
