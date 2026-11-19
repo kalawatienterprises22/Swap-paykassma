@@ -2,7 +2,7 @@
 <html lang="hi">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Paykassma Gaming | Admin Dashboard</title>
+<title>ParixBet | Admin Dashboard</title>
 <style>
 :root{--navy:#111d35;--blue:#286bd6;--bg:#f3f6fb;--line:#e5eaf2;--muted:#718096;--ink:#19253a}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px Arial,sans-serif}
@@ -32,7 +32,7 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
 </head>
 <body>
 <aside class="sidebar" id="sidebar">
- <div class="brand">Paykassma <span>Gaming</span></div>
+ <div class="brand">ParixBet <span>Admin</span></div>
  <nav>
   <div class="nav-label">मुख्य मेन्यू</div>
   <a class="active" href="#overview">▦ <span>ओवरव्यू</span></a>
@@ -46,7 +46,7 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
  </nav>
 </aside>
 <main class="main">
- <header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu" aria-label="मेन्यू खोलें">☰</button><strong>Gaming Control Dashboard</strong></div><div style="display:flex;gap:14px;align-items:center"><a href="/game-portal.html" target="_blank">Player Portal ↗</a><a href="/dashboard.html">← Super Admin</a></div></header>
+ <header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu" aria-label="मेन्यू खोलें">☰</button><strong>Gaming Control Dashboard</strong></div><div style="display:flex;gap:14px;align-items:center"><a href="/game-portal.html" target="_blank">Player Portal ↗</a><a href="/dashboard.html">← Paykassma</a></div></header>
  <div class="wrap" id="overview">
   <div class="heading"><div><h1>गेमिंग ओवरव्यू</h1><div class="muted">अलग गेमिंग सिस्टम · प्लेयर डेटा और वर्चुअल पॉइंट्स का अलग रिकॉर्ड</div></div><span class="status">सेटअप जारी है</span></div>
   <div class="grid">
@@ -82,8 +82,8 @@ h1{font-size:24px;margin:0 0 7px}.muted{color:var(--muted);font-size:12px;line-h
  </div>
 </main>
 <script>
-const token=sessionStorage.getItem("superpay_token");
-function goLogin(){location.replace("/super-admin-login.html")}
+const token=sessionStorage.getItem("parixbet_admin_token");
+function goLogin(){location.replace("/parixbet-admin-login.html")}
 async function api(url,options={}){const r=await fetch(url,{...options,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json",...(options.headers||{})}});const d=await r.json().catch(()=>({ok:false,message:"Invalid server response"}));if(!r.ok||!d.ok)throw new Error(d.message||"Request failed");return d}
 async function loadGaming(){
  const base="/api/dashboard?module=gaming";
@@ -113,12 +113,9 @@ function safe(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"
 document.getElementById("playerForm").addEventListener("submit",async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector("button"),msg=document.getElementById("playerMsg");button.disabled=true;try{const payload=Object.fromEntries(new FormData(form));const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"create_player",...payload})});form.reset();msg.textContent="प्लेयर बन गया: "+d.player.username+" · शुरुआती 1,000 वर्चुअल कॉइन दिए गए।";await loadGaming()}catch(err){msg.textContent=err.message}finally{button.disabled=false}});
 async function init(){
  try{
-  const user=JSON.parse(sessionStorage.getItem("superpay_user")||"null");
-  if(!token||user?.role!=="SUPER_ADMIN")return goLogin();
-  const r=await fetch("/api/dashboard",{headers:{Authorization:"Bearer "+token}});
-  const d=await r.json().catch(()=>({ok:false}));
-  if(!r.ok||!d.ok)return goLogin();
-  document.getElementById("authStatus").textContent="लॉगिन: "+(user.display_name||user.user_id||"Super Admin")+" · गेमिंग सर्विस सक्रिय।";
+  const user=JSON.parse(sessionStorage.getItem("parixbet_admin_user")||"null");
+  if(!token||user?.role!=="GAMING_ADMIN")return goLogin();
+  document.getElementById("authStatus").textContent="लॉगिन: "+(user.display_name||user.user_id||"ParixBet Admin")+" · गेमिंग सर्विस सक्रिय।";
   await loadGaming();
  }catch(e){document.getElementById("authStatus").textContent="डेटा लोड नहीं हुआ: "+e.message}
 }
