@@ -456,10 +456,10 @@ module.exports = async (req, res) => {
       }
       if (req.method === "POST" && body.action === "manual_match_result") {
         const matchId=Number(body.match_id), side=String(body.result_side||"").toUpperCase();
-        if(!Number.isSafeInteger(matchId)||matchId<1||!["A","B"].includes(side))
+        if(!Number.isSafeInteger(matchId)||matchId<1||!["A","B","D"].includes(side))
           return sendJson(res,400,{ok:false,message:"Choose a valid match and result"});
         const saved=await pool.query(
-          "UPDATE sp_prediction_matches SET result_side=$1,result_label=CASE WHEN $1='A' THEN side_a ELSE side_b END,status='FINISHED',result_source='MANUAL',updated_at=NOW() WHERE id=$2 RETURNING *",
+          "UPDATE sp_prediction_matches SET result_side=$1,result_label=CASE WHEN $1='A' THEN side_a WHEN $1='B' THEN side_b ELSE 'Draw / No Result' END,status='FINISHED',result_source='MANUAL',updated_at=NOW() WHERE id=$2 RETURNING *",
           [side,matchId]
         );
         if(!saved.rowCount)return sendJson(res,404,{ok:false,message:"Match not found"});
