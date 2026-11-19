@@ -109,6 +109,43 @@ function getAdmin(req, res) {
 }
 
 module.exports = async (req, res) => {
+  const isPlayerCricket = req.query && req.query.module === "gaming-cricket";
+  if (isPlayerCricket) {
+    if (!allowMethods(req, res, ["GET"])) return;
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    let player;
+    try { player = token ? verifyToken(token) : null; } catch {}
+    if (!player || player.role !== "GAMING_PLAYER" || !player.sub) {
+      return sendJson(res, 401, { ok: false, message: "ParixBet player login required" });
+    }
+    try {
+      const pool = getPool();
+      await ensureGamingTables(pool);
+      const active = await pool.query("SELECT id FROM sp_game_players WHERE id=$1 AND status='ACTIVE' LIMIT 1", [player.sub]);
+      if (!active.rowCount) return sendJson(res, 403, { ok: false, message: "Player account is unavailable" });
+      const setting = await pool.query("SELECT enabled FROM sp_game_settings WHERE game_code='CRICKET_CENTRE' LIMIT 1");
+      if (!setting.rows[0]?.enabled) return sendJson(res, 403, { ok: false, message: "Cricket Centre is currently disabled" });
+      const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key='livescores' LIMIT 1");
+      const age = cached.rows[0] ? Date.now() - new Date(cached.rows[0].fetched_at).getTime() : Infinity;
+      if (age < 30000) return sendJson(res, 200, { ok: true, connected: true, cached: true, matches: cached.rows[0].payload });
+      const apiKey = process.env.SPORTMONKS_CRICKET_TOKEN;
+      if (!apiKey) return sendJson(res, 200, { ok: true, connected: false, message: "Live cricket data is not connected yet.", matches: [] });
+      const url = "https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" + encodeURIComponent(apiKey) + "&include=localteam,visitorteam,scoreboards";
+      const response = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error("Cricket provider returned HTTP " + response.status);
+      const payload = await response.json();
+      const matches = Array.isArray(payload.data) ? payload.data : [];
+      await pool.query(
+        "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES('livescores',$1::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
+        [JSON.stringify(matches)]
+      );
+      return sendJson(res, 200, { ok: true, connected: true, cached: false, matches });
+    } catch (error) {
+      console.error("ParixBet player cricket API error:", error.message);
+      return sendJson(res, 502, { ok: false, message: "Live cricket data is temporarily unavailable" });
+    }
+  }
   const isPlayer = req.query && req.query.module === "gaming-player";
   if (isPlayer) {
     if (!allowMethods(req, res, ["GET"])) return;
