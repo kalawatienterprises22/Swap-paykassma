@@ -13,6 +13,23 @@ async function telegramCall(method, payload) {
   if (!response.ok || !data.ok) throw new Error(data.description || "Telegram request failed");
   return data.result;
 }
+function encryptKyc(value) {
+  if (!value) return null;
+  const key = crypto.createHmac("sha256", String(process.env.JWT_SECRET || "")).update("superpay-kyc-encryption-v1").digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(String(value), "utf8"), cipher.final()]);
+  return "v1:" + iv.toString("hex") + ":" + cipher.getAuthTag().toString("hex") + ":" + encrypted.toString("hex");
+}
+function decryptKyc(value) {
+  if (!value) return "";
+  const parts = String(value).split(":");
+  if (parts.length !== 4 || parts[0] !== "v1") return "";
+  const key = crypto.createHmac("sha256", String(process.env.JWT_SECRET || "")).update("superpay-kyc-encryption-v1").digest();
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(parts[1], "hex"));
+  decipher.setAuthTag(Buffer.from(parts[2], "hex"));
+  return Buffer.concat([decipher.update(Buffer.from(parts[3], "hex")), decipher.final()]).toString("utf8");
+}
 function telegramSecret() {
   return crypto.createHash("sha256").update(String(process.env.TELEGRAM_BOT_TOKEN || "") + ":superpay-webhook-v1").digest("hex").slice(0,48);
 }
@@ -58,7 +75,7 @@ module.exports = async (req, res) => {
     // to the referring Admin. The submitted parent ID is never trusted.
     if (req.method === "POST" && req.body?.action === "register_referral") {
       const pool = getPool();
-      const { referral_code, display_name, email, phone, address } = req.body || {};
+      const { referral_code, display_name, email, phone, address, pan_number, aadhaar_number } = req.body || {};
       const code=String(referral_code||"").trim(), name=typeof display_name==="string"?display_name.trim():"";
       let accountId="";
       for(let attempt=0;attempt<10;attempt++){
@@ -68,17 +85,20 @@ module.exports = async (req, res) => {
       }
       if(!accountId) return sendJson(res,503,{ok:false,message:"Could not generate Merchant ID. Please try again."});
       const accountEmail=typeof email==="string"&&email.trim()?email.trim().toLowerCase():null, mobile=String(phone||"").trim(), fullAddress=String(address||"").trim();
+      const pan=String(pan_number||"").trim().toUpperCase(), aadhaar=String(aadhaar_number||"").replace(/\D/g,"");
       if(!/^[A-Za-z0-9_-]{20,100}$/.test(code)) return sendJson(res,400,{ok:false,message:"Invalid referral link"});
       if(name.length<2||name.length>80) return sendJson(res,400,{ok:false,message:"Name must be 2-80 characters"});
       if(mobile.length<8||mobile.length>20) return sendJson(res,400,{ok:false,message:"Enter a valid mobile number"});
       if(fullAddress.length<8||fullAddress.length>500) return sendJson(res,400,{ok:false,message:"Enter your full address"});
+      if(!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) return sendJson(res,400,{ok:false,message:"Enter a valid 10-character PAN number"});
+      if(aadhaar && !/^[0-9]{12}$/.test(aadhaar)) return sendJson(res,400,{ok:false,message:"Aadhaar number must contain exactly 12 digits"});
       if(accountEmail&&(accountEmail.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(accountEmail))) return sendJson(res,400,{ok:false,message:"Enter a valid email address"});
       const referral=await pool.query("SELECT r.admin_id,a.user_id AS admin_user_id FROM sp_admin_referrals r JOIN sp_users a ON a.id=r.admin_id WHERE r.code=$1 AND r.active=TRUE AND a.role='ADMIN' AND a.status='ACTIVE'",[code]);
       if(!referral.rowCount) return sendJson(res,404,{ok:false,message:"This referral link is invalid or inactive"});
       const passwordHash=await bcrypt.hash(crypto.randomBytes(48).toString("hex"),12);
       const created=await pool.query("INSERT INTO sp_users(id,user_id,email,password_hash,display_name,role,status,parent_admin_id) VALUES($1,$2,$3,$4,$5,'MERCHANT','SUSPENDED',$6) RETURNING id,user_id,display_name,role,status",[crypto.randomUUID(),accountId,accountEmail,passwordHash,name,referral.rows[0].admin_id]);
       const linkToken=crypto.randomBytes(32).toString("hex"), linkHash=crypto.createHash("sha256").update(linkToken).digest("hex");
-      await pool.query("INSERT INTO sp_merchant_onboarding(merchant_id,phone,full_address,telegram_link_token_hash,telegram_link_expires_at) VALUES($1,$2,$3,$4,now()+interval '30 minutes')",[created.rows[0].id,mobile,fullAddress,linkHash]);
+      await pool.query("INSERT INTO sp_merchant_onboarding(merchant_id,phone,full_address,pan_number_encrypted,aadhaar_number_encrypted,telegram_link_token_hash,telegram_link_expires_at) VALUES($1,$2,$3,$4,$5,$6,now()+interval '30 minutes')",[created.rows[0].id,mobile,fullAddress,encryptKyc(pan),encryptKyc(aadhaar),linkHash]);
       await pool.query("INSERT INTO sp_audit_logs(actor_id,action,target_type,target_id,details) VALUES($1,'MERCHANT_REFERRED_SIGNUP','MERCHANT',$2,$3)",[referral.rows[0].admin_id,created.rows[0].id,JSON.stringify({merchant_user_id:accountId,referral_admin_user_id:referral.rows[0].admin_user_id})]);
       await pool.query("INSERT INTO sp_notifications(user_id,title,message,category) SELECT id,'New Merchant referral signup',$1,'MERCHANT_SIGNUP' FROM sp_users WHERE (id=$2 OR role='SUPER_ADMIN') AND status='ACTIVE'",[`Merchant ${accountId} registered. Telegram connection and Super Admin approval are required.`,referral.rows[0].admin_id]);
       return sendJson(res,201,{ok:true,message:"Registration saved. Connect Telegram to finish verification.",bot_url:"https://t.me/superpay_notification_bot?start=link_"+linkToken,merchant:created.rows[0]});
