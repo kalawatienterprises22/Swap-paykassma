@@ -108,6 +108,20 @@ async function ensureGamingTables(pool) {
       ADD COLUMN IF NOT EXISTS result_label VARCHAR(100),
       ADD COLUMN IF NOT EXISTS result_data JSONB NOT NULL DEFAULT '{}'::jsonb;
 
+    DO $compat$
+    DECLARE constraint_row RECORD;
+    BEGIN
+      FOR constraint_row IN
+        SELECT conname
+          FROM pg_constraint
+         WHERE conrelid = 'sp_prediction_matches'::regclass
+           AND contype = 'c'
+           AND pg_get_constraintdef(oid) ILIKE '%status%'
+      LOOP
+        EXECUTE format('ALTER TABLE sp_prediction_matches DROP CONSTRAINT %I', constraint_row.conname);
+      END LOOP;
+    END $compat$;
+
     UPDATE sp_prediction_matches
        SET provider_match_id = COALESCE(provider_match_id, external_match_id),
            title = COALESCE(title, match_title),
@@ -128,20 +142,6 @@ async function ensureGamingTables(pool) {
       ALTER COLUMN match_title DROP NOT NULL,
       ALTER COLUMN team_a DROP NOT NULL,
       ALTER COLUMN team_b DROP NOT NULL;
-
-    DO $
-    DECLARE constraint_row RECORD;
-    BEGIN
-      FOR constraint_row IN
-        SELECT conname
-          FROM pg_constraint
-         WHERE conrelid = 'sp_prediction_matches'::regclass
-           AND contype = 'c'
-           AND pg_get_constraintdef(oid) ILIKE '%status%'
-      LOOP
-        EXECUTE format('ALTER TABLE sp_prediction_matches DROP CONSTRAINT %I', constraint_row.conname);
-      END LOOP;
-    END $;
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_sp_prediction_provider_match
       ON sp_prediction_matches(sport, provider_match_id)
