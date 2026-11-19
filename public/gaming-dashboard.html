@@ -133,7 +133,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
   </section>
   <section class="section card" id="risk-monitoring">
    <h2>Exposure · Liquidity · Reserve · Settlement Monitor</h2>
-   <p class="muted">INR display reference: 1 point = ₹1. The 10% figure is a reporting benchmark calculated from total player points; it is not a collected fee or profit.</p>
+   <p class="muted">INR display reference: 1 point = ₹1. The 10% figure is only a reference calculation, not collected margin, profit or reserve.</p>
    <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:14px 0">
     <div class="card"><div class="metric-label">Total Predictions</div><div class="metric" id="monExposureTotal">—</div><span class="pending">A/B selections recorded</span></div>
     <div class="card"><div class="metric-label">Unbalanced Matches</div><div class="metric" id="monExposureAlerts">—</div><span class="pending">5+ predictions and 60%+ imbalance</span></div>
@@ -141,6 +141,22 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
     <div class="card"><div class="metric-label">10% INR Reference</div><div class="metric" id="monReserve">—</div><span class="pending">10% of total player INR points</span></div>
     <div class="card"><div class="metric-label">Settled Matches</div><div class="metric" id="monSettled">—</div><span class="pending">Results saved in database</span></div>
     <div class="card"><div class="metric-label">Correct Predictions</div><div class="metric" id="monCorrect">—</div><span class="pending">Score tracking only</span></div>
+   </div>
+   <div class="card" style="margin:12px 0;padding:14px">
+    <b>Imbalance Alert Settings</b>
+    <p class="muted">यह केवल A/B prediction-count alert की सीमा है; यह ₹ में जेब का नुकसान, payout या profit limit नहीं है।</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">
+     <label>Minimum predictions
+      <input id="monitorMinPredictions" type="number" min="1" max="10000" step="1" value="5" style="width:100%;padding:10px">
+     </label>
+     <label>Largest-side alert threshold (%)
+      <input id="monitorImbalanceThreshold" type="number" min="50" max="95" step="1" value="60" style="width:100%;padding:10px">
+     </label>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+     <button class="btn" type="button" id="saveMonitorSettings">Save Alert Settings</button>
+     <span class="muted" id="monitorSettingsMsg">Default: 5 predictions and 60% largest-side share.</span>
+    </div>
    </div>
    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0">
     <b>Match Exposure Monitor</b><button class="btn" type="button" id="refreshMonitoring">Refresh Monitor</button>
@@ -198,6 +214,10 @@ async function loadMonitoring(){
  try{
   const d=await api("/api/dashboard?module=gaming&action=monitoring"),m=d.monitoring;
   const fmt=v=>Number(v||0).toLocaleString("en-IN");
+  const cfg=m.alert_settings||{min_predictions:5,imbalance_threshold_pct:60};
+  document.getElementById("monitorMinPredictions").value=cfg.min_predictions;
+  document.getElementById("monitorImbalanceThreshold").value=cfg.imbalance_threshold_pct;
+  document.getElementById("monAlertRule").textContent=cfg.min_predictions+"+ predictions and "+cfg.imbalance_threshold_pct+"%+ largest-side share";
   document.getElementById("monExposureTotal").textContent=fmt(m.exposure.total_predictions);
   document.getElementById("monExposureAlerts").textContent=fmt(m.exposure.unbalanced_matches);
   document.getElementById("monLiquidity").textContent="₹"+fmt(m.liquidity.virtual_points);
@@ -205,13 +225,28 @@ async function loadMonitoring(){
   document.getElementById("monSettled").textContent=fmt(m.settlement.settled_matches);
   document.getElementById("monCorrect").textContent=fmt(m.settlement.correct);
   matchBox.innerHTML=m.exposure.matches.length?m.exposure.matches.map(x=>{
-   const alert=Number(x.prediction_count)>=5&&Number(x.imbalance_percent)>=60;
+   const cfg=m.alert_settings||{min_predictions:5,imbalance_threshold_pct:60};
+   const alert=Number(x.prediction_count)>=Number(cfg.min_predictions)&&Number(x.imbalance_percent)>=Number(cfg.imbalance_threshold_pct);
    return '<div class="row"><div style="min-width:0;flex:1"><b>'+safe(x.title)+'</b><p>'+safe(x.side_a)+': '+fmt(x.side_a_count)+' · '+safe(x.side_b)+': '+fmt(x.side_b_count)+' · Total: '+fmt(x.prediction_count)+'</p><p>Largest side share: '+fmt(x.imbalance_percent)+'% · '+safe(x.status)+(x.result_label?' · Result: '+safe(x.result_label):'')+'</p></div><span class="pill">'+(alert?'UNBALANCED':'BALANCED')+'</span></div>';
   }).join(""):'<div class="notice">No match prediction records are available yet.</div>';
   auditBox.innerHTML=m.settlement.recent.length?m.settlement.recent.map(x=>'<div class="row"><div><b>'+safe(x.event_type)+'</b><p>'+safe(x.event_note)+' · Match #'+safe(x.match_id||"—")+'</p></div><span class="pill">'+new Date(x.created_at).toLocaleString("en-IN")+'</span></div>').join(""):'<div class="notice">No result audit events have been recorded yet.</div>';
  }catch(e){matchBox.textContent="Monitoring unavailable: "+e.message;auditBox.textContent="Audit data unavailable."}
 }
 document.getElementById("refreshMonitoring").addEventListener("click",loadMonitoring);
+document.getElementById("saveMonitorSettings").addEventListener("click",async()=>{
+ const button=document.getElementById("saveMonitorSettings"),msg=document.getElementById("monitorSettingsMsg");
+ button.disabled=true;msg.textContent="Saving alert settings…";
+ try{
+  const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({
+   action:"update_monitor_settings",
+   min_predictions:Number(document.getElementById("monitorMinPredictions").value),
+   imbalance_threshold_pct:Number(document.getElementById("monitorImbalanceThreshold").value)
+  })});
+  msg.textContent=d.message;
+  await loadMonitoring();
+ }catch(e){msg.textContent=e.message}
+ finally{button.disabled=false}
+});
 async function loadPredictionMatches(){
  const box=document.getElementById("predictionMatchList");
  try{
