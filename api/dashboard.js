@@ -109,7 +109,9 @@ async function ensureGamingTables(pool) {
       ADD COLUMN IF NOT EXISTS result_data JSONB NOT NULL DEFAULT '{}'::jsonb;
 
     DO $compat$
-    DECLARE constraint_row RECORD;
+    DECLARE
+      constraint_row RECORD;
+      legacy_column TEXT;
     BEGIN
       FOR constraint_row IN
         SELECT conname
@@ -120,28 +122,51 @@ async function ensureGamingTables(pool) {
       LOOP
         EXECUTE format('ALTER TABLE sp_prediction_matches DROP CONSTRAINT %I', constraint_row.conname);
       END LOOP;
+
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'sp_prediction_matches'
+           AND column_name = 'external_match_id'
+      ) THEN
+        EXECUTE $migration$
+          UPDATE sp_prediction_matches
+             SET provider_match_id = COALESCE(provider_match_id, external_match_id),
+                 title = COALESCE(title, match_title),
+                 side_a = COALESCE(side_a, team_a),
+                 side_b = COALESCE(side_b, team_b),
+                 scheduled_at = COALESCE(scheduled_at, starts_at),
+                 sport = UPPER(sport),
+                 status = CASE
+                   WHEN UPPER(status) = 'OPEN' THEN 'UPCOMING'
+                   WHEN UPPER(status) = 'SETTLED' THEN 'FINISHED'
+                   ELSE UPPER(status)
+                 END
+           WHERE title IS NULL OR side_a IS NULL OR side_b IS NULL
+              OR scheduled_at IS NULL OR provider_match_id IS NULL
+              OR status IN ('OPEN','SETTLED') OR sport <> UPPER(sport)
+        $migration$;
+      ELSE
+        UPDATE sp_prediction_matches
+           SET sport = UPPER(sport),
+               status = CASE
+                 WHEN UPPER(status) = 'OPEN' THEN 'UPCOMING'
+                 WHEN UPPER(status) = 'SETTLED' THEN 'FINISHED'
+                 ELSE UPPER(status)
+               END;
+      END IF;
+
+      FOREACH legacy_column IN ARRAY ARRAY['match_title','team_a','team_b'] LOOP
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+           WHERE table_schema = current_schema()
+             AND table_name = 'sp_prediction_matches'
+             AND column_name = legacy_column
+        ) THEN
+          EXECUTE format('ALTER TABLE sp_prediction_matches ALTER COLUMN %I DROP NOT NULL', legacy_column);
+        END IF;
+      END LOOP;
     END $compat$;
-
-    UPDATE sp_prediction_matches
-       SET provider_match_id = COALESCE(provider_match_id, external_match_id),
-           title = COALESCE(title, match_title),
-           side_a = COALESCE(side_a, team_a),
-           side_b = COALESCE(side_b, team_b),
-           scheduled_at = COALESCE(scheduled_at, starts_at),
-           sport = UPPER(sport),
-           status = CASE
-             WHEN UPPER(status) = 'OPEN' THEN 'UPCOMING'
-             WHEN UPPER(status) = 'SETTLED' THEN 'FINISHED'
-             ELSE UPPER(status)
-           END
-     WHERE title IS NULL OR side_a IS NULL OR side_b IS NULL
-        OR scheduled_at IS NULL OR provider_match_id IS NULL
-        OR status IN ('OPEN','SETTLED') OR sport <> UPPER(sport);
-
-    ALTER TABLE sp_prediction_matches
-      ALTER COLUMN match_title DROP NOT NULL,
-      ALTER COLUMN team_a DROP NOT NULL,
-      ALTER COLUMN team_b DROP NOT NULL;
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_sp_prediction_provider_match
       ON sp_prediction_matches(sport, provider_match_id)
