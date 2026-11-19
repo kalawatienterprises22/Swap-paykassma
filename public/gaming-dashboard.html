@@ -51,6 +51,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
   <a href="#apis">🔌 <span>API Connections</span></a>
   <a href="#players">👥 <span>Player Management</span></a>
   <a href="#records">▤ <span>Game Records</span></a>
+  <a href="#engine">🧮 <span>Engine Control</span></a>
   <a href="#settings">⚙ <span>Settings</span></a>
   <div class="nav-label">PARIXBET ENTERTAINMENT</div>
  </nav>
@@ -85,6 +86,34 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
    </form><p id="playerMsg" class="muted">Loading player list…</p><div id="playerList"></div>
   </section>
   <section class="section card" id="records"><h2>Game Records</h2><p id="recordMsg" class="muted">Loading records…</p><div id="recordList" class="notice">There are no game records yet. Records will appear here once the game service is connected.</div></section>
+  <section class="section card" id="engine">
+   <h2>Prediction & Score Engine</h2>
+   <p class="muted">Entertainment-only match prediction simulator. No bets, stakes, odds, commission, cash value, wallet deductions or payouts.</p>
+   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:15px 0">
+    <div class="card"><div class="metric-label">Predictions A</div><div class="metric" id="engineCountA">0</div><span class="pending">Pick count</span></div>
+    <div class="card"><div class="metric-label">Predictions B</div><div class="metric" id="engineCountB">0</div><span class="pending">Pick count</span></div>
+    <div class="card"><div class="metric-label">Total Predictions</div><div class="metric" id="engineTotal">0</div><span class="pending">No points deducted</span></div>
+    <div class="card"><div class="metric-label">Correct Predictions</div><div class="metric" id="engineCorrect">0</div><span class="pending">After result</span></div>
+   </div>
+   <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px">
+    <div><label for="engineMode">Engine Mode</label><select id="engineMode" style="width:100%;padding:11px"><option value="SCORE_POOL">Prediction Score Pool</option><option value="DIFFICULTY">Game Difficulty Simulator</option><option value="MATCH_CENTRE">Match Centre Prediction</option></select></div>
+    <div><label for="engineDifficulty">Difficulty Level</label><select id="engineDifficulty" style="width:100%;padding:11px"><option value="1">1 · Easy</option><option value="2">2 · Normal</option><option value="3" selected>3 · Standard</option><option value="4">4 · Hard</option><option value="5">5 · Expert</option></select></div>
+    <div><label for="engineLabelA">Side A label</label><input id="engineLabelA" value="Team / Player A" maxlength="40" style="width:100%;padding:11px"></div>
+    <div><label for="engineLabelB">Side B label</label><input id="engineLabelB" value="Team / Player B" maxlength="40" style="width:100%;padding:11px"></div>
+   </div>
+   <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:14px">
+    <button class="btn" type="button" id="enginePickA">Record Prediction: A</button>
+    <button class="btn" type="button" id="enginePickB">Record Prediction: B</button>
+   </div>
+   <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:14px">
+    <button class="btn" type="button" id="engineSettleA">Set Match Result: A</button>
+    <button class="btn" type="button" id="engineSettleB">Set Match Result: B</button>
+    <button class="btn" type="button" id="engineReset" style="background:linear-gradient(110deg,#b9364c,#8c2638);border-color:#e06b7b">Reset Session</button>
+   </div>
+   <div class="notice" id="engineSummary" style="margin-top:15px">No predictions recorded. Each prediction is a simple selection, not a wager. Correct predictions receive a local demo score only.</div>
+   <div style="margin-top:14px"><b>Engine Activity Log</b><pre id="engineLog" style="white-space:pre-wrap;overflow:auto;background:#0b172b;border:1px solid #344b70;border-radius:10px;padding:13px;color:#a7f3d0">Ready · Score-only mode</pre></div>
+   <div class="notice" style="margin-top:12px">Demo limitation: this simulator runs in the current admin page session. It does not write to player wallets or the payment database, and its demo scores are not transferable or redeemable.</div>
+  </section>
   <section class="section card" id="settings"><h2>System Settings & Rules</h2><div class="notice"><b>For entertainment only.</b> Virtual coins have no cash value. They cannot be deposited, withdrawn, exchanged for money, or redeemed for prizes. ParixBet gaming data and virtual balances are completely separate from merchant balances and payment records on the payment platform.</div></section>
   <div class="footer" id="authStatus">Checking admin login…</div>
  </div>
@@ -139,6 +168,49 @@ async function init(){
   await loadGaming();
  }catch(e){document.getElementById("authStatus").textContent="Data could not be loaded: "+e.message}
 }
+// Safe score-only prediction simulator. No stake, odds, wallet movement or payout logic.
+const scoreEngine={entries:[],result:null,correct:0};
+function engineLog(message){document.getElementById("engineLog").textContent=typeof message==="string"?message:JSON.stringify(message,null,2)}
+function engineRender(){
+ const a=scoreEngine.entries.filter(x=>x.side==="A").length,b=scoreEngine.entries.filter(x=>x.side==="B").length;
+ document.getElementById("engineCountA").textContent=a;
+ document.getElementById("engineCountB").textContent=b;
+ document.getElementById("engineTotal").textContent=scoreEngine.entries.length;
+ document.getElementById("engineCorrect").textContent=scoreEngine.correct;
+ const labelA=document.getElementById("engineLabelA").value.trim()||"Team / Player A";
+ const labelB=document.getElementById("engineLabelB").value.trim()||"Team / Player B";
+ document.getElementById("enginePickA").textContent="Record Prediction: "+labelA;
+ document.getElementById("enginePickB").textContent="Record Prediction: "+labelB;
+ document.getElementById("engineSettleA").textContent="Set Match Result: "+labelA;
+ document.getElementById("engineSettleB").textContent="Set Match Result: "+labelB;
+ const summary=scoreEngine.result
+  ? "Result: "+(scoreEngine.result==="A"?labelA:labelB)+". Correct predictions: "+scoreEngine.correct+" / "+scoreEngine.entries.length+". Demo score: "+(scoreEngine.correct*10)+" points. These points are only a local display score."
+  : "Predictions recorded: "+scoreEngine.entries.length+". "+labelA+": "+a+" · "+labelB+": "+b+". No points are deducted or awarded until the result is set.";
+ document.getElementById("engineSummary").textContent=summary;
+}
+function engineAdd(side){
+ if(scoreEngine.result){engineLog("This session has been settled. Reset the session before recording another prediction.");return}
+ if(scoreEngine.entries.length>=500){engineLog("Session limit reached (500 predictions).");return}
+ const label=document.getElementById(side==="A"?"engineLabelA":"engineLabelB").value.trim()||(side==="A"?"Team / Player A":"Team / Player B");
+ scoreEngine.entries.push({side,label,at:new Date().toISOString()});
+ engineRender();engineLog({event:"Prediction recorded",selection:label,totalPredictions:scoreEngine.entries.length,note:"No stake or wallet deduction."});
+}
+function engineSettle(side){
+ if(!scoreEngine.entries.length){engineLog("Record at least one prediction first.");return}
+ if(scoreEngine.result){engineLog("This session already has a result. Reset to start a new session.");return}
+ scoreEngine.result=side;scoreEngine.correct=scoreEngine.entries.filter(x=>x.side===side).length;
+ engineRender();engineLog({event:"Match result recorded",winner:side==="A"?(document.getElementById("engineLabelA").value||"Team A"):(document.getElementById("engineLabelB").value||"Team B"),correctPredictions:scoreEngine.correct,totalPredictions:scoreEngine.entries.length,demoScore:scoreEngine.correct*10,note:"Score-only summary. No payouts, commissions or wallet changes."});
+}
+function engineReset(){
+ scoreEngine.entries=[];scoreEngine.result=null;scoreEngine.correct=0;engineRender();engineLog("Session reset. No player wallet or database records were changed.");
+}
+document.getElementById("enginePickA").addEventListener("click",()=>engineAdd("A"));
+document.getElementById("enginePickB").addEventListener("click",()=>engineAdd("B"));
+document.getElementById("engineSettleA").addEventListener("click",()=>engineSettle("A"));
+document.getElementById("engineSettleB").addEventListener("click",()=>engineSettle("B"));
+document.getElementById("engineReset").addEventListener("click",engineReset);
+["engineLabelA","engineLabelB","engineMode","engineDifficulty"].forEach(id=>document.getElementById(id).addEventListener("change",engineRender));
+engineRender();
 document.getElementById("menu").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
 document.querySelectorAll(".sidebar nav a").forEach(a=>a.addEventListener("click",()=>document.getElementById("sidebar").classList.remove("open")));
 init();
