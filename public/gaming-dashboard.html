@@ -206,7 +206,7 @@ async function loadMonitoring(){
   document.getElementById("monCorrect").textContent=fmt(m.settlement.correct);
   matchBox.innerHTML=m.exposure.matches.length?m.exposure.matches.map(x=>{
    const alert=Number(x.prediction_count)>=5&&Number(x.imbalance_percent)>=60;
-   return '<div class="row"><div style="min-width:0;flex:1"><b>'+safe(x.title)+'</b><p>'+safe(x.side_a)+': '+fmt(x.side_a_count)+' · '+safe(x.side_b)+': '+fmt(x.side_b_count)+' · Total: '+fmt(x.prediction_count)+'</p><p>Side imbalance: '+fmt(x.imbalance_percent)+'% · '+safe(x.status)+(x.result_label?' · Result: '+safe(x.result_label):'')+'</p></div><span class="pill">'+(alert?'Review':'Normal')+'</span></div>';
+   return '<div class="row"><div style="min-width:0;flex:1"><b>'+safe(x.title)+'</b><p>'+safe(x.side_a)+': '+fmt(x.side_a_count)+' · '+safe(x.side_b)+': '+fmt(x.side_b_count)+' · Total: '+fmt(x.prediction_count)+'</p><p>Largest side share: '+fmt(x.imbalance_percent)+'% · '+safe(x.status)+(x.result_label?' · Result: '+safe(x.result_label):'')+'</p></div><span class="pill">'+(alert?'UNBALANCED':'BALANCED')+'</span></div>';
   }).join(""):'<div class="notice">No match prediction records are available yet.</div>';
   auditBox.innerHTML=m.settlement.recent.length?m.settlement.recent.map(x=>'<div class="row"><div><b>'+safe(x.event_type)+'</b><p>'+safe(x.event_note)+' · Match #'+safe(x.match_id||"—")+'</p></div><span class="pill">'+new Date(x.created_at).toLocaleString("en-IN")+'</span></div>').join(""):'<div class="notice">No result audit events have been recorded yet.</div>';
  }catch(e){matchBox.textContent="Monitoring unavailable: "+e.message;auditBox.textContent="Audit data unavailable."}
@@ -219,8 +219,21 @@ async function loadPredictionMatches(){
   box.innerHTML=d.matches.length?d.matches.map(m=>{
    const status=m.result_side?"RESULT: "+safe(m.result_label||m.result_side):"RESULT PENDING";
    const source=m.result_source==="API"?"Automatic API":m.result_source==="MANUAL"?"Manual Admin":m.result_source==="API_REVIEW"?"API · Manual review needed":"—";
-   return '<div class="row" style="align-items:flex-start"><div style="min-width:0;flex:1"><b>'+safe(m.title)+'</b><p>'+safe(m.sport)+' · '+safe(m.side_a)+' vs '+safe(m.side_b)+'</p><p>'+status+' · '+safe(source)+' · Predictions: '+Number(m.prediction_count||0)+' · Correct: '+Number(m.correct_count||0)+'</p></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn" data-result-match="'+m.id+'" data-result-side="A">'+safe(m.side_a)+' won</button><button class="btn" data-result-match="'+m.id+'" data-result-side="B">'+safe(m.side_b)+' won</button><button class="btn" data-result-match="'+m.id+'" data-result-side="D">Draw / No Result</button></div></div>';
+   const canToggle=!m.result_side&&["UPCOMING","LOCKED"].includes(m.status);
+   const lockButton=canToggle?'<button class="btn" data-match-lock="'+m.id+'" data-next-status="'+(m.status==="LOCKED"?"UPCOMING":"LOCKED")+'">'+(m.status==="LOCKED"?"Reopen Predictions":"Lock Predictions")+'</button>':"";
+   const resultButtons=m.result_side?"":'<button class="btn" data-result-match="'+m.id+'" data-result-side="A">'+safe(m.side_a)+' won</button><button class="btn" data-result-match="'+m.id+'" data-result-side="B">'+safe(m.side_b)+' won</button><button class="btn" data-result-match="'+m.id+'" data-result-side="D">Draw / No Result</button>';
+   return '<div class="row" style="align-items:flex-start"><div style="min-width:0;flex:1"><b>'+safe(m.title)+'</b><p>'+safe(m.sport)+' · '+safe(m.side_a)+' vs '+safe(m.side_b)+'</p><p>'+status+' · '+safe(source)+' · Predictions: '+Number(m.prediction_count||0)+' · Correct: '+Number(m.correct_count||0)+'</p></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+lockButton+resultButtons+'</div></div>';
   }).join(""):'<div class="notice">No matches have been added yet. Add a match or sync provider results.</div>';
+  box.querySelectorAll("[data-match-lock]").forEach(b=>b.addEventListener("click",async()=>{
+   const nextStatus=b.dataset.nextStatus;
+   if(!confirm(nextStatus==="LOCKED"?"Lock new and updated predictions for this match?":"Reopen predictions for this match?"))return;
+   b.disabled=true;
+   try{
+    const d=await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"prediction_match_status",match_id:Number(b.dataset.matchLock),status:nextStatus})});
+    document.getElementById("predictionSyncMsg").textContent=d.message;
+    await Promise.all([loadPredictionMatches(),loadMonitoring()]);
+   }catch(e){document.getElementById("predictionSyncMsg").textContent=e.message;b.disabled=false}
+  }));
   box.querySelectorAll("[data-result-match]").forEach(b=>b.addEventListener("click",async()=>{
    if(!confirm("Save this as the final match result?"))return;
    b.disabled=true;
