@@ -884,3 +884,122 @@ module.exports = async (req, res) => {
             }
           } else errors.push("Football: FOOTBALL_API_KEY is not configured");
         } catch (e) { errors.push("Football: " + e.message); }
+        try {
+          if (cricketKey) {
+            const now = new Date();
+            const from = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
+            const to = now.toISOString().slice(0, 10);
+            const url = "https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=" + encodeURIComponent(cricketKey) + "&filter[starts_between]=" + from + "," + to + "&include=localteam,visitorteam,scoreboards,winnerteam";
+            const resp = await fetch(url, { headers: { Accept: "application/json" } });
+            if (!resp.ok) throw new Error("Cricket API HTTP " + resp.status);
+            const payload = await resp.json();
+            for (const m of (Array.isArray(payload.data) ? payload.data : [])) {
+              if (String(m.status || "").toLowerCase() !== "finished") continue;
+              const a = textValue(m.localteam?.name || m.localteam?.data?.name);
+              const b = textValue(m.visitorteam?.name || m.visitorteam?.data?.name);
+              const winnerObj = m.winnerteam || m.winner_team || m.winnerTeam || m.winner;
+              const winnerId = m.winner_team_id || m.winnerteam_id || winnerObj?.id || winnerObj?.data?.id;
+              const localId = m.localteam_id || m.localteam?.id || m.localteam?.data?.id;
+              const visitorId = m.visitorteam_id || m.visitorteam?.id || m.visitorteam?.data?.id;
+              const winnerName = textValue(winnerObj?.name || winnerObj?.data?.name);
+              let side = null;
+              if (winnerId && localId && String(winnerId) === String(localId)) side = "A";
+              else if (winnerId && visitorId && String(winnerId) === String(visitorId)) side = "B";
+              else if (winnerName && same(winnerName, a)) side = "A";
+              else if (winnerName && same(winnerName, b)) side = "B";
+              const label = side ? (side === "A" ? a : b) : (winnerName || null);
+              await saveProviderMatch("CRICKET", m.id, a + " vs " + b, a, b, m.starting_at || null, side, label, m);
+            }
+          } else errors.push("Cricket: SPORTMONKS_CRICKET_TOKEN is not configured");
+        } catch (e) { errors.push("Cricket: " + e.message); }
+
+        return sendJson(res, 200, { ok: true, checked, updated, needs_manual_review: review, skipped_manual: skippedManual, errors });
+      }
+
+      if (req.method === "POST" && action === "create_player") {
+        const username = String(body.username || "").trim().toLowerCase();
+        const displayName = String(body.display_name || "").trim();
+        const password = String(body.password || "");
+        if (!/^[a-z0-9_]{4,40}$/.test(username) || displayName.length < 2 || password.length < 8) {
+          return sendJson(res, 400, { ok: false, message: "Username (4-40 letters/numbers/_), display name and password (8+ characters) are required." });
+        }
+        const hash = await bcrypt.hash(password, 12);
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const player = await client.query(
+            "INSERT INTO sp_game_players (username,display_name,password_hash) VALUES ($1,$2,$3) RETURNING id,username,display_name,status,created_at",
+            [username, displayName, hash]
+          );
+          await client.query("INSERT INTO sp_game_wallets (player_id,virtual_coins) VALUES ($1,1000)", [player.rows[0].id]);
+          await client.query("INSERT INTO sp_game_coin_ledger (player_id,amount,entry_type,note) VALUES ($1,1000,'INITIAL_BALANCE','Initial player balance')", [player.rows[0].id]);
+          await client.query("COMMIT");
+          return sendJson(res, 201, { ok: true, player: { ...player.rows[0], virtual_coins: 1000 } });
+        } catch (e) {
+          await client.query("ROLLBACK");
+          if (e.code === "23505") return sendJson(res, 409, { ok: false, message: "This username is already registered." });
+          throw e;
+        } finally { client.release(); }
+      }
+
+      if (req.method === "PATCH" && action === "game_status") {
+        const gameCode = String(body.game_code || "");
+        if (!/^[A-Z0-9_]{3,40}$/.test(gameCode) || typeof body.enabled !== "boolean") {
+          return sendJson(res, 400, { ok: false, message: "Invalid game or status" });
+        }
+        const result = await pool.query(
+          "UPDATE sp_game_settings SET enabled=$1,updated_at=NOW() WHERE game_code=$2 RETURNING game_code,title,enabled",
+          [body.enabled, gameCode]
+        );
+        if (!result.rowCount) return sendJson(res, 404, { ok: false, message: "Game not found" });
+        return sendJson(res, 200, { ok: true, game: result.rows[0] });
+      }
+
+      if (req.method === "PATCH" && action === "player_status") {
+        const id = Number(body.player_id);
+        if (!Number.isSafeInteger(id) || !["ACTIVE", "SUSPENDED"].includes(body.status)) {
+          return sendJson(res, 400, { ok: false, message: "Invalid player or status" });
+        }
+        const result = await pool.query("UPDATE sp_game_players SET status=$1 WHERE id=$2 RETURNING id,status", [body.status, id]);
+        if (!result.rowCount) return sendJson(res, 404, { ok: false, message: "Player not found" });
+        return sendJson(res, 200, { ok: true, player: result.rows[0] });
+      }
+
+      return sendJson(res, 400, { ok: false, message: "Unknown gaming action" });
+    } catch (error) {
+      console.error("Gaming dashboard API error:", error.message);
+      return sendJson(res, 500, { ok: false, message: "Gaming data service unavailable" });
+    }
+  }
+
+  if (!allowMethods(req, res, ["GET"])) return;
+  if (!getAdmin(req, res)) return;
+  try {
+    const pool = getPool();
+    const [merchants, transactions, deposits, payments, pendingAccounts] = await Promise.all([
+      pool.query("SELECT COUNT(*)::int AS total FROM sp_users WHERE role = 'MERCHANT'"),
+      pool.query("SELECT COUNT(*)::int AS total FROM sp_ledger"),
+      pool.query("SELECT COUNT(*)::int AS total FROM sp_deposits"),
+      pool.query("SELECT COUNT(*)::int AS total FROM sp_ledger WHERE entry_type IN ('PAYMENT','MANUAL_DEBIT','CHARGE')"),
+      pool.query("SELECT COUNT(*)::int AS total FROM sp_merchant_accounts WHERE status = 'PENDING'")
+    ]);
+    return sendJson(res, 200, {
+      ok: true,
+      stats: {
+        merchants: merchants.rows[0].total,
+        transactions: transactions.rows[0].total,
+        deposits: deposits.rows[0].total,
+        payments_debits: payments.rows[0].total,
+        pending_account_requests: pendingAccounts.rows[0].total
+      }
+    });
+  } catch (error) {
+    console.error("Dashboard API error:", error.message);
+    return sendJson(res, 500, {
+      ok: false,
+      message: error.code === "42P01"
+        ? "A required Paykassma database table is missing. Run the latest database SQL files in Neon."
+        : "Dashboard data unavailable"
+    });
+  }
+};
