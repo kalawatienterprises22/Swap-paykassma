@@ -154,9 +154,30 @@ function getGamingAdmin(req, res) {
   }
 }
 
+function getAdmin(req, res) {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!token) {
+    sendJson(res, 401, { ok: false, message: "Authentication required" });
+    return null;
+  }
+  try {
+    const user = verifyToken(token);
+    if (user.role !== "SUPER_ADMIN") {
+      sendJson(res, 403, { ok: false, message: "Access denied" });
+      return null;
+    }
+    return user;
+  } catch {
+    sendJson(res, 401, { ok: false, message: "Invalid or expired session" });
+    return null;
+  }
+}
+
 module.exports = async (req, res) => {
   const mod = req.query && req.query.module;
 
+  // 1. Player Football Module
   if (mod === "gaming-football") {
     if (!allowMethods(req, res, ["GET"])) return;
     const auth = req.headers.authorization || "";
@@ -226,6 +247,7 @@ module.exports = async (req, res) => {
     }
   }
 
+  // 2. Player Predictions Module
   if (mod === "gaming-predictions") {
     if (!allowMethods(req, res, ["GET", "POST"])) return;
     const auth = req.headers.authorization || "";
@@ -289,6 +311,7 @@ module.exports = async (req, res) => {
     }
   }
 
+  // 3. Player Cricket Module
   if (mod === "gaming-cricket") {
     if (!allowMethods(req, res, ["GET"])) return;
     const auth = req.headers.authorization || "";
@@ -335,5 +358,59 @@ module.exports = async (req, res) => {
     }
   }
 
-  return sendJson(res, 400, { ok: false, message: "Unsupported or incomplete gaming module" });
-};
+  // 4. Gaming Admin Dashboard Module (module=gaming)
+  if (mod === "gaming") {
+    if (!allowMethods(req, res, ["GET", "POST", "PATCH"])) return;
+    if (!getGamingAdmin(req, res)) return;
+
+    try {
+      const pool = getPool();
+      await ensureGamingTables(pool);
+      const action = String((req.method === "GET" ? req.query?.action : req.body?.action) || "");
+      const body = req.body || {};
+
+      if (req.method === "GET" && action === "stats") {
+        const [pRes, gRes, cRes] = await Promise.all([
+          pool.query("SELECT COUNT(*)::int AS total FROM sp_game_players"),
+          pool.query("SELECT COUNT(*)::int AS total FROM sp_game_sessions"),
+          pool.query("SELECT COALESCE(SUM(virtual_coins),0)::bigint AS total FROM sp_game_wallets")
+        ]);
+        return sendJson(res, 200, {
+          ok: true,
+          stats: {
+            players: pRes.rows[0].total,
+            games: gRes.rows[0].total,
+            coins: Number(cRes.rows[0].total)
+          }
+        });
+      }
+
+      if (req.method === "GET" && action === "games") {
+        const r = await pool.query("SELECT game_code,title,description,enabled FROM sp_game_settings ORDER BY game_code ASC");
+        return sendJson(res, 200, { ok: true, games: r.rows });
+      }
+
+      if (req.method === "GET" && action === "players") {
+        const r = await pool.query(`
+          SELECT p.id,p.username,p.display_name,p.status,p.created_at,COALESCE(w.virtual_coins,0) AS virtual_coins
+          FROM sp_game_players p
+          LEFT JOIN sp_game_wallets w ON w.player_id=p.id
+          ORDER BY p.id DESC LIMIT 100
+        `);
+        return sendJson(res, 200, { ok: true, players: r.rows });
+      }
+
+      if (req.method === "GET" && action === "records") {
+        const r = await pool.query(`
+          SELECT s.id,s.game_code,s.coins_change,s.created_at,p.username
+          FROM sp_game_sessions s
+          JOIN sp_game_players p ON p.id=s.player_id
+          ORDER BY s.id DESC LIMIT 50
+        `);
+        return sendJson(res, 200, { ok: true, records: r.rows });
+      }
+
+      if (req.method === "GET" && action === "cricket") {
+        const apiKey = process.env.SPORTMONKS_CRICKET_TOKEN;
+        if (!apiKey) {
+          return sendJson(
