@@ -270,8 +270,11 @@ module.exports = async (req, res) => {
         const authPlayer = readPlayerAuth(req);
         if (!authPlayer) return sendJson(res, 401, { ok: false, message: "Player session expired or not logged in" });
         const pRes = await pool.query(
-          `SELECT p.id, p.username, p.display_name, p.email, p.phone, p.status, p.created_at, COALESCE(w.virtual_coins, 0)::bigint AS balance
-           FROM sp_game_players p LEFT JOIN sp_game_wallets w ON w.player_id = p.id WHERE p.id = $1 LIMIT 1`,
+          `SELECT p.id, p.username, p.display_name, p.email, p.phone, p.status, p.created_at,
+                  COALESCE(w.virtual_coins, 0)::bigint AS balance
+           FROM sp_game_players p
+           LEFT JOIN sp_game_wallets w ON w.player_id = p.id
+           WHERE p.id = $1 LIMIT 1`,
           [authPlayer.sub]
         );
         if (!pRes.rowCount) return sendJson(res, 404, { ok: false, message: "Player not found" });
@@ -290,11 +293,62 @@ module.exports = async (req, res) => {
         const displayName = String(body.display_name || "").trim();
         const email = String(body.email || "").trim().toLowerCase() || null;
         const phone = String(body.phone || "").trim() || null;
-        const password = String(body.password || "");      if (!loginId || !password) return sendJson(res, 400, { ok: false, message: "Username/email and password required." });
+        const password = String(body.password || "");
+
+        if (!/^[a-z0-9_]{4,40}$/.test(username) || displayName.length < 2 || password.length < 6) {
+          return sendJson(res, 400, { ok: false, message: "Username (4-40 chars a-z, 0-9, _), display name, and password (6+ chars) required" });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          const created = await client.query(
+            "INSERT INTO sp_game_players(username,display_name,email,phone,password_hash,status) VALUES($1,$2,$3,$4,$5,'ACTIVE') RETURNING id,username,display_name,email,phone,status,created_at",
+            [username, displayName, email, phone, passwordHash]
+          );
+          const player = created.rows[0];
+          await client.query(
+            "INSERT INTO sp_game_wallets(player_id,virtual_coins) VALUES($1,1000)",
+            [player.id]
+          );
+          await client.query(
+            "INSERT INTO sp_game_coin_ledger(player_id,amount,entry_type,note) VALUES($1,1000,'INITIAL_CREDIT','New player starter virtual points')",
+            [player.id]
+          );
+          await client.query("COMMIT");
+          const token = signPlayerToken({ sub: player.id, username: player.username, role: "GAMING_PLAYER" });
+          return sendJson(res, 201, {
+            ok: true, token,
+            player: { ...player, balance: 1000 },
+            message: "Account created successfully."
+          });
+        } catch (e) {
+          await client.query("ROLLBACK").catch(() => {});
+          if (e.code === "23505") return sendJson(res, 409, { ok: false, message: "Username already exists" });
+          throw e;
+        } finally {
+          client.release();
+        }
+      }
+
+      if (authMode !== "LOGIN") {
+        return sendJson(res, 400, { ok: false, message: "Unsupported authentication mode" });
+      }
+
+      const loginId = String(body.login_id || body.username || body.email || "").trim().toLowerCase();
+      const password = String(body.password || "");
+      if (!loginId || !password) {
+        return sendJson(res, 400, { ok: false, message: "Username/email and password required." });
+      }
+
       const r = await pool.query(
-        `SELECT p.id, p.username, p.display_name, p.password_hash, p.status, COALESCE(w.virtual_coins, 0)::bigint AS balance
-         FROM sp_game_players p LEFT JOIN sp_game_wallets w ON w.player_id = p.id
-         WHERE LOWER(p.username) = $1 OR LOWER(COALESCE(p.email, '')) = $1 LIMIT 1`,
+        `SELECT p.id, p.username, p.display_name, p.password_hash, p.status,
+                COALESCE(w.virtual_coins, 0)::bigint AS balance
+         FROM sp_game_players p
+         LEFT JOIN sp_game_wallets w ON w.player_id = p.id
+         WHERE LOWER(p.username) = $1 OR LOWER(COALESCE(p.email, '')) = $1
+         LIMIT 1`,
         [loginId]
       );
       const p = r.rows[0];
@@ -302,6 +356,7 @@ module.exports = async (req, res) => {
       if (p.status !== "ACTIVE") return sendJson(res, 403, { ok: false, message: "Account is suspended" });
       const valid = await bcrypt.compare(password, p.password_hash);
       if (!valid) return sendJson(res, 401, { ok: false, message: "Invalid credentials" });
+
       const token = signPlayerToken({ sub: p.id, username: p.username, role: "GAMING_PLAYER" });
       return sendJson(res, 200, {
         ok: true, token,
