@@ -321,7 +321,169 @@ module.exports = async (req, res) => {
           ORDER BY CASE WHEN m.status='FINISHED' THEN 1 ELSE 0 END,m.scheduled_at ASC NULLS LAST,m.id DESC
           LIMIT 40
         `, [player.sub]);
-        return sendJson(res, 200, { ok:
+        return sendJson(res, 200, { ok: true, matches: result.rows });
+      }
+      const body = req.body || {};
+      const matchId = Number(body.match_id);
+      const side = String(body.selection_side || "").toUpperCase();
+      if (!Number.isSafeInteger(matchId) || matchId < 1 || !["A", "B"].includes(side)) {
+        return sendJson(res, 400, { ok: false, message: "Choose a match and side" });
+      }
+      const client = await pool.connect();
+      let saved;
+      try {
+        await client.query("BEGIN");
+        const match = await client.query("SELECT id FROM sp_prediction_matches WHERE id=$1 AND status='UPCOMING' FOR UPDATE", [matchId]);
+        if (!match.rowCount) {
+          await client.query("ROLLBACK");
+          return sendJson(res, 409, { ok: false, message: "This match is locked, finished, cancelled, or unavailable for predictions" });
+        }
+        const result = await client.query(
+          "INSERT INTO sp_predictions(match_id,player_id,selection_side) VALUES($1,$2,$3) ON CONFLICT(match_id,player_id) DO UPDATE SET selection_side=EXCLUDED.selection_side,created_at=NOW() RETURNING id,match_id,selection_side,created_at",
+          [matchId, player.sub, side]
+        );
+        saved = result.rows[0];
+        await client.query(
+          "INSERT INTO sp_prediction_audit_logs(match_id,event_type,event_note,event_data) VALUES($1,'PREDICTION_SAVED','Player saved or updated a match prediction',$2::jsonb)",
+          [matchId, JSON.stringify({ player_id: Number(player.sub), selection_side: side })]
+        );
+        await client.query("COMMIT");
+      } catch (transactionError) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw transactionError;
+      } finally { client.release(); }
+      return sendJson(res, 200, { ok: true, prediction: saved, message: "Prediction saved." });
+    } catch (error) {
+      console.error("ParixBet player prediction error:", error.message);
+      return sendJson(res, 500, { ok: false, message: "Prediction could not be saved" });
+    }
+  }
+
+  if (mod === "gaming-cricket") {
+    if (!allowMethods(req, res, ["GET"])) return;
+    const auth = req.headers.authorization || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    let player;
+    try { player = token ? verifyToken(token) : null; } catch {}
+    if (!player || player.role !== "GAMING_PLAYER" || !player.sub) {
+      return sendJson(res, 401, { ok: false, message: "ParixBet player login required" });
+    }
+    try {
+      const pool = getPool();
+      await ensureGamingTables(pool);
+      const active = await pool.query("SELECT id FROM sp_game_players WHERE id=$1 AND status='ACTIVE' LIMIT 1", [player.sub]);
+      if (!active.rowCount) return sendJson(res, 403, { ok: false, message: "Player account is unavailable" });
+      const setting = await pool.query("SELECT enabled FROM sp_game_settings WHERE game_code='CRICKET_CENTRE' LIMIT 1");
+      if (!setting.rows[0]?.enabled) return sendJson(res, 403, { ok: false, message: "Cricket Centre is currently disabled" });
+      const apiKey = process.env.SPORTMONKS_CRICKET_TOKEN;
+      if (!apiKey) return sendJson(res, 200, { ok: true, connected: false, message: "Live cricket data is not connected yet.", matches: [], upcoming: [], results: [] });
+
+      async function getCricketData(cacheKey, url, maxAge) {
+        const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key=$1 LIMIT 1", [cacheKey]);
+        const age = cached.rows[0] ? Date.now() - new Date(cached.rows[0].fetched_at).getTime() : Infinity;
+        if (age < maxAge) return cached.rows[0].payload;
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error("Cricket provider returned HTTP " + response.status);
+        const payload = await response.json();
+        const data = Array.isArray(payload.data) ? payload.data : [];
+        await pool.query(
+          "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES($1,$2::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
+          [cacheKey, JSON.stringify(data)]
+        );
+        return data;
+      }
+
+      const matches = await getCricketData(
+        "cricket-livescores",
+        "https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" + encodeURIComponent(apiKey),
+        30000
+      );
+      return sendJson(res, 200, { ok: true, connected: true, matches, upcoming: [], results: [] });
+    } catch (error) {
+      console.error("ParixBet player cricket API error:", error.message);
+      return sendJson(res, 502, { ok: false, message: "Live cricket data is temporarily unavailable" });
+    }
+  }
+
+  if (mod === "gaming") {
+    if (!allowMethods(req, res, ["GET", "POST", "PATCH"])) return;
+    if (!getGamingAdmin(req, res)) return;
+
+    try {
+      const pool = getPool();
+      await ensureGamingTables(pool);
+      const action = String((req.method === "GET" ? req.query?.action : req.body?.action) || "");
+      const body = req.body || {};
+
+      if (req.method === "GET" && action === "stats") {
+        const [pRes, gRes, cRes, rRes] = await Promise.all([
+          pool.query("SELECT COUNT(*)::int AS total FROM sp_game_players"),
+          pool.query("SELECT COUNT(*)::int AS total FROM sp_game_sessions"),
+          pool.query("SELECT COALESCE(SUM(virtual_coins),0)::bigint AS total FROM sp_game_wallets"),
+          pool.query("SELECT COALESCE(reserve_balance,0)::numeric(14,2) AS balance FROM sp_game_reserve WHERE id=1")
+        ]);
+        return sendJson(res, 200, {
+          ok: true,
+          stats: {
+            players: pRes.rows[0].total,
+            games: gRes.rows[0].total,
+            coins: Number(cRes.rows[0].total),
+            reserve_balance: Number(rRes.rows[0]?.balance || 0)
+          }
+        });
+      }
+
+      if (req.method === "GET" && action === "games") {
+        const r = await pool.query("SELECT game_code,title,description,enabled FROM sp_game_settings ORDER BY game_code ASC");
+        return sendJson(res, 200, { ok: true, games: r.rows });
+      }
+
+      if (req.method === "GET" && action === "players") {
+        const r = await pool.query(`
+          SELECT p.id,p.username,p.display_name,p.status,p.created_at,COALESCE(w.virtual_coins,0) AS virtual_coins
+          FROM sp_game_players p LEFT JOIN sp_game_wallets w ON w.player_id=p.id
+          ORDER BY p.id DESC LIMIT 100
+        `);
+        return sendJson(res, 200, { ok: true, players: r.rows });
+      }
+
+      if (req.method === "GET" && action === "records") {
+        const r = await pool.query(`
+          SELECT s.id,s.game_code,s.coins_change,s.created_at,p.username
+          FROM sp_game_sessions s JOIN sp_game_players p ON p.id=s.player_id
+          ORDER BY s.id DESC LIMIT 50
+        `);
+        return sendJson(res, 200, { ok: true, records: r.rows });
+      }
+
+      if (req.method === "GET" && action === "cricket") {
+        const apiKey = process.env.SPORTMONKS_CRICKET_TOKEN;
+        if (!apiKey) return sendJson(res, 200, { ok: true, source: "Sportmonks", cached: false, matches: [] });
+        const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key='cricket-livescores' LIMIT 1");
+        if (cached.rows[0] && Date.now() - new Date(cached.rows[0].fetched_at).getTime() < 30000) {
+          return sendJson(res, 200, { ok: true, source: "Sportmonks", cached: true, matches: cached.rows[0].payload });
+        }
+        const resp = await fetch("https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" + encodeURIComponent(apiKey), { headers: { Accept: "application/json" } });
+        if (!resp.ok) throw new Error("Cricket API HTTP " + resp.status);
+        const payload = await resp.json();
+        const matches = Array.isArray(payload.data) ? payload.data : [];
+        await pool.query(
+          "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES('cricket-livescores',$1::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
+          [JSON.stringify(matches)]
+        );
+        return sendJson(res, 200, { ok: true, source: "Sportmonks", cached: false, matches });
+      }
+
+      if (req.method === "GET" && action === "prediction_matches") {
+        const r = await pool.query(`
+          SELECT m.*,
+                 COALESCE(COUNT(p.id),0)::int AS prediction_count,
+                 COALESCE(SUM(CASE WHEN m.result_side IN ('A','B') AND p.selection_side=m.result_side THEN 1 ELSE 0 END),0)::int AS correct_count
+          FROM sp_prediction_matches m LEFT JOIN sp_predictions p ON p.match_id=m.id
+          GROUP BY m.id ORDER BY m.id DESC LIMIT 60
+        `);
+        return sendJson(res, 200, { ok: true, matches: r.rows });
+      }
       if (req.method === "GET" && action === "engine_session") {
         const client = await pool.connect();
         try {
