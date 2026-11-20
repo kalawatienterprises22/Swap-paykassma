@@ -838,8 +838,6 @@ module.exports = async (req, res) => {
           checked++;
           const existing = await pool.query(
             "SELECT id,result_source FROM sp_prediction_matches WHERE sport=$1 AND provider_match_id=$2 LIMIT 1",
-                      const existing = await pool.query(
-            "SELECT id,result_source FROM sp_prediction_matches WHERE sport=$1 AND provider_match_id=$2 LIMIT 1",
             [sport, String(providerId)]
           );
           if (existing.rows[0]?.result_source === "MANUAL") { skippedManual++; return; }
