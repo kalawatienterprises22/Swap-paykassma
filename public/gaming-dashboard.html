@@ -263,6 +263,12 @@ async function apiReq(url, opts = {}) {
  if (token) headers.Authorization = "Bearer " + token;
  const res = await fetch(url, { ...opts, headers });
  const data = await res.json().catch(() => ({}));
+ if (res.status === 401 || res.status === 403) {
+  token = "";
+  sessionStorage.removeItem(PXB_KEY);
+  currentPlayer = null;
+  syncAuthUI();
+ }
  if (!res.ok || data.ok === false) throw new Error(data.message || "Request failed (" + res.status + ")");
  return data;
 }
