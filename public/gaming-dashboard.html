@@ -1,443 +1,430 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ParixBet | Admin Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ParixBet · Sports & Instant Games Portal</title>
 <style>
-:root{--bg:#080f20;--panel:#111d35;--panel2:#172746;--line:#263858;--ink:#f3f7ff;--muted:#a7b6d0;--blue:#5794ff;--cyan:#4dd8e8;--purple:#9b7bff;--green:#32d6a0}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 75% -15%,#263b72 0,transparent 38%),var(--bg);color:var(--ink);font:15px Inter,system-ui,Arial,sans-serif}
-.sidebar{position:fixed;inset:0 auto 0 0;width:255px;background:linear-gradient(180deg,#101d38,#0a1429);border-right:1px solid #263858;color:#edf3ff;padding:23px 15px;overflow:auto;z-index:5}
-.brand{font-size:25px;font-weight:950;letter-spacing:-.8px;padding:7px 11px 27px}.brand span{color:var(--cyan)}
-.nav-label{color:#7f94b7;font-size:10px;font-weight:800;letter-spacing:1.6px;margin:19px 11px 9px}
-nav a{display:flex;align-items:center;gap:12px;padding:13px 12px;color:#b9c8e2;text-decoration:none;border:1px solid transparent;border-radius:11px;margin:4px 0;font-size:13px;font-weight:750;transition:.2s}
-nav a:hover,nav a.active{background:linear-gradient(100deg,#244d8b,#243a68);border-color:#3d67a5;color:#fff;box-shadow:0 8px 24px #0003}
-.main{margin-left:255px;min-height:100vh}.topbar{height:70px;background:#0c172beF;border-bottom:1px solid var(--line);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:3}
-.topbar strong{font-size:14px;font-weight:850;letter-spacing:.2px}.topbar a{color:#fff;text-decoration:none;font-size:12px;font-weight:850;background:linear-gradient(100deg,#326fdb,#7455dc);padding:11px 15px;border-radius:10px;box-shadow:0 7px 22px #3d65cb55}
-.wrap{max-width:1450px;margin:auto;padding:30px}.heading{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:24px}
-h1{font-size:30px;font-weight:950;letter-spacing:-.9px;margin:0 0 8px}.muted{color:var(--muted);font-size:13px;line-height:1.65}
-.status{font-size:10px;font-weight:900;letter-spacing:.7px;padding:9px 13px;border-radius:30px;background:#163f38;color:#6ef2c4;border:1px solid #2a7868;white-space:nowrap}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
-.card{background:linear-gradient(145deg,#172746,#101c33);border:1px solid #2a3e61;border-radius:17px;padding:21px;margin-bottom:16px;box-shadow:0 13px 34px #0002}
-.grid .card{position:relative;overflow:hidden;min-height:137px}.grid .card:after{content:"";position:absolute;width:105px;height:105px;border-radius:50%;right:-35px;top:-40px;background:#5794ff18}
-.metric-label{font-size:11px;color:#aabbd7;font-weight:850;text-transform:uppercase;letter-spacing:1px}.metric{font-size:34px;font-weight:950;letter-spacing:-1px;margin:13px 0;color:#fff}.pending{font-size:10px;font-weight:800;color:#91baff;background:#24416d;padding:6px 9px;border-radius:20px}
-.section{padding-top:8px;margin-top:22px;scroll-margin-top:85px}.section h2{font-size:19px;font-weight:900;letter-spacing:-.3px;margin:0 0 15px}
-.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 0;border-top:1px solid #293c5c}.row:first-of-type{border-top:0}
-.row b{font-size:14px;font-weight:850;color:#f2f6ff}.row p{font-size:12px;color:#9eb0ce;margin:6px 0 0;line-height:1.5}
-.pill{font-size:10px;font-weight:900;letter-spacing:.4px;padding:7px 10px;border-radius:20px;background:#253957;color:#c7d8f5;border:1px solid #3a5277;white-space:nowrap}
-.notice{background:#0d1a30;border:1px solid #304667;padding:16px;border-radius:12px;color:#b9c9e2;font-size:13px;line-height:1.75}
-.menu{display:none;background:none;border:0;font-size:23px;color:var(--ink);padding:4px 8px}
-.footer{padding:18px 0;color:#8194b5;font-size:12px}
-.btn{border:1px solid #6ca4ff;border-radius:10px;padding:11px 15px;background:linear-gradient(110deg,#347be8,#6855d8);color:#fff;font-weight:900;font-size:12px;cursor:pointer;box-shadow:0 6px 16px #244f9c55}.btn:hover{filter:brightness(1.12);transform:translateY(-1px)}.btn:disabled{opacity:.55;cursor:wait}
-input,select{background:#0b172b!important;color:#f4f7ff!important;border:1px solid #344b70!important;border-radius:10px!important;font-size:13px!important;font-weight:650}input::placeholder{color:#8295b5}
-@media(max-width:1050px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:900px){.sidebar{transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.menu{display:block}.wrap{padding:20px}.topbar{padding:0 16px}}
-@media(max-width:520px){.heading{align-items:flex-start;flex-direction:column}.grid{gap:10px}.card{padding:16px}.metric{font-size:28px}.topbar strong{font-size:12px}.wrap{padding:15px}h1{font-size:25px}.row{align-items:flex-start}.btn{padding:9px 11px}}
-body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(circle at 92% 23%,#ff9b3d20,transparent 18%),radial-gradient(circle at 42% 75%,#24d6c51a,transparent 23%),radial-gradient(circle at 75% 88%,#9d65ff1b,transparent 20%)}
-.main,.sidebar{position:relative;z-index:1}.main{z-index:1}.sidebar{z-index:5}
-.ambient-art{position:fixed;right:22px;top:90px;display:flex;gap:12px;opacity:.20;pointer-events:none;z-index:0}.ambient-art span{display:grid;place-items:center;width:48px;height:48px;border:1px solid #6f9cff66;border-radius:15px;background:linear-gradient(145deg,#315c9c66,#7b4cc466);font-size:23px;box-shadow:0 8px 25px #0002}
-.grid .card:nth-child(1){background:linear-gradient(135deg,#183c69,#14213d)}.grid .card:nth-child(2){background:linear-gradient(135deg,#41316f,#172342)}.grid .card:nth-child(3){background:linear-gradient(135deg,#145a62,#14243e)}.grid .card:nth-child(4){background:linear-gradient(135deg,#70452c,#25203e)}
-@media(max-width:900px){.ambient-art{right:12px;top:77px;opacity:.15}.ambient-art span{width:36px;height:36px;font-size:18px}}
+:root{
+ --bg:#0a0c10;--panel:#12161f;--panel2:#181d29;--line:rgba(255,255,255,.09);
+ --txt:#f4f6fb;--mut:#9aa3b5;--gold:#f8ff13;--gold2:#d9e007;
+ --ok:#22c55e;--bad:#ef4444;--info:#38bdf8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+a{color:inherit;text-decoration:none}
+button,input,select{font-family:inherit}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;background:rgba(10,12,16,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(10px);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.15rem;letter-spacing:.4px}
+.brand-badge{background:var(--gold);color:#090b0f;padding:4px 9px;border-radius:6px;font-weight:900;font-size:.82rem}
+.nav-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{background:var(--panel2);border:1px solid var(--line);color:var(--txt);padding:7px 12px;border-radius:8px;font-size:.84rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip.active,.chip.gold{background:var(--gold);color:#090b0f;border-color:var(--gold);font-weight:700}
+.wallet-pill{background:rgba(248,255,19,.1);border:1px solid rgba(248,255,19,.45);color:var(--gold);padding:7px 13px;border-radius:8px;font-weight:800;font-size:.88rem}
+.wrap{max-width:1280px;margin:0 auto;padding:18px}
+.hero{background:linear-gradient(135deg,#151a26 0%,#0f131c 65%,#1c2110 100%);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.hero h1{font-size:1.35rem;margin-bottom:4px}
+.hero p{color:var(--mut);font-size:.9rem}
+.grid2{display:grid;grid-template-columns:1.65fr 1fr;gap:16px;align-items:start}
+@media(max-width:920px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.card-head h2{font-size:1.05rem}
+.muted{color:var(--mut);font-size:.84rem}
+.sport-tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px}
+.match-item{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:13px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.match-title{font-weight:700;font-size:.98rem;margin-bottom:3px}
+.match-meta{color:var(--mut);font-size:.8rem}
+.odds-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.odd-btn{background:#0e121a;border:1px solid rgba(255,255,255,.14);color:var(--txt);padding:8px 12px;border-radius:8px;cursor:pointer;min-width:104px;text-align:left}
+.odd-btn:hover,.odd-btn.selected{border-color:var(--gold);background:rgba(248,255,19,.14)}
+.odd-btn strong{display:block;color:var(--gold);font-size:.92rem}
+.odd-btn span{font-size:.76rem;color:var(--mut)}
+.games-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.game-box{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.game-box h3{font-size:1rem;margin-bottom:4px}
+.btn{background:var(--gold);color:#090b0f;border:none;border-radius:8px;padding:9px 14px;font-weight:800;font-size:.86rem;cursor:pointer}
+.btn:hover{background:var(--gold2)}
+.btn.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line);font-weight:600}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:.8rem;color:var(--mut);margin-bottom:4px}
+.field input,.field select{width:100%;background:#0b0e14;border:1px solid var(--line);color:var(--txt);padding:9px 11px;border-radius:8px;font-size:.9rem}
+.auth-tabs{display:flex;gap:8px;margin-bottom:12px}
+.status-msg{margin-top:8px;font-size:.84rem;color:var(--gold);min-height:18px}
+.row-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.84rem}
+.row-item:last-child{border-bottom:none}
+.pill{padding:3px 8px;border-radius:999px;font-size:.74rem;font-weight:700;background:rgba(255,255,255,.08)}
+.pill.win{background:rgba(34,197,94,.16);color:#4ade80}
+.pill.loss{background:rgba(239,68,68,.16);color:#f87171}
+.flight-stage{background:#090c11;border:1px solid var(--line);border-radius:10px;padding:14px;margin:10px 0;text-align:center}
+.mult-big{font-size:2rem;font-weight:900;color:var(--gold)}
 </style>
 </head>
 <body>
-<aside class="sidebar" id="sidebar">
- <div class="brand">ParixBet <span>Admin</span></div>
- <nav>
-  <div class="nav-label">MAIN MENU</div>
-  <a class="active" href="#overview">▦ <span>Overview</span></a>
-  <a href="#games">🎮 <span>Games & Activity</span></a>
-  <a href="#cricket">🏏 <span>Cricket Data</span></a>
-  <a href="#apis">🔌 <span>API Connections</span></a>
-  <a href="#players">👥 <span>Player Management</span></a>
-  <a href="#records">▤ <span>Game Records</span></a>
-  <a href="#engine">🧮 <span>Settlement Engine</span></a>
-  <a href="#prediction-results">🏁 <span>Match Results</span></a>
-  <a href="#risk-monitoring">📊 <span>Risk & Exposure</span></a>
-  <a href="#settings">⚙ <span>Settings</span></a>
-  <div class="nav-label">PARIXBET REAL OPERATIONS</div>
- </nav>
-</aside>
-<div class="ambient-art" aria-hidden="true"><span>🏏</span><span>⚽</span><span>🃏</span><span>✈️</span></div>
-<main class="main">
- <header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu" aria-label="Open menu">☰</button><strong>Real Gaming Control Dashboard</strong></div><div style="display:flex;gap:14px;align-items:center"><a href="/game-portal.html" target="_blank">Player Portal ↗</a></div></header>
- <div class="wrap" id="overview">
-  <div class="heading"><div><h1>Real Gaming Overview</h1><div class="muted">Live operational system · Player balances, real reserve fund, match settlements, and risk telemetry</div></div><span class="status">LIVE SYSTEM</span></div>
-  <div class="grid">
-   <div class="card"><div class="metric-label">Registered Players</div><div class="metric" id="playerCount">—</div><span class="pending">Player Accounts</span></div>
-   <div class="card"><div class="metric-label">Total Games Played</div><div class="metric" id="gameCount">—</div><span class="pending">Settled & Active Sessions</span></div>
-   <div class="card"><div class="metric-label">Real Reserve Fund</div><div class="metric" id="reserveOverviewCount">—</div><span class="pending">Neon Reserve Ledger (₹)</span></div>
-   <div class="card"><div class="metric-label">Total Player Balance</div><div class="metric" id="coinCount">—</div><span class="pending">Real Balance (₹)</span></div>
-  </div>
-  <section class="section card" id="games"><h2>Game Management</h2>
-   <p class="muted">Enable or disable games shown in the Player Portal. Disabled games are blocked from starting.</p>
-   <div id="gameList"><div class="notice">Loading game settings…</div></div>
-  </section>
-  <section class="section card" id="cricket"><h2>Cricket Data · Sportmonks</h2><div class="notice" id="cricketMsg">Checking the live data provider connection. Only verified provider data is displayed.</div><div id="cricketList"></div></section>
-  <section class="section card" id="apis"><h2>API & Service Connections</h2>
-   <div class="row"><div><b>Cricket Live Scores & Fixtures API</b><p>Sportmonks live match & fixture feed</p></div><span class="pill">Configured via Env</span></div>
-   <div class="row"><div><b>Football Live Scores & Fixtures API</b><p>SportsAPI live scores, fixtures & match results</p></div><span class="pill">Configured via Env</span></div>
-   <div class="row"><div><b>Settlement & Match Engine</b><p>Persistent PostgreSQL session settlement, tier weights & audit log</p></div><span class="pill">DB Connected</span></div>
-   <div class="row"><div><b>Neon PostgreSQL Database</b><p>Tables for players, wallets, reserve ledger, engine sessions, matches & settlements</p></div><span class="pill">Connected</span></div>
-  </section>
-  <section class="section card" id="players"><h2>Player Management</h2>
-   <form id="playerForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:9px;margin-bottom:15px">
-    <input name="username" required minlength="4" maxlength="40" pattern="[a-zA-Z0-9_]+" placeholder="Player username" style="padding:11px">
-    <input name="display_name" required minlength="2" placeholder="Player Name" style="padding:11px">
-    <input name="password" required minlength="8" type="password" placeholder="Password (8+ chars)" style="padding:11px">
-    <button class="btn" type="submit">Create Player</button>
-   </form><p id="playerMsg" class="muted">Loading player list…</p><div id="playerList"></div>
-  </section>
-  <section class="section card" id="records"><h2>Game & Session Records</h2><p id="recordMsg" class="muted">Loading records…</p><div id="recordList" class="notice">No session records available yet.</div></section>
-  <section class="section card" id="engine">
-   <h2>Match Prediction & Settlement Engine</h2>
-   <p class="muted">Persisted in Neon PostgreSQL. Mode and Risk Tier dynamically calculate multiplier, exposure weight, and settlement score.</p>
-   <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:15px 0">
-    <div class="card"><div class="metric-label">Side A Picks</div><div class="metric" id="engineCountA">0</div><span class="pending">Saved in DB</span></div>
-    <div class="card"><div class="metric-label">Side B Picks</div><div class="metric" id="engineCountB">0</div><span class="pending">Saved in DB</span></div>
-    <div class="card"><div class="metric-label">Active Multiplier</div><div class="metric" id="engineMultiplier">1.00x</div><span class="pending" id="engineFormulaTag">SCORE_POOL · Tier 3</span></div>
-    <div class="card"><div class="metric-label">Settled Score</div><div class="metric" id="engineCorrect">0</div><span class="pending" id="engineWinnerTag">Pending settlement</span></div>
-   </div>
-   <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px">
-    <div><label for="engineMode">Engine Mode</label><select id="engineMode" style="width:100%;padding:11px"><option value="SCORE_POOL">Prediction Pool (Pool Ratio)</option><option value="DIFFICULTY">Risk Tier Weighted</option><option value="MATCH_CENTRE">Match Centre Dynamic</option></select></div>
-    <div><label for="engineDifficulty">Risk Tier</label><select id="engineDifficulty" style="width:100%;padding:11px"><option value="1">1 · Low (5% Reserve · 1.00x)</option><option value="2">2 · Moderate (8% Reserve · 1.15x)</option><option value="3" selected>3 · Standard (10% Reserve · 1.30x)</option><option value="4">4 · Elevated15% Reserve · 1.50x)</option><option value="5">5 · High (20% Reserve · 1.80x)</option></select></div>
-    <div><label for="engineLabelA">Side A label</label><input id="engineLabelA" value="Team / Player A" maxlength="80" style="width:100%;padding:11px"></div>
-    <div><label for="engineLabelB">Side B label</label><input id="engineLabelB" value="Team / Player B" maxlength="80" style="width:100%;padding:11px"></div>
-   </div>
-   <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:14px">
-    <button class="btn" type="button" id="enginePickA">Record Pick: A</button>
-    <button class="btn" type="button" id="enginePickB">Record Pick: B</button>
-   </div>
-   <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:14px">
-    <button class="btn" type="button" id="engineSettleA">Settle Winner: A</button>
-    <button class="btn" type="button" id="engineSettleB">Settle Winner: B</button>
-    <button class="btn" type="button" id="engineReset" style="background:linear-gradient(110deg,#b9364c,#8c2638);border-color:#e06b7b">Reset Session</button>
-   </div>
-   <div class="notice" id="engineSummary" style="margin-top:15px">Loading settlement engine session from database…</div>
-   <div style="margin-top:14px"><b>Engine Activity & Calculation Log</b><pre id="engineLog" style="white-space:pre-wrap;overflow:auto;background:#0b172b;border:1px solid #344b70;border-radius:10px;padding:13px;color:#a7f3d0">Connecting to PostgreSQL settlement engine…</pre></div>
-  </section>
-  <section class="section card" id="prediction-results">
-   <h2>Match Prediction · Result Management</h2>
-   <p class="muted">Sync confirmed results from connected sports providers or lock predictions and settle match winners manually.</p>
-   <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
-    <button class="btn" type="button" id="syncPredictionResults">Sync Automatic Results</button>
-    <span class="muted" id="predictionSyncMsg">Automatic result sync is ready.</span>
-   </div>
-   <form id="predictionMatchForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin:14px 0">
-    <select name="sport" style="padding:11px"><option value="CRICKET">Cricket</option><option value="FOOTBALL">Football</option><option value="OTHER">Other</option></select>
-    <input name="title" required maxlength="200" placeholder="Match / event title" style="padding:11px">
-    <input name="side_a" required maxlength="100" placeholder="Team / Side A" style="padding:11px">
-    <input name="side_b" required maxlength="100" placeholder="Team / Side B" style="padding:11px">
-    <input name="scheduled_at" type="datetime-local" style="padding:11px">
-    <button class="btn" type="submit">Add Match</button>
-   </form>
-   <div id="predictionMatchList" class="notice">Loading match results…</div>
-  </section>
-  <section class="section card" id="risk-monitoring">
-   <h2>Exposure · Liquidity · Real Reserve · Settlement Monitor</h2>
-   <p class="muted">Tracks live match exposure, player balances (₹), real reserve fund in Neon (₹), required tier reserve, and settlement audit trail.</p>
-   <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:14px 0">
-    <div class="card"><div class="metric-label">Total Picks</div><div class="metric" id="monExposureTotal">—</div><span class="pending">A/B selections recorded</span></div>
-    <div class="card"><div class="metric-label">Unbalanced Matches</div><div class="metric" id="monExposureAlerts">—</div><span class="pending" id="monAlertRule">5+ picks and 60%+ largest-side share</span></div>
-    <div class="card"><div class="metric-label">Total Player Balance</div><div class="metric" id="monLiquidity">—</div><span class="pending">Real Balance (₹)</span></div>
-    <div class="card"><div class="metric-label">Real Reserve Fund</div><div class="metric" id="monReserve">—</div><span class="pending" id="monReserveReq">Target tier reserve: ₹0</span></div>
-    <div class="card"><div class="metric-label">Settled Matches</div><div class="metric" id="monSettled">—</div><span class="pending">Finalized in database</span></div>
-    <div class="card"><div class="metric-label">Winning Picks</div><div class="metric" id="monCorrect">—</div><span class="pending">Matched winning side</span></div>
-   </div>
-   <div class="card" style="margin:12px 0;padding:14px">
-    <b>Real Reserve Fund Management (₹)</b>
-    <p class="muted">Add funds, withdraw funds, or set exact real reserve balance in Neon PostgreSQL (sp_game_reserve).</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">
-     <label>Action
-      <select id="reserveActionType" style="width:100%;padding:10px">
-       <option value="DEPOSIT">Add Reserve (+₹)</option>
-       <option value="WITHDRAW">Withdraw Reserve (-₹)</option>
-       <option value="SET_BALANCE">Set Exact Balance (₹)</option>
-      </select>
-     </label>
-     <label>Amount (₹)
-      <input id="reserveAmount" type="number" min="0" max="1000000000" step="0.01" placeholder="e.g. 50000" style="width:100%;padding:10px">
-     </label>
-     <label>Audit Note
-      <input id="reserveNote" type="text" maxlength="240" placeholder="e.g. Monthly risk reserve top-up" style="width:100%;padding:10px">
-     </label>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-     <button class="btn" type="button" id="saveReserveBtn">Update Real Reserve</button>
-     <span class="muted" id="reserveMsg">Real reserve ledger ready.</span>
-    </div>
-    <div id="reserveLedgerList" class="notice" style="margin-top:12px">Loading reserve ledger…</div>
-   </div>
-   <div class="card" style="margin:12px 0;padding:14px">
-    <b>Imbalance Alert Settings</b>
-    <p class="muted">Configure minimum pick volume and largest-side percentage threshold for match imbalance alerts.</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">
-     <label>Minimum picks
-      <input id="monitorMinPredictions" type="number" min="1" max="10000" step="1" value="5" style="width:100%;padding:10px">
-     </label>
-     <label>Largest-side alert threshold (%)
-      <input id="monitorImbalanceThreshold" type="number" min="50" max="95" step="1" value="60" style="width:100%;padding:10px">
-     </label>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-     <button class="btn" type="button" id="saveMonitorSettings">Save Alert Settings</button>
-     <span class="muted" id="monitorSettingsMsg">Default: 5 picks and 60% largest-side share.</span>
-    </div>
-   </div>
-   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0">
-    <b>Match Exposure Monitor</b><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="exportMonitoring">Export CSV</button><button class="btn" type="button" id="refreshMonitoring">Refresh Monitor</button></div>
-   </div>
-   <div id="monitorMatchList" class="notice">Loading monitoring data…</div>
-   <div style="margin-top:16px"><b>Settlement & Result Audit</b><div id="monitorAuditList" class="notice" style="margin-top:9px">Loading audit records…</div></div>
-   <p class="muted" style="margin-top:12px">All match locks, settlements, risk tier calculations, alert thresholds, and reserve balances are tracked against live database records.</p>
-  </section>
-  <section class="section card" id="settings"><h2>System Settings & Rules</h2><div class="notice"><b>Real Operational Rules:</b> Match predictions lock once status is set to LOCKED. Settlement engine sessions, risk tier reserve targets, and real reserve ledger entries are persisted in Neon PostgreSQL with audit logs.</div></section>
-  <div class="footer" id="authStatus">Checking admin login…</div>
+<header class="topbar">
+ <div class="brand">
+  <span class="brand-badge">PXB</span>
+  <span>PARIXBET PORTAL</span>
  </div>
-</main>
+ <div class="nav-row">
+  <button class="chip active" data-section="sports">Sportsbook</button>
+  <button class="chip" data-section="games">Instant Games</button>
+  <span class="wallet-pill" id="topBalance">Balance: ₹0</span>
+  <button class="chip gold" id="authModalBtn">Sign Up / Log In</button>
+  <a class="chip" href="/gaming-dashboard.html">Admin Panel</a>
+ </div>
+</header>
+
+<div class="wrap">
+ <section class="hero">
+  <div>
+   <h1>Live Match Predictions & Instant Multiplier Games</h1>
+   <p id="playerBanner">Sign up or log in to place match stakes, play Aviator / Tap Speed / Card Memory, and track real wallet balance.</p>
+  </div>
+  <div class="nav-row" id="sessionActions"></div>
+ </div>
+ <div class="grid2">
+  <div>
+   <section id="sec-sports" class="card">
+    <div class="card-head">
+     <h2>Match Predictions & Odds</h2>
+     <span class="muted" id="feedStatus">Loading matches…</span>
+    </div>
+    <div class="sport-tabs" id="sportTabs">
+     <button class="chip active" data-sport="ALL">All Sports</button>
+     <button class="chip" data-sport="CRICKET">Cricket</button>
+     <button class="chip" data-sport="FOOTBALL">Football</button>
+     <button class="chip" data-sport="TENNIS">Tennis</button>
+     <button class="chip" data-sport="BASKETBALL">Basketball</button>
+     <button class="chip" data-sport="ESPORTS">Esports</button>
+     <button class="chip" data-sport="KABADDI">Kabaddi</button>
+    </div>
+    <div id="matchesList"></div>
+   </section>
+
+   <section class="card">
+    <div class="card-head">
+     <h2>Connected Live Score Feeds (Cricket & Football)</h2>
+     <button class="btn ghost" id="refreshFeedsBtn">Refresh Feeds</button>
+    </div>
+    <p class="muted" id="liveFeedsSummary" style="margin-bottom:10px">Connects to your configured Cricket & Football APIs when logged in.</p>
+    <div id="liveFeedsList"></div>
+   </section>
+
+   <section id="sec-games" class="card">
+    <div class="card-head">
+     <h2>Instant Multiplier & Arcade Games</h2>
+     <span class="muted">Synced with Neon wallet & session ledger</span>
+    </div>
+    <div class="games-grid">
+     <div class="game-box">
+      <h3>Aviator Flight Challenge</h3>
+      <p class="muted">Cash out before flight crashes to win multiplier.</p>
+      <div class="flight-stage">
+       <div class="mult-big" id="aviatorMult">1.00x</div>
+       <p class="muted" id="aviatorState">Ready for takeoff</p>
+      </div>
+      <div class="field">
+       <label>Stake (₹)</label>
+       <input type="number" id="aviatorStake" value="50" min="10" max="10000">
+      </div>
+      <div style="display:flex;gap:8px">
+       <button class="btn" id="aviatorStartBtn" style="flex:1">Launch</button>
+       <button class="btn ghost" id="aviatorCashBtn" disabled style="flex:1">Cash Out</button>
+      </div>
+     </div>
+
+     <div class="game-box">
+      <h3>Tap Speed Challenge</h3>
+      <p class="muted">Hit 18+ taps in 5 seconds for 1.80x payout.</p>
+      <div class="flight-stage">
+       <div class="mult-big" id="tapCount">0</div>
+       <p class="muted" id="tapTimer">5.0s · Target: 18 taps (1.80x)</p>
+      </div>
+      <div class="field">
+       <label>Stake (₹)</label>
+       <input type="number" id="tapStake" value="50" min="10" max="10000">
+      </div>
+      <div style="display:flex;gap:8px">
+       <button class="btn" id="tapStartBtn" style="flex:1">Start 5s</button>
+       <button class="btn ghost" id="tapHitBtn" disabled style="flex:1">TAP!</button>
+      </div>
+     </div>
+
+     <div class="game-box">
+      <h3>Card Memory Match</h3>
+      <p class="muted">Pick High Card (8–14) vs Low Card (2–7) for 1.75x.</p>
+      <div class="flight-stage">
+       <div class="mult-big" id="cardFace">🂠</div>
+       <p class="muted" id="cardResultText">Choose High or Low</p>
+      </div>
+      <div class="field">
+       <label>Stake (₹)</label>
+       <input type="number" id="cardStake" value="50" min="10" max="10000">
+      </div>
+      <div style="display:flex;gap:8px">
+       <button class="btn" id="cardHighBtn" style="flex:1">High (1.75x)</button>
+       <button class="btn ghost" id="cardLowBtn" style="flex:1">Low (1.75x)</button>
+      </div>
+     </div>
+    </div>
+    <p class="status-msg" id="gamePlayMsg"></p>
+   </section>
+  </div>
+
+  <div>
+   <section class="card" id="authCard">
+    <div class="card-head">
+     <h2 id="authTitle">Player Account</h2>
+     <span class="pill" id="authBadge">GUEST</span>
+    </div>
+    <div class="auth-tabs" id="authTabs">
+     <button class="chip active" data-mode="LOGIN">Log In</button>
+     <button class="chip" data-mode="SIGNUP">Sign Up (₹1,000 Bonus)</button>
+    </div>
+    <form id="authForm">
+     <div id="signupExtra" style="display:none">
+      <div class="field">
+       <label>Display Name</label>
+       <input type="text" name="display_name" placeholder="e.g. Aarav Sharma">
+      </div>
+      <div class="field">
+       <label>Email (Optional)</label>
+       <input type="email" name="email" placeholder="aarav@example.com">
+      </div>
+      <div class="field">
+       <label>Phone (Optional)</label>
+       <input type="text" name="phone" placeholder="+91 98XXXXXXXX">
+      </div>
+     </div>
+     <div class="field">
+      <label id="idLabel">Username or Email</label>
+      <input type="text" name="username" required placeholder="player_one">
+     </div>
+     <div class="field">
+      <label>Password (min 6 chars)</label>
+      <input type="password" name="password" required placeholder="••••••••">
+     </div>
+     <button class="btn" type="submit" id="authSubmitBtn" style="width:100%">Log In</button>
+    </form>
+    <div id="loggedInBox" style="display:none">
+     <p style="margin-bottom:8px"><strong id="meName"></strong> <span class="muted" id="meUser"></span></p>
+     <p class="muted" style="margin-bottom:10px">Wallet Balance: <strong style="color:var(--gold)" id="meBalance">₹0</strong></p>
+     <button class="btn ghost" id="logoutBtn" style="width:100%">Log Out</button>
+    </div>
+    <p class="status-msg" id="authMsg"></p>
+   </section>
+
+   <section class="card">
+    <div class="card-head">
+     <h2>Prediction Stake Slip</h2>
+     <span class="pill" id="slipMatchBadge">No Match</span>
+    </div>
+    <p class="muted" id="slipMatchTitle" style="margin-bottom:10px">Select A or B odds on any match to place stake.</p>
+    <div class="field">
+     <label>Stake Amount (₹)</label>
+     <input type="number" id="slipStake" value="100" min="10" max="50000">
+    </div>
+    <p class="muted" id="slipEstPayout" style="margin-bottom:10px">Estimated Payout: ₹0</p>
+    <button class="btn" id="placeStakeBtn" disabled style="width:100%">Place Prediction Stake</button>
+    <p class="status-msg" id="slipMsg"></p>
+   </section>
+
+   <section class="card">
+    <div class="card-head">
+     <h2>Recent Wallet Activity</h2>
+     <span class="muted" id="ledgerCount">0 items</span>
+    </div>
+    <div id="ledgerList"><p class="muted">Log in to view your coin ledger.</p></div>
+   </section>
+  </div>
+ </div>
+</div>
 <script>
-const token=sessionStorage.getItem("parixbet_admin_token");
-function goLogin(){location.replace("/parixbet-admin-login.html")}
-async function api(url,options={}){
- const r=await fetch(url,{...options,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json",...(options.headers||{})}});
- const d=await r.json().catch(()=>({ok:false,message:"Invalid server response"}));
- if(!r.ok||!d.ok)throw new Error(d.message||"Request failed");
- return d;
-}
-const fmtNum=v=>Number(v||0).toLocaleString("en-IN");
-const fmtINR=v=>"₹"+Number(v||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+const PXB_KEY = "parixbet_player_token";
+let token = sessionStorage.getItem(PXB_KEY) || "";
+let authMode = "LOGIN";
+let currentPlayer = null;
+let allMatches = [];
+let selectedSport = "ALL";
+let selectedSlip = null;
 
-async function loadGaming(){
- const base="/api/dashboard?module=gaming";
- const stats=await api(base+"&action=stats");
- document.getElementById("playerCount").textContent=fmtNum(stats.stats.players);
- document.getElementById("gameCount").textContent=fmtNum(stats.stats.games);
- document.getElementById("coinCount").textContent=fmtINR(stats.stats.coins);
- document.getElementById("reserveOverviewCount").textContent=fmtINR(stats.stats.reserve_balance);
- await Promise.all([loadGames(),loadPlayers(),loadRecords(),loadCricket(),loadPredictionMatches(),loadMonitoring()]);
+function esc(v) {
+ return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-async function loadGames(){
- const box=document.getElementById("gameList");
- try{
-  const d=await api("/api/dashboard?module=gaming&action=games");
-  box.innerHTML=d.games.map(g=>'<div class="row"><div><b>'+safe(g.title)+'</b><p>'+safe(g.description)+' · '+safe(g.game_code)+'</p></div><div style="display:flex;align-items:center;gap:8px"><span class="pill">'+(g.enabled?"ENABLED":"DISABLED")+'</span><button class="btn" data-game="'+safe(g.game_code)+'" data-enabled="'+(!g.enabled)+'">'+(g.enabled?"Turn OFF":"Turn ON")+'</button></div></div>').join("");
-  box.querySelectorAll("[data-game]").forEach(button=>button.addEventListener("click",async()=>{
-   button.disabled=true;
-   try{await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"game_status",game_code:button.dataset.game,enabled:button.dataset.enabled==="true"})});await loadGames()}
-   catch(e){box.insertAdjacentHTML("afterbegin",'<div class="notice">'+safe(e.message)+'</div>');button.disabled=false}
-  }));
- }catch(e){box.innerHTML='<div class="notice">'+safe(e.message)+'</div>'}
+function fmtINR(n) {
+ return "₹" + Number(n || 0).toLocaleString("en-IN");
 }
 
-async function loadPlayers(){
- const box=document.getElementById("playerList"),msg=document.getElementById("playerMsg");
- try{
-  const d=await api("/api/dashboard?module=gaming&action=players");
-  msg.textContent=d.players.length+" player(s)";
-  box.innerHTML=d.players.length?d.players.map(p=>'<div class="row"><div><b>'+safe(p.display_name)+' (@'+safe(p.username)+')</b><p>Balance: '+fmtINR(p.virtual_coins)+' · Joined: '+new Date(p.created_at).toLocaleDateString("en-IN")+'</p></div><div style="display:flex;align-items:center;gap:7px"><span class="pill">'+safe(p.status)+'</span><button class="btn" data-player="'+p.id+'" data-status="'+(p.status==="ACTIVE"?"SUSPENDED":"ACTIVE")+'">'+(p.status==="ACTIVE"?"Suspend":"Activate")+'</button></div></div>').join(""):'<div class="notice">No players have registered yet.</div>';
-  box.querySelectorAll("[data-player]").forEach(b=>b.addEventListener("click",async()=>{try{await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"player_status",player_id:b.dataset.player,status:b.dataset.status})});await loadPlayers()}catch(e){msg.textContent=e.message}}));
- }catch(e){msg.textContent=e.message}
+async function apiReq(url, opts = {}) {
+ const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+ if (token) headers.Authorization = "Bearer " + token;
+ const res = await fetch(url, { ...opts, headers });
+ const data = await res.json().catch(() => ({}));
+ if (!res.ok || data.ok === false) throw new Error(data.message || "Request failed (" + res.status + ")");
+ return data;
 }
 
-async function loadCricket(){
- const msg=document.getElementById("cricketMsg"),box=document.getElementById("cricketList");
- try{
-  const d=await api("/api/dashboard?module=gaming&action=cricket");
-  if(!d.ok){msg.textContent=d.message||"Cricket API key is not configured.";return}
-  const matches=d.matches||[];
-  msg.textContent="Source: "+d.source+" · "+(d.cached?"cached data":"fresh provider response")+" · "+matches.length+" live match(es).";
-  box.innerHTML=matches.length?matches.map(m=>{const home=m.localteam?.name||m.localteam?.data?.name||"Team";const away=m.visitorteam?.name||m.visitorteam?.data?.name||"Opponent";const score=Array.isArray(m.scoreboards)?m.scoreboards.map(s=>[s.team?.name||s.team_name,s.total||s.score,s.wickets,s.overs].filter(Boolean).join(" ")).join(" · "):"";return '<div class="row"><div><b>'+safe(home)+' vs '+safe(away)+'</b><p>'+safe(m.status||"Scheduled")+' · '+safe(m.starting_at||"")+(score?" · "+safe(score):"")+'</p></div><span class="pill">'+(m.live?"LIVE":"MATCH")+'</span></div>'}).join(""):'<div class="notice">No live matches returned by the provider right now.</div>';
- }catch(e){msg.textContent="Cricket data unavailable: "+e.message}
+function setBalance(val) {
+ const txt = fmtINR(val);
+ document.getElementById("topBalance").textContent = "Balance: " + txt;
+ if (document.getElementById("meBalance")) document.getElementById("meBalance").textContent = txt;
 }
 
-async function loadRecords(){
- const box=document.getElementById("recordList"),msg=document.getElementById("recordMsg");
- try{
-  const d=await api("/api/dashboard?module=gaming&action=records");
-  msg.textContent=d.records.length+" records";
-  box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">'+fmtINR(x.coins_change)+'</span></div>').join(""):'<div class="notice">No session records available yet.</div>';
- }catch(e){msg.textContent=e.message}
-}
-
-let activeEngineSession=null;
-let engineLabelsInitialized=false;
-
-function renderEngineSession(s){
- if(!s)return;
- activeEngineSession=s;
- const a=Number(s.picks_a||0),b=Number(s.picks_b||0),total=Number(s.total_picks||0);
- document.getElementById("engineCountA").textContent=fmtNum(a);
- document.getElementById("engineCountB").textContent=fmtNum(b);
- document.getElementById("engineMultiplier").textContent=Number(s.multiplier||1).toFixed(2)+"x";
- document.getElementById("engineFormulaTag").textContent=(s.engine_mode||"SCORE_POOL")+" · Tier "+(s.risk_tier||3)+" ("+(s.reserve_pct||10)+"% reserve)";
- document.getElementById("engineCorrect").textContent=fmtNum(s.effective_score||0);
-
- if(!engineLabelsInitialized){
-  if(s.label_a)document.getElementById("engineLabelA").value=s.label_a;
-  if(s.label_b)document.getElementById("engineLabelB").value=s.label_b;
-  if(s.engine_mode)document.getElementById("engineMode").value=s.engine_mode;
-  if(s.risk_tier)document.getElementById("engineDifficulty").value=String(s.risk_tier);
-  engineLabelsInitialized=true;
+function syncAuthUI() {
+ const isLoggedIn = Boolean(currentPlayer);
+ document.getElementById("authForm").style.display = isLoggedIn ? "none" : "block";
+ document.getElementById("loggedInBox").style.display = isLoggedIn ? "block" : "none";
+ document.getElementById("authBadge").textContent = isLoggedIn ? "ACTIVE" : "GUEST";
+ document.getElementById("authModalBtn").textContent = isLoggedIn ? ("@" + currentPlayer.username) : "Sign Up / Log In";
+ if (isLoggedIn) {
+  document.getElementById("playerBanner").textContent = "Welcome, " + currentPlayer.display_name + " (@" + currentPlayer.username + ") · Ready for live picks & instant games.";
+  document.getElementById("meName").textContent = currentPlayer.display_name;
+  document.getElementById("meUser").textContent = "@" + currentPlayer.username;
+  setBalance(currentPlayer.balance);
+ } else {
+  document.getElementById("playerBanner").textContent = "Sign up or log in to place match stakes, play Aviator / Tap Speed / Card Memory, and track real wallet balance.";
+  setBalance(0);
  }
-
- const labelA=document.getElementById("engineLabelA").value.trim()||s.label_a||"Team / Player A";
- const labelB=document.getElementById("engineLabelB").value.trim()||s.label_b||"Team / Player B";
- document.getElementById("enginePickA").textContent="Record Pick: "+labelA;
- document.getElementById("enginePickB").textContent="Record Pick: "+labelB;
- document.getElementById("engineSettleA").textContent="Settle Winner: "+labelA;
- document.getElementById("engineSettleB").textContent="Settle Winner: "+labelB;
-
- const isSettled=s.status==="SETTLED"&&s.winner_side;
- const winnerName=s.winner_side==="A"?labelA:(s.winner_side==="B"?labelB:"None");
- document.getElementById("engineWinnerTag").textContent=isSettled?("Winner: "+winnerName+" ("+s.winning_picks+"/"+total+")"):"Status: "+(s.status||"OPEN");
- document.getElementById("engineSummary").textContent=isSettled
-  ? "Session #"+s.id+" Settled · Winner: "+winnerName+" · Winning Picks: "+s.winning_picks+"/"+total+" · Multiplier: "+Number(s.multiplier).toFixed(2)+"x · Settled Score: "+fmtNum(s.effective_score)+" · Exposure Units: "+fmtNum(s.exposure_units)
-  : "Session #"+s.id+" (DB Persisted) · Mode: "+(s.engine_mode||"SCORE_POOL")+" · Risk Tier: "+(s.risk_tier||3)+" ("+(s.reserve_pct||10)+"% reserve) · "+labelA+": "+a+" · "+labelB+": "+b+" · Total: "+total+" · Projected Multiplier: "+Number(s.multiplier||1).toFixed(2)+"x";
 }
 
-function getEngineFormPayload(){
- return {
-  engine_mode:document.getElementById("engineMode").value,
-  risk_tier:Number(document.getElementById("engineDifficulty").value),
-  label_a:document.getElementById("engineLabelA").value.trim()||"Team / Player A",
-  label_b:document.getElementById("engineLabelB").value.trim()||"Team / Player B"
- };
-}
-
-function engineLog(message){
- document.getElementById("engineLog").textContent=typeof message==="string"?message:JSON.stringify(message,null,2);
-}
-
-async function loadEngineSession(){
- const d=await api("/api/dashboard?module=gaming&action=engine_session");
- renderEngineSession(d.session);
- engineLog({
-  event:"Session synced from Neon PostgreSQL",
-  session_id:d.session.id,status:d.session.status,mode:d.session.engine_mode,
-  risk_tier:d.session.risk_tier,reserve_pct:d.session.reserve_pct+"%",
-  multiplier:d.session.multiplier+"x",effective_score:d.session.effective_score
- });
-}
-async function engineAdd(side){
- if(activeEngineSession?.status==="SETTLED"){
-  engineLog("This session is already SETTLED in database. Click Reset Session to start a new session.");
-  return;
- }
- try{
-  const d=await api("/api/dashboard?module=gaming",{
-   method:"POST",
-   body:JSON.stringify({action:"engine_pick",selection_side:side,...getEngineFormPayload()})
-  });
-  renderEngineSession(d.session);
-  engineLog({event:"Pick saved to Neon PostgreSQL",side,...d.session});
-  await loadMonitoring();
- }catch(e){engineLog("Pick error: "+e.message)}
-}
-
-async function engineSettle(side){
- if(!activeEngineSession||(activeEngineSession.total_picks||0)<1){
-  engineLog("Record at least one pick before settling.");
-  return;
- }
- if(activeEngineSession.status==="SETTLED"){
-  engineLog("This session is already settled. Reset to start a new session.");
-  return;
- }
- try{
-  const d=await api("/api/dashboard?module=gaming",{
-   method:"POST",
-   body:JSON.stringify({action:"engine_settle",winner_side:side,...getEngineFormPayload()})
-  });
-  renderEngineSession(d.session);
-  engineLog({event:"Settlement saved to Neon PostgreSQL",winner_side:side,...d.session});
-  await loadMonitoring();
- }catch(e){engineLog("Settlement error: "+e.message)}
-}
-
-async function engineReset(){
- try{
-  const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"engine_reset"})});
-  engineLabelsInitialized=false;
-  renderEngineSession(d.session);
-  engineLabelsInitialized=true;
-  engineLog({event:"Previous session archived & new session created in Neon PostgreSQL",new_session_id:d.session.id});
-  await loadMonitoring();
- }catch(e){engineLog("Reset error: "+e.message)}
-}
-
-let latestMonitoring = null;
-async function loadMonitoring() {
- const matchBox = document.getElementById("monitorMatchList");
- const auditBox = document.getElementById("monitorAuditList");
- const reserveLedgerBox = document.getElementById("reserveLedgerList");
+async function loadMe() {
+ if (!token) { currentPlayer = null; syncAuthUI(); return; }
  try {
-  const d = await api("/api/dashboard?module=gaming&action=monitoring");
-  const m = d.monitoring;
-  latestMonitoring = m;
+  const d = await apiReq("/api/dashboard?module=gaming-auth");
+  currentPlayer = d.player;
+  syncAuthUI();
+  const box = document.getElementById("ledgerList");
+  document.getElementById("ledgerCount").textContent = (d.ledger || []).length + " items";
+  box.innerHTML = (d.ledger || []).length
+   ? d.ledger.map(x => '<div class="row-item"><div><b>' + esc(x.entry_type) + '</b><div class="muted">' + esc(x.note || "") + '</div></div><span class="pill ' + (Number(x.amount) >= 0 ? "win" : "loss") + '">' + (Number(x.amount) >= 0 ? "+" : "") + fmtINR(x.amount) + '</span></div>').join("")
+   : '<p class="muted">No transactions yet.</p>';
+ } catch {
+  token = "";
+  sessionStorage.removeItem(PXB_KEY);
+  currentPlayer = null;
+  syncAuthUI();
+ }
+}
+const FALLBACK_MATCHES = [
+ { id: -1, sport: "CRICKET", title: "India vs Australia · T20 Showdown", side_a: "India", side_b: "Australia", odds_a: 1.75, odds_b: 2.10, status: "DEMO" },
+ { id: -2, sport: "FOOTBALL", title: "Real Madrid vs Barcelona · El Clasico", side_a: "Real Madrid", side_b: "Barcelona", odds_a: 2.15, odds_b: 1.85, status: "DEMO" },
+ { id: -3, sport: "TENNIS", title: "ATP Finals · Centre Court", side_a: "Player A", side_b: "Player B", odds_a: 1.90, odds_b: 1.90, status: "DEMO" },
+ { id: -4, sport: "BASKETBALL", title: "Lakers vs Celtics · Night Clash", side_a: "Lakers", side_b: "Celtics", odds_a: 1.95, odds_b: 1.88, status: "DEMO" },
+ { id: -5, sport: "ESPORTS", title: "CS2 Masters · Grand Final", side_a: "FaZe", side_b: "NAVI", odds_a: 2.05, odds_b: 1.80, status: "DEMO" },
+ { id: -6, sport: "KABADDI", title: "Pro Kabaddi · Evening Clash", side_a: "Bengaluru Bulls", side_b: "Patna Pirates", odds_a: 1.85, odds_b: 1.95, status: "DEMO" }
+];
 
-  const cfg = m.alert_settings || { min_predictions: 5, imbalance_threshold_pct: 60 };
-  document.getElementById("monitorMinPredictions").value = cfg.min_predictions;
-  document.getElementById("monitorImbalanceThreshold").value = cfg.imbalance_threshold_pct;
-  document.getElementById("monAlertRule").textContent = cfg.min_predictions + "+ picks and " + cfg.imbalance_threshold_pct + "%+ largest-side share";
+function renderMatches() {
+ const box = document.getElementById("matchesList");
+ const list = (allMatches.length ? allMatches : FALLBACK_MATCHES).filter(m => selectedSport === "ALL" || String(m.sport).toUpperCase() === selectedSport);
+ if (!list.length) {
+  box.innerHTML = '<p class="muted">No matches in this sport category right now.</p>';
+  return;
+ }
+ box.innerHTML = list.map(m => {
+  const canPick = m.id > 0 && m.status === "UPCOMING" && Boolean(currentPlayer);
+  const myTag = m.my_selection ? ' · Pick: Side ' + esc(m.my_selection) + ' (' + fmtINR(m.my_stake || 0) + ')' : '';
+  const resTag = m.result_label ? ' · Result: ' + esc(m.result_label) + (m.my_payout ? ' · Won ' + fmtINR(m.my_payout) : '') : '';
+  return '<div class="match-item"><div><div class="match-title">' + esc(m.title) + '</div><div class="match-meta">' + esc(m.sport) + ' · ' + esc(m.status) + myTag + resTag + '</div></div><div class="odds-group">' +
+   '<button class="odd-btn" data-mid="' + m.id + '" data-side="A" data-odd="' + Number(m.odds_a || 1.9) + '" ' + (canPick ? '' : 'disabled') + '><span>' + esc(m.side_a) + '</span><strong>' + Number(m.odds_a || 1.9).toFixed(2) + 'x</strong></button>' +
+   '<button class="odd-btn" data-mid="' + m.id + '" data-side="B" data-odd="' + Number(m.odds_b || 1.9) + '" ' + (canPick ? '' : 'disabled') + '><span>' + esc(m.side_b) + '</span><strong>' + Number(m.odds_b || 1.9).toFixed(2) + 'x</strong></button>' +
+   '</div></div>';
+ }).join("");
 
-  document.getElementById("monExposureTotal").textContent = fmtNum(m.exposure.total_predictions);
-  document.getElementById("monExposureAlerts").textContent = fmtNum(m.exposure.unbalanced_matches);
+ box.querySelectorAll(".odd-btn").forEach(btn => btn.addEventListener("click", () => {
+  const mid = Number(btn.dataset.mid);
+  const side = btn.dataset.side;
+  const odd = Number(btn.dataset.odd || 1.9);
+  const match = allMatches.find(x => Number(x.id) === mid);
+  if (!match) return;
+  selectedSlip = { matchId: mid, side, odd, title: match.title, label: side === "A" ? match.side_a : match.side_b };
+  document.querySelectorAll(".odd-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  document.getElementById("slipMatchBadge").textContent = "Side " + side;
+  document.getElementById("slipMatchTitle").textContent = match.title + " → " + selectedSlip.label + " (" + odd.toFixed(2) + "x)";
+  document.getElementById("placeStakeBtn").disabled = false;
+  updateSlipEst();
+ }));
+}
 
-  const playerBal = Number(m.liquidity.player_balance ?? m.liquidity.virtual_points ?? 0);
-  const realReserve = Number(m.liquidity.real_reserve || 0);
-  const reqReserve = Number(m.liquidity.required_tier_reserve || 0);
-  document.getElementById("monLiquidity").textContent = fmtINR(playerBal);
-  document.getElementById("monReserve").textContent = fmtINR(realReserve);
-  document.getElementById("reserveOverviewCount").textContent = fmtINR(realReserve);
-  document.getElementById("monReserveReq").textContent = "Tier " + (m.liquidity.risk_tier || 3) + " (" + (m.liquidity.tier_reserve_pct || 10) + "%) target: " + fmtINR(reqReserve);
+function updateSlipEst() {
+ const stake = Math.max(0, Number(document.getElementById("slipStake").value || 0));
+ const odd = selectedSlip?.odd || 1.9;
+ document.getElementById("slipEstPayout").textContent = "Estimated Payout: " + fmtINR(Math.round(stake * odd));
+}
 
-  document.getElementById("monSettled").textContent = fmtNum(m.settlement.settled_matches);
-  document.getElementById("monCorrect").textContent = fmtNum(m.settlement.correct);
-
-  if (m.engine_session) {
-   renderEngineSession(m.engine_session);
-  }
-
-  const rLedger = m.liquidity.reserve_ledger || [];
-  reserveLedgerBox.innerHTML = rLedger.length
-   ? rLedger.map(x => '<div class="row"><div><b>' + safe(x.entry_type) + ' · ' + fmtINR(x.amount) + '</b><p>' + safe(x.note || "") + ' · ' + new Date(x.created_at).toLocaleString("en-IN") + '</p></div><span class="pill">Bal: ' + fmtINR(x.balance_after) + '</span></div>').join("")
-   : '<div class="notice">No reserve ledger entries yet. Use the form above to add or set real reserve balance.</div>';
-
-  matchBox.innerHTML = m.exposure.matches.length
-   ? m.exposure.matches.map(x => {
-      const alert = Number(x.prediction_count) >= Number(cfg.min_predictions) && Number(x.imbalance_percent) >= Number(cfg.imbalance_threshold_pct);
-      return '<div class="row"><div style="min-width:0;flex:1"><b>' + safe(x.title) + '</b><p>' + safe(x.side_a) + ': ' + fmtNum(x.side_a_count) + ' · ' + safe(x.side_b) + ': ' + fmtNum(x.side_b_count) + ' · Total: ' + fmtNum(x.prediction_count) + '</p><p>Largest side share: ' + fmtNum(x.imbalance_percent) + '% · ' + safe(x.status) + (x.result_label ? ' · Result: ' + safe(x.result_label) : '') + '</p></div><span class="pill">' + (alert ? 'UNBALANCED' : 'BALANCED') + '</span></div>';
-     }).join("")
-   : '<div class="notice">No match exposure records available yet.</div>';
-
-  auditBox.innerHTML = m.settlement.recent.length
-   ? m.settlement.recent.map(x => '<div class="row"><div><b>' + safe(x.event_type) + '</b><p>' + safe(x.event_note) + ' · Match #' + safe(x.match_id || "—") + '</p></div><span class="pill">' + new Date(x.created_at).toLocaleString("en-IN") + '</span></div>').join("")
-   : '<div class="notice">No settlement audit events recorded yet.</div>';
+async function loadPredictions() {
+ if (!token) {
+  allMatches = [];
+  document.getElementById("feedStatus").textContent = "Showing sample fixtures · Log in for live DB matches";
+  renderMatches();
+  return;
+ }
+ try {
+  const d = await apiReq("/api/dashboard?module=gaming-predictions");
+  allMatches = d.matches || [];
+  document.getElementById("feedStatus").textContent = allMatches.length + " database matches loaded";
+  renderMatches();
  } catch (e) {
-  matchBox.textContent = "Monitoring unavailable: " + e.message;
-  auditBox.textContent = "Audit data unavailable.";
+  document.getElementById("feedStatus").textContent = "Sample fixtures (" + e.message + ")";
+  renderMatches();
  }
 }
 
-document.getElementById("saveReserveBtn").addEventListener("click", async () => {
- const btn = document.getElementById("saveReserveBtn");
- const msg = document.getElementById("reserveMsg");
- btn.disabled = true;
- msg.textContent = "Updating real reserve in Neon…";
+async function loadLiveFeeds() {
+ const box = document.getElementById("liveFeedsList");
+ const sum = document.getElementById("liveFeedsSummary");
+ if (!token) {
+  sum.textContent = "Log in with a player account to fetch live Cricket & Football scores.";
+  box.innerHTML = "";
+  return;
+ }
+ sum.textContent = "Fetching live Cricket & Football feeds…";
  try {
-  const d = await api("/api/dashboard?module=gaming", {
+  const [cRes, fRes] = await Promise.allSettled([
+   apiReq("/api/dashboard?module=gaming-cricket"),
+   apiReq("/api/dashboard?module=gaming-football")
+  ]);
+  const items = [];
+  let statusParts = [];
+  if (cRes.status === "fulfilled") {
+   statusParts.push("Cricket: " + (cRes.value.connected ? (cRes.value.matches?.length || 0) + " live" : "Not configured"));
+   (cRes.value.matches || []).slice(0, 5).forEach(m => items.push({ sport: "CRICKET", title: m.name || m.note || "Cricket Match", meta: m.status || m.round || "Live" }));
+  }
+  if (fRes.status === "fulfilled") {
+   statusParts.push("Football: " + (fRes.value.connected ? (fRes.value.matches?.length || 0) + " live" : "Not configured"));
+   (fRes.value.matches || []).slice(0, 5).forEach(m => items.push({ sport: "FOOTBALL", title: (m.homeTeam?.name || "Home") + " vs " + (m.awayTeam?.name || "Away"), meta: m.status?.description || "Live" }));
+  }
+  sum.textContent = statusParts.join(" · ");
+  box.innerHTML = items.length
+   ? items.map(it => '<div class="row-item"><div><b>' + esc(it.title) + '</b><div class="muted">' + esc(it.sport)) + '</div></div><span class="pill">' + esc(it.meta) + '</span></div>').join("")
+   : '<p class="muted">No live provider matches active right now.</p>';
+ } catch (e) {
+  sum.textContent = "Feed check error: " + e.message;
+ }
+}
+
+document.getElementById("refreshFeedsBtn").addEventListener("click", loadLiveFeeds);
+document.getElementById("slipStake").addEventListener("input", updateSlipEst);
+
+document.getElementById("placeStakeBtn").addEventListener("click", async () => {
+ if (!selectedSlip || !token) return;
+ const btn = document.getElementById("placeStakeBtn");
+ const msg = document.getElementById("slipMsg");
+ btn.disabled = true;
+ msg.textContent = "Saving stake…";
+ try {
+  const stake = Math.max(10, Number(document.getElementById("slipStake").value || 100));
+  const d = await apiReq("/api/dashboard?module=gaming-predictions", {
    method: "POST",
-   body: JSON.stringify({
-    action: "adjust_reserve",
-    entry_type: document.getElementById("reserveActionType").value,
-    amount: Number(document.getElementById("reserveAmount").value),
-    note: document.getElementById("reserveNote").value.trim()
-   })
+   body: JSON.stringify({ match_id: selectedSlip.matchId, selection_side: selectedSlip.side, stake_amount: stake })
   });
-  msg.textContent = d.message;
-  document.getElementById("reserveAmount").value = "";
-  document.getElementById("reserveNote").value = "";
-  await loadMonitoring();
+  msg.textContent = d.message || "Stake placed!";
+  if (typeof d.balance === "number") setBalance(d.balance);
+  await Promise.all([loadPredictions(), loadMe()]);
  } catch (e) {
   msg.textContent = e.message;
  } finally {
@@ -445,234 +432,174 @@ document.getElementById("saveReserveBtn").addEventListener("click", async () => 
  }
 });
 
-document.getElementById("refreshMonitoring").addEventListener("click", loadMonitoring);
+document.querySelectorAll("#authTabs .chip").forEach(chip => chip.addEventListener("click", () => {
+ authMode = chip.dataset.mode;
+ document.querySelectorAll("#authTabs .chip").forEach(c => c.classList.toggle("active", c === chip));
+ document.getElementById("signupExtra").style.display = authMode === "SIGNUP" ? "block" : "none";
+ document.getElementById("idLabel").textContent = authMode === "SIGNUP" ? "Username (4-40 a-z, 0-9, _)" : "Username or Email";
+ document.getElementById("authSubmitBtn").textContent = authMode === "SIGNUP" ? "Create Account" : "Log In";
+ document.getElementById("authMsg").textContent = "";
+}));
 
-document.getElementById("exportMonitoring").addEventListener("click", () => {
- if (!latestMonitoring) {
-  document.getElementById("monitorSettingsMsg").textContent = "Please click Refresh Monitor first.";
-  return;
- }
- const m = latestMonitoring;
- const rows = [
-  ["Report", "ParixBet Real Match & Reserve Monitoring"],
-  ["Generated At", new Date().toISOString()],
-  ["Total Picks", m.exposure.total_predictions],
-  ["Unbalanced Matches", m.exposure.unbalanced_matches],
-  ["Real Reserve (INR)", m.liquidity.real_reserve],
-  ["Settled Matches", m.settlement.settled_matches],
-  [],
-  ["Match ID", "Sport", "Match", "Side A Picks", "Side B Picks", "Total Picks", "Largest Side Share %", "Status", "Result"]
- ];
- (m.exposure.matches || []).forEach(x => {
-  rows.push([x.id, x.sport, x.title, x.side_a_count, x.side_b_count, x.prediction_count, x.imbalance_percent, x.status, x.result_label || "Pending"]);
- });
- const csv = rows.map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n");
- const link = document.createElement("a");
- link.href = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(csv);
- link.download = "parixbet-monitoring-" + new Date().toISOString().slice(0, 10) + ".csv";
- document.body.appendChild(link);
- link.click();
- link.remove();
-});
-
-document.getElementById("saveMonitorSettings").addEventListener("click", async () => {
- const button = document.getElementById("saveMonitorSettings");
- const msg = document.getElementById("monitorSettingsMsg");
- button.disabled = true;
- msg.textContent = "Saving alert settings…";
- try {
-  const d = await api("/api/dashboard?module=gaming", {
-   method: "POST",
-   body: JSON.stringify({
-    action: "update_monitor_settings",
-    min_predictions: Number(document.getElementById("monitorMinPredictions").value),
-    imbalance_threshold_pct: Number(document.getElementById("monitorImbalanceThreshold").value)
-   })
-  });
-  msg.textContent = d.message;
-  await loadMonitoring();
- } catch (e) {
-  msg.textContent = e.message;
- } finally {
-  button.disabled = false;
- }
-});
-
-async function loadPredictionMatches() {
- const box = document.getElementById("predictionMatchList");
- try {
-  const d = await api("/api/dashboard?module=gaming&action=prediction_matches");
-  box.innerHTML = d.matches.length
-   ? d.matches.map(m => {
-      const status = m.result_side ? "RESULT: " + safe(m.result_label || m.result_side) : "RESULT PENDING";
-      const source = m.result_source === "API" ? "Automatic API" : m.result_source === "MANUAL" ? "Manual Admin" : m.result_source === "API_REVIEW" ? "API · Manual review needed" : "—";
-      const canToggle = !m.result_side && ["UPCOMING", "LOCKED"].includes(m.status);
-      const lockButton = canToggle ? '<button class="btn" data-match-lock="' + m.id + '" data-next-status="' + (m.status === "LOCKED" ? "UPCOMING" : "LOCKED") + '">' + (m.status === "LOCKED" ? "Reopen Predictions" : "Lock Predictions") + '</button>' : "";
-      const resultButtons = m.result_side ? "" : '<button class="btn" data-result-match="' + m.id + '" data-result-side="A">' + safe(m.side_a) + ' won</button><button class="btn" data-result-match="' + m.id + '" data-result-side="B">' + safe(m.side_b) + ' won</button><button class="btn" data-result-match="' + m.id + '" data-result-side="D">Draw / No Result</button>';
-      return '<div class="row" style="align-items:flex-start"><div style="min-width:0;flex:1"><b>' + safe(m.title) + '</b><p>' + safe(m.sport) + ' · ' + safe(m.side_a) + ' vs ' + safe(m.side_b) + '</p><p>' + status + ' · ' + safe(source) + ' · Picks: ' + Number(m.prediction_count || 0) + ' · Winners: ' + Number(m.correct_count || 0) + '</p></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + lockButton + resultButtons + '</div></div>';
-     }).join("")
-   : '<div class="notice">No matches added yet. Add a match or sync provider results.</div>';
-
-  box.querySelectorAll("[data-match-lock]").forEach(b => b.addEventListener("click", async () => {
-   const nextStatus = b.dataset.nextStatus;
-   if (!confirm(nextStatus === "LOCKED" ? "Lock new and updated picks for this match?" : "Reopen picks for this match?")) return;
-   b.disabled = true;
-   try {
-    const d = await api("/api/dashboard?module=gaming", {
-     method: "PATCH",
-     body: JSON.stringify({ action: "prediction_match_status", match_id: Number(b.dataset.matchLock), status: nextStatus })
-    });
-    document.getElementById("predictionSyncMsg").textContent = d.message;
-    await Promise.all([loadPredictionMatches(), loadMonitoring()]);
-   } catch (e) {
-    document.getElementById("predictionSyncMsg").textContent = e.message;
-    b.disabled = false;
-   }
-  }));
-
-  box.querySelectorAll("[data-result-match]").forEach(b => b.addEventListener("click", async () => {
-   if (!confirm("Save and settle this as the final match result?")) return;
-   b.disabled = true;
-   try {
-    const d = await api("/api/dashboard?module=gaming", {
-     method: "POST",
-     body: JSON.stringify({ action: "manual_match_result", match_id: Number(b.dataset.resultMatch), result_side: b.dataset.resultSide })
-    });
-    document.getElementById("predictionSyncMsg").textContent = "Result settled. " + d.predictions.correct + " winning pick(s) out of " + d.predictions.total + ".";
-    await Promise.all([loadPredictionMatches(), loadMonitoring()]);
-   } catch (e) {
-    document.getElementById("predictionSyncMsg").textContent = e.message;
-    b.disabled = false;
-   }
-  }));
- } catch (e) {
-  box.textContent = "Could not load match results: " + e.message;
- }
-}
-
-document.getElementById("predictionMatchForm").addEventListener("submit", async e => {
+document.getElementById("authForm").addEventListener("submit", async e => {
  e.preventDefault();
- const form = e.currentTarget;
- const button = form.querySelector("button[type=submit]");
- button.disabled = true;
+ const btn = document.getElementById("authSubmitBtn");
+ const msg = document.getElementById("authMsg");
+ btn.disabled = true;
+ msg.textContent = authMode === "SIGNUP" ? "Creating account…" : "Signing in…";
  try {
-  const payload = Object.fromEntries(new FormData(form));
-  await api("/api/dashboard?module=gaming", {
+  const fd = Object.fromEntries(new FormData(e.currentTarget));
+  const d = await apiReq("/api/dashboard?module=gaming-auth", {
    method: "POST",
-   body: JSON.stringify({ action: "create_prediction_match", ...payload })
+   body: JSON.stringify({ mode: authMode, ...fd })
   });
-  form.reset();
-  document.getElementById("predictionSyncMsg").textContent = "Match added.";
-  await Promise.all([loadPredictionMatches(), loadMonitoring()]);
- } catch (err) {
-  document.getElementById("predictionSyncMsg").textContent = err.message;
- } finally {
-  button.disabled = false;
- }
-});
-
-document.getElementById("syncPredictionResults").addEventListener("click", async () => {
- const button = document.getElementById("syncPredictionResults");
- const msg = document.getElementById("predictionSyncMsg");
- button.disabled = true;
- msg.textContent = "Checking connected sports data providers…";
- try {
-  const d = await api("/api/dashboard?module=gaming", {
-   method: "POST",
-   body: JSON.stringify({ action: "sync_match_results" })
-  });
-  msg.textContent = "Checked " + d.checked + " finished matches · Automatically updated " + d.updated + " · Need manual review " + d.needs_manual_review + (d.errors?.length ? " · " + d.errors.join(" | ") : "");
-  await Promise.all([loadPredictionMatches(), loadMonitoring()]);
- } catch (e) {
-  msg.textContent = "Sync failed: " + e.message;
- } finally {
-  button.disabled = false;
- }
-});
-
-function safe(v) {
- return String(v ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-}
-
-document.getElementById("playerForm").addEventListener("submit", async e => {
- e.preventDefault();
- const form = e.currentTarget;
- const button = form.querySelector("button");
- const msg = document.getElementById("playerMsg");
- button.disabled = true;
- try {
-  const payload = Object.fromEntries(new FormData(form));
-  const d = await api("/api/dashboard?module=gaming", {
-   method: "POST",
-   body: JSON.stringify({ action: "create_player", ...payload })
-  });
-  form.reset();
-  msg.textContent = "Player created: " + d.player.username + " · ₹1,000 initial balance added.";
-  await loadGaming();
+  token = d.token;
+  sessionStorage.setItem(PXB_KEY, token);
+  msg.textContent = d.message || "Logged in!";
+  e.currentTarget.reset();
+  await Promise.all([loadMe(), loadPredictions(), loadLiveFeeds()]);
  } catch (err) {
   msg.textContent = err.message;
  } finally {
-  button.disabled = false;
+  btn.disabled = false;
  }
 });
 
-async function init() {
+document.getElementById("logoutBtn").addEventListener("click", () => {
+ token = "";
+ sessionStorage.removeItem(PXB_KEY);
+ currentPlayer = null;
+ selectedSlip = null;
+ syncAuthUI();
+ loadPredictions();
+ loadLiveFeeds();
+ document.getElementById("ledgerList").innerHTML = '<p class="muted">Log in to view your coin ledger.</p>';
+ document.getElementById("ledgerCount").textContent = "0 items";
+});
+async function recordGameRound(gameCode, stake, multiplier, won, scoreLabel) {
+ const msg = document.getElementById("gamePlayMsg");
+ if (!token) {
+  msg.textContent = "Please Sign Up or Log In first to play for real wallet coins.";
+  return;
+ }
  try {
-  const user = JSON.parse(sessionStorage.getItem("parixbet_admin_user") || "null");
-  if (!token || user?.role !== "GAMING_ADMIN") return goLogin();
-  document.getElementById("authStatus").textContent = "Signed in: " + (user.display_name || user.user_id || "ParixBet Admin") + " · Live gaming services active.";
-  await loadGaming();
-  await loadEngineSession();
+  const d = await apiReq("/api/dashboard?module=gaming-play", {
+   method: "POST",
+   body: JSON.stringify({ game_code: gameCode, stake, multiplier, won, score: scoreLabel })
+  });
+  msg.textContent = d.message;
+  if (typeof d.balance === "number") setBalance(d.balance);
+  await loadMe();
  } catch (e) {
-  document.getElementById("authStatus").textContent = "Data could not be loaded: " + e.message;
+  msg.textContent = e.message;
  }
 }
 
-function engineRender() {
- if (activeEngineSession) renderEngineSession(activeEngineSession);
-}
-
-document.getElementById("enginePickA").addEventListener("click", () => engineAdd("A"));
-document.getElementById("enginePickB").addEventListener("click", () => engineAdd("B"));
-document.getElementById("engineSettleA").addEventListener("click", () => engineSettle("A"));
-document.getElementById("engineSettleB").addEventListener("click", () => engineSettle("B"));
-document.getElementById("engineReset").addEventListener("click", engineReset);
-["engineLabelA", "engineLabelB", "engineMode", "engineDifficulty"].forEach(id => {
- document.getElementById(id).addEventListener("change", () => {
-  if (!activeEngineSession) return;
-  const payload = getEngineFormPayload();
-  const preview = {
-   ...activeEngineSession,
-   engine_mode: payload.engine_mode,
-   risk_tier: payload.risk_tier,
-   label_a: payload.label_a,
-   label_b: payload.label_b
-  };
-  const tierCfg = { 1: 5, 2: 8, 3: 10, 4: 15, 5: 20 };
-  preview.reserve_pct = tierCfg[payload.risk_tier] || 10;
-  const a = preview.picks_a || 0, b = preview.picks_b || 0, tot = a + b;
-  if (payload.engine_mode === "SCORE_POOL") {
-   preview.multiplier = tot > 0 && a > 0 ? Number(Math.min(3.5, Math.max(1.05, tot / Math.max(1, a))).toFixed(2)) : 1.0;
-  } else if (payload.engine_mode === "DIFFICULTY") {
-   const w = { 1: 1.0, 2: 1.15, 3: 1.3, 4: 1.5, 5: 1.8 }[payload.risk_tier] || 1.3;
-   preview.multiplier = Number((w * 1.1).toFixed(2));
-  } else {
-   const w = { 1: 1.0, 2: 1.15, 3: 1.3, 4: 1.5, 5: 1.8 }[payload.risk_tier] || 1.3;
-   preview.multiplier = Number(Math.max(1.0, (1.25 + 0.5 * w)).toFixed(2));
+let aviTimer = null, aviMult = 1.0, aviCrashAt = 1.0, aviActive = false;
+document.getElementById("aviatorStartBtn").addEventListener("click", () => {
+ if (aviActive) return;
+ const stake = Math.max(10, Number(document.getElementById("aviatorStake").value || 50));
+ if (!token) { document.getElementById("gamePlayMsg").textContent = "Log in first to launch Aviator."; return; }
+ aviMult = 1.0;
+ aviCrashAt = Number((1.15 + Math.random() * 2.4).toFixed(2));
+ aviActive = true;
+ document.getElementById("aviatorStartBtn").disabled = true;
+ document.getElementById("aviatorCashBtn").disabled = false;
+ document.getElementById("aviatorState").textContent = "Flying… cash out before crash!";
+ aviTimer = setInterval(async () => {
+  aviMult = Number((aviMult + 0.08).toFixed(2));
+  document.getElementById("aviatorMult").textContent = aviMult.toFixed(2) + "x";
+  if (aviMult >= aviCrashAt) {
+   clearInterval(aviTimer);
+   aviActive = false;
+   document.getElementById("aviatorStartBtn").disabled = false;
+   document.getElementById("aviatorCashBtn").disabled = true;
+   document.getElementById("aviatorState").textContent = "Crashed at " + aviCrashAt.toFixed(2) + "x!";
+   await recordGameRound("AVIATOR_FLIGHT", stake, aviCrashAt, false, "Crashed@" + aviCrashAt + "x");
   }
-  renderEngineSession(preview);
-  loadMonitoring().catch(() => {});
- });
+ }, 180);
 });
 
-document.getElementById("engineLabelA").addEventListener("input", engineRender);
-engineRender();
-document.getElementById("menu").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("open"));
-document.querySelectorAll(".sidebar nav a").forEach(a => a.addEventListener("click", () => document.getElementById("sidebar").classList.remove("open")));
-init();
+document.getElementById("aviatorCashBtn").addEventListener("click", async () => {
+ if (!aviActive) return;
+ clearInterval(aviTimer);
+ aviActive = false;
+ const cashMult = aviMult;
+ const stake = Math.max(10, Number(document.getElementById("aviatorStake").value || 50));
+ document.getElementById("aviatorStartBtn").disabled = false;
+ document.getElementById("aviatorCashBtn").disabled = true;
+ document.getElementById("aviatorState").textContent = "Cashed out at " + cashMult.toFixed(2) + "x!";
+ await recordGameRound("AVIATOR_FLIGHT", stake, cashMult, true, "CashOut@" + cashMult + "x");
+});
+
+let tapTimerId = null, tapCnt = 0, tapRunning = false;
+document.getElementById("tapStartBtn").addEventListener("click", () => {
+ if (tapRunning) return;
+ if (!token) { document.getElementById("gamePlayMsg").textContent = "Log in first to play Tap Speed."; return; }
+ tapCnt = 0;
+ tapRunning = true;
+ let left = 50;
+ const stake = Math.max(10, Number(document.getElementById("tapStake").value || 50));
+ document.getElementById("tapCount").textContent = "0";
+ document.getElementById("tapStartBtn").disabled = true;
+ document.getElementById("tapHitBtn").disabled = false;
+ tapTimerId = setInterval(async () => {
+  left--;
+  document.getElementById("tapTimer").textContent = (left / 10).toFixed(1) + "s · Target: 18 taps (1.80x)";
+  if (left <= 0) {
+   clearInterval(tapTimerId);
+   tapRunning = false;
+   document.getElementById("tapStartBtn").disabled = false;
+   document.getElementById("tapHitBtn").disabled = true;
+   const won = tapCnt >= 18;
+   document.getElementById("tapTimer").textContent = won ? ("Won! " + tapCnt + " taps") : ("Ended: " + tapCnt + "/18 taps");
+   await recordGameRound("TAP_CHALLENGE", stake, 1.8, won, tapCnt + " taps");
+  }
+ }, 100);
+});
+
+document.getElementById("tapHitBtn").addEventListener("click", () => {
+ if (!tapRunning) return;
+ tapCnt++;
+ document.getElementById("tapCount").textContent = String(tapCnt);
+});
+
+async function playCardPick(choice) {
+ const stake = Math.max(10, Number(document.getElementById("cardStake").value || 50));
+ const val = Math.floor(Math.random() * 13) + 2;
+ const ranks = { 11: "J", 12: "Q", 13: "K", 14: "A" };
+ const label = ranks[val] || String(val);
+ const won = (choice === "HIGH" && val >= 8) || (choice === "LOW" && val <= 7);
+ document.getElementById("cardFace").textContent = label + (val >= 8 ? "♠" : "♥");
+ document.getElementById("cardResultText").textContent = "Drawn " + label + " · " + (won ? "Matched " + choice + "!" : "Missed " + choice);
+ await recordGameRound("CARD_MEMORY", stake, 1.75, won, "Card " + label + " (" + choice + ")");
+}
+
+document.getElementById("cardHighBtn").addEventListener("click", () => playCardPick("HIGH"));
+document.getElementById("cardLowBtn").addEventListener("click", () => playCardPick("LOW"));
+
+document.querySelectorAll("#sportTabs .chip").forEach(btn => btn.addEventListener("click", () => {
+ selectedSport = btn.dataset.sport;
+ document.querySelectorAll("#sportTabs .chip").forEach(b => b.classList.toggle("active", b === btn));
+ renderMatches();
+}));
+
+document.querySelectorAll("[data-section]").forEach(btn => btn.addEventListener("click", () => {
+ document.querySelectorAll("[data-section]").forEach(b => b.classList.toggle("active", b === btn));
+ const target = document.getElementById("sec-" + btn.dataset.section);
+ if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+}));
+
+document.getElementById("authModalBtn").addEventListener("click", () => {
+ document.getElementById("authCard").scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+(async function boot() {
+ syncAuthUI();
+ await loadMe();
+ await Promise.all([loadPredictions(), loadLiveFeeds()]);
+})();
 </script>
 </body>
 </html>
-
-
 
