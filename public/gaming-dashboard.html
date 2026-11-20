@@ -159,7 +159,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
     </div>
    </div>
    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0">
-    <b>Match Exposure Monitor</b><button class="btn" type="button" id="refreshMonitoring">Refresh Monitor</button>
+    <b>Match Exposure Monitor</b><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="exportMonitoring">Export CSV</button><button class="btn" type="button" id="refreshMonitoring">Refresh Monitor</button></div>
    </div>
    <div id="monitorMatchList" class="notice">Loading monitoring data…</div>
    <div style="margin-top:16px"><b>Settlement & Result Audit</b><div id="monitorAuditList" class="notice" style="margin-top:9px">Loading audit records…</div></div>
@@ -209,10 +209,12 @@ async function loadRecords(){
  const box=document.getElementById("recordList"),msg=document.getElementById("recordMsg");
  try{const d=await api("/api/dashboard?module=gaming&action=records");msg.textContent=d.records.length+" records";box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">'+Number(x.coins_change).toLocaleString("en-IN")+' virtual</span></div>').join(""):'There are no game records yet.'}catch(e){msg.textContent=e.message}
 }
+let latestMonitoring=null;
 async function loadMonitoring(){
  const matchBox=document.getElementById("monitorMatchList"),auditBox=document.getElementById("monitorAuditList");
  try{
   const d=await api("/api/dashboard?module=gaming&action=monitoring"),m=d.monitoring;
+  latestMonitoring=m;
   const fmt=v=>Number(v||0).toLocaleString("en-IN");
   const cfg=m.alert_settings||{min_predictions:5,imbalance_threshold_pct:60};
   document.getElementById("monitorMinPredictions").value=cfg.min_predictions;
@@ -233,6 +235,21 @@ async function loadMonitoring(){
  }catch(e){matchBox.textContent="Monitoring unavailable: "+e.message;auditBox.textContent="Audit data unavailable."}
 }
 document.getElementById("refreshMonitoring").addEventListener("click",loadMonitoring);
+document.getElementById("exportMonitoring").addEventListener("click",()=>{
+ if(!latestMonitoring){document.getElementById("monitorSettingsMsg").textContent="पहले Refresh Monitor दबाएँ।";return}
+ const m=latestMonitoring,rows=[
+  ["Report","ParixBet Match Monitoring"],["Generated At",new Date().toISOString()],
+  ["Total Predictions",m.exposure.total_predictions],["Unbalanced Matches",m.exposure.unbalanced_matches],
+  ["Settled Matches",m.settlement.settled_matches],[],
+  ["Match ID","Sport","Match","Side A Picks","Side B Picks","Total Picks","Largest Side Share %","Status","Result"]
+ ];
+ (m.exposure.matches||[]).forEach(x=>rows.push([x.id,x.sport,x.title,x.side_a_count,x.side_b_count,x.prediction_count,x.imbalance_percent,x.status,x.result_label||"Pending"]));
+ const csv=rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+ const link=document.createElement("a");
+ link.href="data:text/csv;charset=utf-8,\uFEFF"+encodeURIComponent(csv);
+ link.download="parixbet-monitoring-"+new Date().toISOString().slice(0,10)+".csv";
+ document.body.appendChild(link);link.click();link.remove();
+});
 document.getElementById("saveMonitorSettings").addEventListener("click",async()=>{
  const button=document.getElementById("saveMonitorSettings"),msg=document.getElementById("monitorSettingsMsg");
  button.disabled=true;msg.textContent="Saving alert settings…";
