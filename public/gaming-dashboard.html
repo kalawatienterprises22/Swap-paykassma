@@ -15,7 +15,7 @@ nav a:hover,nav a.active{background:linear-gradient(100deg,#244d8b,#243a68);bord
 .topbar strong{font-size:14px;font-weight:850;letter-spacing:.2px}.topbar a{color:#fff;text-decoration:none;font-size:12px;font-weight:850;background:linear-gradient(100deg,#326fdb,#7455dc);padding:11px 15px;border-radius:10px;box-shadow:0 7px 22px #3d65cb55}
 .wrap{max-width:1450px;margin:auto;padding:30px}.heading{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:24px}
 h1{font-size:30px;font-weight:950;letter-spacing:-.9px;margin:0 0 8px}.muted{color:var(--muted);font-size:13px;line-height:1.65}
-.status{font-size:10px;font-weight:900;letter-spacing:.7px;padding:9px 13px;border-radius:30px;background:#49391b;color:#ffd782;border:1px solid #7d622b;white-space:nowrap}
+.status{font-size:10px;font-weight:900;letter-spacing:.7px;padding:9px 13px;border-radius:30px;background:#163f38;color:#6ef2c4;border:1px solid #2a7868;white-space:nowrap}
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
 .card{background:linear-gradient(145deg,#172746,#101c33);border:1px solid #2a3e61;border-radius:17px;padding:21px;margin-bottom:16px;box-shadow:0 13px 34px #0002}
 .grid .card{position:relative;overflow:hidden;min-height:137px}.grid .card:after{content:"";position:absolute;width:105px;height:105px;border-radius:50%;right:-35px;top:-40px;background:#5794ff18}
@@ -61,11 +61,11 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
 <main class="main">
  <header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="menu" id="menu" aria-label="Open menu">☰</button><strong>Real Gaming Control Dashboard</strong></div><div style="display:flex;gap:14px;align-items:center"><a href="/game-portal.html" target="_blank">Player Portal ↗</a></div></header>
  <div class="wrap" id="overview">
-  <div class="heading"><div><h1>Real Gaming Overview</h1><div class="muted">Live operational system · Player accounts, balances, match settlements, and risk telemetry</div></div><span class="status">LIVE SYSTEM</span></div>
+  <div class="heading"><div><h1>Real Gaming Overview</h1><div class="muted">Live operational system · Player balances, real reserve fund, match settlements, and risk telemetry</div></div><span class="status">LIVE SYSTEM</span></div>
   <div class="grid">
    <div class="card"><div class="metric-label">Registered Players</div><div class="metric" id="playerCount">—</div><span class="pending">Player Accounts</span></div>
    <div class="card"><div class="metric-label">Total Games Played</div><div class="metric" id="gameCount">—</div><span class="pending">Settled & Active Sessions</span></div>
-   <div class="card"><div class="metric-label">Live Cricket Matches</div><div class="metric">—</div><span class="pending">Sportmonks Feed</span></div>
+   <div class="card"><div class="metric-label">Real Reserve Fund</div><div class="metric" id="reserveOverviewCount">—</div><span class="pending">Neon Reserve Ledger (₹)</span></div>
    <div class="card"><div class="metric-label">Total Player Balance</div><div class="metric" id="coinCount">—</div><span class="pending">Real Balance (₹)</span></div>
   </div>
   <section class="section card" id="games"><h2>Game Management</h2>
@@ -76,8 +76,8 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
   <section class="section card" id="apis"><h2>API & Service Connections</h2>
    <div class="row"><div><b>Cricket Live Scores & Fixtures API</b><p>Sportmonks live match & fixture feed</p></div><span class="pill">Configured via Env</span></div>
    <div class="row"><div><b>Football Live Scores & Fixtures API</b><p>SportsAPI live scores, fixtures & match results</p></div><span class="pill">Configured via Env</span></div>
-   <div class="row"><div><b>Settlement & Match Engine</b><p>Server-side match lock, result settlement & audit log</p></div><span class="pill">Active</span></div>
-   <div class="row"><div><b>Neon PostgreSQL Database</b><p>Tables for players, wallets, matches, predictions, settlements & audit logs</p></div><span class="pill">Connected</span></div>
+   <div class="row"><div><b>Settlement & Match Engine</b><p>Persistent PostgreSQL session settlement, tier weights & audit log</p></div><span class="pill">DB Connected</span></div>
+   <div class="row"><div><b>Neon PostgreSQL Database</b><p>Tables for players, wallets, reserve ledger, engine sessions, matches & settlements</p></div><span class="pill">Connected</span></div>
   </section>
   <section class="section card" id="players"><h2>Player Management</h2>
    <form id="playerForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:9px;margin-bottom:15px">
@@ -90,18 +90,18 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
   <section class="section card" id="records"><h2>Game & Session Records</h2><p id="recordMsg" class="muted">Loading records…</p><div id="recordList" class="notice">No session records available yet.</div></section>
   <section class="section card" id="engine">
    <h2>Match Prediction & Settlement Engine</h2>
-   <p class="muted">Live match side exposure, settlement calculation, and real-time session tracking.</p>
+   <p class="muted">Persisted in Neon PostgreSQL. Mode and Risk Tier dynamically calculate multiplier, exposure weight, and settlement score.</p>
    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:15px 0">
-    <div class="card"><div class="metric-label">Side A Picks</div><div class="metric" id="engineCountA">0</div><span class="pending">Side A volume count</span></div>
-    <div class="card"><div class="metric-label">Side B Picks</div><div class="metric" id="engineCountB">0</div><span class="pending">Side B volume count</span></div>
-    <div class="card"><div class="metric-label">Total Picks</div><div class="metric" id="engineTotal">0</div><span class="pending">Recorded selections</span></div>
-    <div class="card"><div class="metric-label">Winning Picks</div><div class="metric" id="engineCorrect">0</div><span class="pending">Settled match winners</span></div>
+    <div class="card"><div class="metric-label">Side A Picks</div><div class="metric" id="engineCountA">0</div><span class="pending">Saved in DB</span></div>
+    <div class="card"><div class="metric-label">Side B Picks</div><div class="metric" id="engineCountB">0</div><span class="pending">Saved in DB</span></div>
+    <div class="card"><div class="metric-label">Active Multiplier</div><div class="metric" id="engineMultiplier">1.00x</div><span class="pending" id="engineFormulaTag">SCORE_POOL · Tier 3</span></div>
+    <div class="card"><div class="metric-label">Settled Score</div><div class="metric" id="engineCorrect">0</div><span class="pending" id="engineWinnerTag">Pending settlement</span></div>
    </div>
    <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px">
-    <div><label for="engineMode">Engine Mode</label><select id="engineMode" style="width:100%;padding:11px"><option value="SCORE_POOL">Prediction Pool</option><option value="DIFFICULTY">Risk & Difficulty Profile</option><option value="MATCH_CENTRE">Match Centre Settlement</option></select></div>
-    <div><label for="engineDifficulty">Risk Tier</label><select id="engineDifficulty" style="width:100%;padding:11px"><option value="1">1 · Low</option><option value="2">2 · Moderate</option><option value="3" selected>3 · Standard</option><option value="4">4 · Elevated</option><option value="5">5 · High</option></select></div>
-    <div><label for="engineLabelA">Side A label</label><input id="engineLabelA" value="Team / Player A" maxlength="40" style="width:100%;padding:11px"></div>
-    <div><label for="engineLabelB">Side B label</label><input id="engineLabelB" value="Team / Player B" maxlength="40" style="width:100%;padding:11px"></div>
+    <div><label for="engineMode">Engine Mode</label><select id="engineMode" style="width:100%;padding:11px"><option value="SCORE_POOL">Prediction Pool (Pool Ratio)</option><option value="DIFFICULTY">Risk Tier Weighted</option><option value="MATCH_CENTRE">Match Centre Dynamic</option></select></div>
+    <div><label for="engineDifficulty">Risk Tier</label><select id="engineDifficulty" style="width:100%;padding:11px"><option value="1">1 · Low (5% Reserve · 1.00x)</option><option value="2">2 · Moderate (8% Reserve · 1.15x)</option><option value="3" selected>3 · Standard (10% Reserve · 1.30x)</option><option value="4">4 · Elevated15% Reserve · 1.50x)</option><option value="5">5 · High (20% Reserve · 1.80x)</option></select></div>
+    <div><label for="engineLabelA">Side A label</label><input id="engineLabelA" value="Team / Player A" maxlength="80" style="width:100%;padding:11px"></div>
+    <div><label for="engineLabelB">Side B label</label><input id="engineLabelB" value="Team / Player B" maxlength="80" style="width:100%;padding:11px"></div>
    </div>
    <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:14px">
     <button class="btn" type="button" id="enginePickA">Record Pick: A</button>
@@ -112,8 +112,8 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
     <button class="btn" type="button" id="engineSettleB">Settle Winner: B</button>
     <button class="btn" type="button" id="engineReset" style="background:linear-gradient(110deg,#b9364c,#8c2638);border-color:#e06b7b">Reset Session</button>
    </div>
-   <div class="notice" id="engineSummary" style="margin-top:15px">No picks recorded yet. Select Side A or Side B and settle the match result to calculate winning picks.</div>
-   <div style="margin-top:14px"><b>Engine Activity Log</b><pre id="engineLog" style="white-space:pre-wrap;overflow:auto;background:#0b172b;border:1px solid #344b70;border-radius:10px;padding:13px;color:#a7f3d0">Ready · Live settlement engine</pre></div>
+   <div class="notice" id="engineSummary" style="margin-top:15px">Loading settlement engine session from database…</div>
+   <div style="margin-top:14px"><b>Engine Activity & Calculation Log</b><pre id="engineLog" style="white-space:pre-wrap;overflow:auto;background:#0b172b;border:1px solid #344b70;border-radius:10px;padding:13px;color:#a7f3d0">Connecting to PostgreSQL settlement engine…</pre></div>
   </section>
   <section class="section card" id="prediction-results">
    <h2>Match Prediction · Result Management</h2>
@@ -133,15 +133,39 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
    <div id="predictionMatchList" class="notice">Loading match results…</div>
   </section>
   <section class="section card" id="risk-monitoring">
-   <h2>Exposure · Liquidity · Reserve · Settlement Monitor</h2>
-   <p class="muted">Real-time match exposure, total player balance (₹), 10% risk reserve calculation, and match settlement audit trail.</p>
+   <h2>Exposure · Liquidity · Real Reserve · Settlement Monitor</h2>
+   <p class="muted">Tracks live match exposure, player balances (₹), real reserve fund in Neon (₹), required tier reserve, and settlement audit trail.</p>
    <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:14px 0">
     <div class="card"><div class="metric-label">Total Picks</div><div class="metric" id="monExposureTotal">—</div><span class="pending">A/B selections recorded</span></div>
     <div class="card"><div class="metric-label">Unbalanced Matches</div><div class="metric" id="monExposureAlerts">—</div><span class="pending" id="monAlertRule">5+ picks and 60%+ largest-side share</span></div>
     <div class="card"><div class="metric-label">Total Player Balance</div><div class="metric" id="monLiquidity">—</div><span class="pending">Real Balance (₹)</span></div>
-    <div class="card"><div class="metric-label">10% Risk Reserve</div><div class="metric" id="monReserve">—</div><span class="pending">10% of total player balance</span></div>
+    <div class="card"><div class="metric-label">Real Reserve Fund</div><div class="metric" id="monReserve">—</div><span class="pending" id="monReserveReq">Target tier reserve: ₹0</span></div>
     <div class="card"><div class="metric-label">Settled Matches</div><div class="metric" id="monSettled">—</div><span class="pending">Finalized in database</span></div>
     <div class="card"><div class="metric-label">Winning Picks</div><div class="metric" id="monCorrect">—</div><span class="pending">Matched winning side</span></div>
+   </div>
+   <div class="card" style="margin:12px 0;padding:14px">
+    <b>Real Reserve Fund Management (₹)</b>
+    <p class="muted">Add funds, withdraw funds, or set exact real reserve balance in Neon PostgreSQL (sp_game_reserve).</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">
+     <label>Action
+      <select id="reserveActionType" style="width:100%;padding:10px">
+       <option value="DEPOSIT">Add Reserve (+₹)</option>
+       <option value="WITHDRAW">Withdraw Reserve (-₹)</option>
+       <option value="SET_BALANCE">Set Exact Balance (₹)</option>
+      </select>
+     </label>
+     <label>Amount (₹)
+      <input id="reserveAmount" type="number" min="0" max="1000000000" step="0.01" placeholder="e.g. 50000" style="width:100%;padding:10px">
+     </label>
+     <label>Audit Note
+      <input id="reserveNote" type="text" maxlength="240" placeholder="e.g. Monthly risk reserve top-up" style="width:100%;padding:10px">
+     </label>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+     <button class="btn" type="button" id="saveReserveBtn">Update Real Reserve</button>
+     <span class="muted" id="reserveMsg">Real reserve ledger ready.</span>
+    </div>
+    <div id="reserveLedgerList" class="notice" style="margin-top:12px">Loading reserve ledger…</div>
    </div>
    <div class="card" style="margin:12px 0;padding:14px">
     <b>Imbalance Alert Settings</b>
@@ -164,9 +188,9 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;back
    </div>
    <div id="monitorMatchList" class="notice">Loading monitoring data…</div>
    <div style="margin-top:16px"><b>Settlement & Result Audit</b><div id="monitorAuditList" class="notice" style="margin-top:9px">Loading audit records…</div></div>
-   <p class="muted" style="margin-top:12px">All match locks, settlements, alert thresholds, and balance figures are tracked against live database records.</p>
+   <p class="muted" style="margin-top:12px">All match locks, settlements, risk tier calculations, alert thresholds, and reserve balances are tracked against live database records.</p>
   </section>
-  <section class="section card" id="settings"><h2>System Settings & Rules</h2><div class="notice"><b>Real Operational Rules:</b> Match predictions lock once status is set to LOCKED. Final match results settle picks and record settlement counts in Neon PostgreSQL with full audit logging.</div></section>
+  <section class="section card" id="settings"><h2>System Settings & Rules</h2><div class="notice"><b>Real Operational Rules:</b> Match predictions lock once status is set to LOCKED. Settlement engine sessions, risk tier reserve targets, and real reserve ledger entries are persisted in Neon PostgreSQL with audit logs.</div></section>
   <div class="footer" id="authStatus">Checking admin login…</div>
  </div>
 </main>
@@ -179,14 +203,19 @@ async function api(url,options={}){
  if(!r.ok||!d.ok)throw new Error(d.message||"Request failed");
  return d;
 }
+const fmtNum=v=>Number(v||0).toLocaleString("en-IN");
+const fmtINR=v=>"₹"+Number(v||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+
 async function loadGaming(){
  const base="/api/dashboard?module=gaming";
  const stats=await api(base+"&action=stats");
- document.getElementById("playerCount").textContent=stats.stats.players;
- document.getElementById("gameCount").textContent=stats.stats.games;
- document.getElementById("coinCount").textContent="₹"+Number(stats.stats.coins).toLocaleString("en-IN");
+ document.getElementById("playerCount").textContent=fmtNum(stats.stats.players);
+ document.getElementById("gameCount").textContent=fmtNum(stats.stats.games);
+ document.getElementById("coinCount").textContent=fmtINR(stats.stats.coins);
+ document.getElementById("reserveOverviewCount").textContent=fmtINR(stats.stats.reserve_balance);
  await Promise.all([loadGames(),loadPlayers(),loadRecords(),loadCricket(),loadPredictionMatches(),loadMonitoring()]);
 }
+
 async function loadGames(){
  const box=document.getElementById("gameList");
  try{
@@ -199,15 +228,17 @@ async function loadGames(){
   }));
  }catch(e){box.innerHTML='<div class="notice">'+safe(e.message)+'</div>'}
 }
+
 async function loadPlayers(){
  const box=document.getElementById("playerList"),msg=document.getElementById("playerMsg");
  try{
   const d=await api("/api/dashboard?module=gaming&action=players");
   msg.textContent=d.players.length+" player(s)";
-  box.innerHTML=d.players.length?d.players.map(p=>'<div class="row"><div><b>'+safe(p.display_name)+' (@'+safe(p.username)+')</b><p>Balance: ₹'+Number(p.virtual_coins).toLocaleString("en-IN")+' · Joined: '+new Date(p.created_at).toLocaleDateString("en-IN")+'</p></div><div style="display:flex;align-items:center;gap:7px"><span class="pill">'+safe(p.status)+'</span><button class="btn" data-player="'+p.id+'" data-status="'+(p.status==="ACTIVE"?"SUSPENDED":"ACTIVE")+'">'+(p.status==="ACTIVE"?"Suspend":"Activate")+'</button></div></div>').join(""):'<div class="notice">No players have registered yet.</div>';
+  box.innerHTML=d.players.length?d.players.map(p=>'<div class="row"><div><b>'+safe(p.display_name)+' (@'+safe(p.username)+')</b><p>Balance: '+fmtINR(p.virtual_coins)+' · Joined: '+new Date(p.created_at).toLocaleDateString("en-IN")+'</p></div><div style="display:flex;align-items:center;gap:7px"><span class="pill">'+safe(p.status)+'</span><button class="btn" data-player="'+p.id+'" data-status="'+(p.status==="ACTIVE"?"SUSPENDED":"ACTIVE")+'">'+(p.status==="ACTIVE"?"Suspend":"Activate")+'</button></div></div>').join(""):'<div class="notice">No players have registered yet.</div>';
   box.querySelectorAll("[data-player]").forEach(b=>b.addEventListener("click",async()=>{try{await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"player_status",player_id:b.dataset.player,status:b.dataset.status})});await loadPlayers()}catch(e){msg.textContent=e.message}}));
  }catch(e){msg.textContent=e.message}
 }
+
 async function loadCricket(){
  const msg=document.getElementById("cricketMsg"),box=document.getElementById("cricketList");
  try{
@@ -218,183 +249,139 @@ async function loadCricket(){
   box.innerHTML=matches.length?matches.map(m=>{const home=m.localteam?.name||m.localteam?.data?.name||"Team";const away=m.visitorteam?.name||m.visitorteam?.data?.name||"Opponent";const score=Array.isArray(m.scoreboards)?m.scoreboards.map(s=>[s.team?.name||s.team_name,s.total||s.score,s.wickets,s.overs].filter(Boolean).join(" ")).join(" · "):"";return '<div class="row"><div><b>'+safe(home)+' vs '+safe(away)+'</b><p>'+safe(m.status||"Scheduled")+' · '+safe(m.starting_at||"")+(score?" · "+safe(score):"")+'</p></div><span class="pill">'+(m.live?"LIVE":"MATCH")+'</span></div>'}).join(""):'<div class="notice">No live matches returned by the provider right now.</div>';
  }catch(e){msg.textContent="Cricket data unavailable: "+e.message}
 }
+
 async function loadRecords(){
  const box=document.getElementById("recordList"),msg=document.getElementById("recordMsg");
  try{
   const d=await api("/api/dashboard?module=gaming&action=records");
   msg.textContent=d.records.length+" records";
-  box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">₹'+Number(x.coins_change).toLocaleString("en-IN")+'</span></div>').join(""):'<div class="notice">No session records available yet.</div>';
+  box.innerHTML=d.records.length?d.records.map(x=>'<div class="row"><div><b>'+safe(x.username)+' · '+safe(x.game_code)+'</b><p>'+new Date(x.created_at).toLocaleString("en-IN")+'</p></div><span class="pill">'+fmtINR(x.coins_change)+'</span></div>').join(""):'<div class="notice">No session records available yet.</div>';
  }catch(e){msg.textContent=e.message}
 }
-let latestMonitoring=null;
-async function loadMonitoring(){
- const matchBox=document.getElementById("monitorMatchList"),auditBox=document.getElementById("monitorAuditList");
- try{
-  const d=await api("/api/dashboard?module=gaming&action=monitoring"),m=d.monitoring;
-  latestMonitoring=m;
-  const fmt=v=>Number(v||0).toLocaleString("en-IN");
-  const cfg=m.alert_settings||{min_predictions:5,imbalance_threshold_pct:60};
-  document.getElementById("monitorMinPredictions").value=cfg.min_predictions;
-  document.getElementById("monitorImbalanceThreshold").value=cfg.imbalance_threshold_pct;
-  document.getElementById("monAlertRule").textContent=cfg.min_predictions+"+ picks and "+cfg.imbalance_threshold_pct+"%+ largest-side share";
-  document.getElementById("monExposureTotal").textContent=fmt(m.exposure.total_predictions);
-  document.getElementById("monExposureAlerts").textContent=fmt(m.exposure.unbalanced_matches);
-  document.getElementById("monLiquidity").textContent="₹"+fmt(m.liquidity.virtual_points);
-  document.getElementById("monReserve").textContent="₹"+fmt(Number(m.liquidity.virtual_points)*0.10);
-  document.getElementById("monSettled").textContent=fmt(m.settlement.settled_matches);
-  document.getElementById("monCorrect").textContent=fmt(m.settlement.correct);
-  matchBox.innerHTML=m.exposure.matches.length?m.exposure.matches.map(x=>{
-   const alert=Number(x.prediction_count)>=Number(cfg.min_predictions)&&Number(x.imbalance_percent)>=Number(cfg.imbalance_threshold_pct);
-   return '<div class="row"><div style="min-width:0;flex:1"><b>'+safe(x.title)+'</b><p>'+safe(x.side_a)+': '+fmt(x.side_a_count)+' · '+safe(x.side_b)+': '+fmt(x.side_b_count)+' · Total: '+fmt(x.prediction_count)+'</p><p>Largest side share: '+fmt(x.imbalance_percent)+'% · '+safe(x.status)+(x.result_label?' · Result: '+safe(x.result_label):'')+'</p></div><span class="pill">'+(alert?'UNBALANCED':'BALANCED')+'</span></div>';
-  }).join(""):'<div class="notice">No match exposure records available yet.</div>';
-  auditBox.innerHTML=m.settlement.recent.length?m.settlement.recent.map(x=>'<div class="row"><div><b>'+safe(x.event_type)+'</b><p>'+safe(x.event_note)+' · Match #'+safe(x.match_id||"—")+'</p></div><span class="pill">'+new Date(x.created_at).toLocaleString("en-IN")+'</span></div>').join(""):'<div class="notice">No settlement audit events recorded yet.</div>';
- }catch(e){matchBox.textContent="Monitoring unavailable: "+e.message;auditBox.textContent="Audit data unavailable."}
-}
-document.getElementById("refreshMonitoring").addEventListener("click",loadMonitoring);
-document.getElementById("exportMonitoring").addEventListener("click",()=>{
- if(!latestMonitoring){document.getElementById("monitorSettingsMsg").textContent="Please click Refresh Monitor first.";return}
- const m=latestMonitoring,rows=[
-  ["Report","ParixBet Real Match Monitoring"],["Generated At",new Date().toISOString()],
-  ["Total Picks",m.exposure.total_predictions],["Unbalanced Matches",m.exposure.unbalanced_matches],
-  ["Settled Matches",m.settlement.settled_matches],[],
-  ["Match ID","Sport","Match","Side A Picks","Side B Picks","Total Picks","Largest Side Share %","Status","Result"]
- ];
- (m.exposure.matches||[]).forEach(x=>rows.push([x.id,x.sport,x.title,x.side_a_count,x.side_b_count,x.prediction_count,x.imbalance_percent,x.status,x.result_label||"Pending"]));
- const csv=rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
- const link=document.createElement("a");
- link.href="data:text/csv;charset=utf-8,\uFEFF"+encodeURIComponent(csv);
- link.download="parixbet-monitoring-"+new Date().toISOString().slice(0,10)+".csv";
- document.body.appendChild(link);link.click();link.remove();
-});
-document.getElementById("saveMonitorSettings").addEventListener("click",async()=>{
- const button=document.getElementById("saveMonitorSettings"),msg=document.getElementById("monitorSettingsMsg");
- button.disabled=true;msg.textContent="Saving alert settings…";
- try{
-  const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({
-   action:"update_monitor_settings",
-   min_predictions:Number(document.getElementById("monitorMinPredictions").value),
-   imbalance_threshold_pct:Number(document.getElementById("monitorImbalanceThreshold").value)
-  })});
-  msg.textContent=d.message;
-  await loadMonitoring();
- }catch(e){msg.textContent=e.message}
- finally{button.disabled=false}
-});
-async function loadPredictionMatches(){
- const box=document.getElementById("predictionMatchList");
- try{
-  const d=await api("/api/dashboard?module=gaming&action=prediction_matches");
-  box.innerHTML=d.matches.length?d.matches.map(m=>{
-   const status=m.result_side?"RESULT: "+safe(m.result_label||m.result_side):"RESULT PENDING";
-   const source=m.result_source==="API"?"Automatic API":m.result_source==="MANUAL"?"Manual Admin":m.result_source==="API_REVIEW"?"API · Manual review needed":"—";
-   const canToggle=!m.result_side&&["UPCOMING","LOCKED"].includes(m.status);
-   const lockButton=canToggle?'<button class="btn" data-match-lock="'+m.id+'" data-next-status="'+(m.status==="LOCKED"?"UPCOMING":"LOCKED")+'">'+(m.status==="LOCKED"?"Reopen Predictions":"Lock Predictions")+'</button>':"";
-   const resultButtons=m.result_side?"":'<button class="btn" data-result-match="'+m.id+'" data-result-side="A">'+safe(m.side_a)+' won</button><button class="btn" data-result-match="'+m.id+'" data-result-side="B">'+safe(m.side_b)+' won</button><button class="btn" data-result-match="'+m.id+'" data-result-side="D">Draw / No Result</button>';
-   return '<div class="row" style="align-items:flex-start"><div style="min-width:0;flex:1"><b>'+safe(m.title)+'</b><p>'+safe(m.sport)+' · '+safe(m.side_a)+' vs '+safe(m.side_b)+'</p><p>'+status+' · '+safe(source)+' · Picks: '+Number(m.prediction_count||0)+' · Winners: '+Number(m.correct_count||0)+'</p></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+lockButton+resultButtons+'</div></div>';
-  }).join(""):'<div class="notice">No matches added yet. Add a match or sync provider results.</div>';
-  box.querySelectorAll("[data-match-lock]").forEach(b=>b.addEventListener("click",async()=>{
-   const nextStatus=b.dataset.nextStatus;
-   if(!confirm(nextStatus==="LOCKED"?"Lock new and updated picks for this match?":"Reopen picks for this match?"))return;
-   b.disabled=true;
-   try{
-    const d=await api("/api/dashboard?module=gaming",{method:"PATCH",body:JSON.stringify({action:"prediction_match_status",match_id:Number(b.dataset.matchLock),status:nextStatus})});
-    document.getElementById("predictionSyncMsg").textContent=d.message;
-    await Promise.all([loadPredictionMatches(),loadMonitoring()]);
-   }catch(e){document.getElementById("predictionSyncMsg").textContent=e.message;b.disabled=false}
-  }));
-  box.querySelectorAll("[data-result-match]").forEach(b=>b.addEventListener("click",async()=>{
-   if(!confirm("Save and settle this as the final match result?"))return;
-   b.disabled=true;
-   try{
-    const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"manual_match_result",match_id:Number(b.dataset.resultMatch),result_side:b.dataset.resultSide})});
-    document.getElementById("predictionSyncMsg").textContent="Result settled. "+d.predictions.correct+" winning pick(s) out of "+d.predictions.total+".";
-    await Promise.all([loadPredictionMatches(),loadMonitoring()]);
-   }catch(e){document.getElementById("predictionSyncMsg").textContent=e.message;b.disabled=false}
-  }));
- }catch(e){box.textContent="Could not load match results: "+e.message}
-}
-document.getElementById("predictionMatchForm").addEventListener("submit",async e=>{
- e.preventDefault();const form=e.currentTarget,button=form.querySelector("button[type=submit]");
- button.disabled=true;
- try{
-  const payload=Object.fromEntries(new FormData(form));
-  await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"create_prediction_match",...payload})});
-  form.reset();document.getElementById("predictionSyncMsg").textContent="Match added.";
-  await Promise.all([loadPredictionMatches(),loadMonitoring()]);
- }catch(err){document.getElementById("predictionSyncMsg").textContent=err.message}
- finally{button.disabled=false}
-});
-document.getElementById("syncPredictionResults").addEventListener("click",async()=>{
- const button=document.getElementById("syncPredictionResults"),msg=document.getElementById("predictionSyncMsg");
- button.disabled=true;msg.textContent="Checking connected sports data providers…";
- try{
-  const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"sync_match_results"})});
-  msg.textContent="Checked "+d.checked+" finished matches · Automatically updated "+d.updated+" · Need manual review "+d.needs_manual_review+(d.errors?.length?" · "+d.errors.join(" | "):"");
-  await Promise.all([loadPredictionMatches(),loadMonitoring()]);
- }catch(e){msg.textContent="Sync failed: "+e.message}
- finally{button.disabled=false}
-});
-function safe(v){return String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
-document.getElementById("playerForm").addEventListener("submit",async e=>{
- e.preventDefault();const form=e.currentTarget,button=form.querySelector("button"),msg=document.getElementById("playerMsg");
- button.disabled=true;
- try{
-  const payload=Object.fromEntries(new FormData(form));
-  const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"create_player",...payload})});
-  form.reset();msg.textContent="Player created: "+d.player.username+" · ₹1,000 initial balance added.";
-  await loadGaming();
- }catch(err){msg.textContent=err.message}
- finally{button.disabled=false}
-});
-async function init(){
- try{
-  const user=JSON.parse(sessionStorage.getItem("parixbet_admin_user")||"null");
-  if(!token||user?.role!=="GAMING_ADMIN")return goLogin();
-  document.getElementById("authStatus").textContent="Signed in: "+(user.display_name||user.user_id||"ParixBet Admin")+" · Live gaming services active.";
-  await loadGaming();
- }catch(e){document.getElementById("authStatus").textContent="Data could not be loaded: "+e.message}
-}
-const settlementEngine={entries:[],result:null,correct:0};
-function engineLog(message){document.getElementById("engineLog").textContent=typeof message==="string"?message:JSON.stringify(message,null,2)}
-function engineRender(){
- const a=settlementEngine.entries.filter(x=>x.side==="A").length,b=settlementEngine.entries.filter(x=>x.side==="B").length;
- document.getElementById("engineCountA").textContent=a;
- document.getElementById("engineCountB").textContent=b;
- document.getElementById("engineTotal").textContent=settlementEngine.entries.length;
- document.getElementById("engineCorrect").textContent=settlementEngine.correct;
- const labelA=document.getElementById("engineLabelA").value.trim()||"Team / Player A";
- const labelB=document.getElementById("engineLabelB").value.trim()||"Team / Player B";
+
+let activeEngineSession=null;
+let engineLabelsInitialized=false;
+
+function renderEngineSession(s){
+ if(!s)return;
+ activeEngineSession=s;
+ const a=Number(s.picks_a||0),b=Number(s.picks_b||0),total=Number(s.total_picks||0);
+ document.getElementById("engineCountA").textContent=fmtNum(a);
+ document.getElementById("engineCountB").textContent=fmtNum(b);
+ document.getElementById("engineMultiplier").textContent=Number(s.multiplier||1).toFixed(2)+"x";
+ document.getElementById("engineFormulaTag").textContent=(s.engine_mode||"SCORE_POOL")+" · Tier "+(s.risk_tier||3)+" ("+(s.reserve_pct||10)+"% reserve)";
+ document.getElementById("engineCorrect").textContent=fmtNum(s.effective_score||0);
+
+ if(!engineLabelsInitialized){
+  if(s.label_a)document.getElementById("engineLabelA").value=s.label_a;
+  if(s.label_b)document.getElementById("engineLabelB").value=s.label_b;
+  if(s.engine_mode)document.getElementById("engineMode").value=s.engine_mode;
+  if(s.risk_tier)document.getElementById("engineDifficulty").value=String(s.risk_tier);
+  engineLabelsInitialized=true;
+ }
+
+ const labelA=document.getElementById("engineLabelA").value.trim()||s.label_a||"Team / Player A";
+ const labelB=document.getElementById("engineLabelB").value.trim()||s.label_b||"Team / Player B";
  document.getElementById("enginePickA").textContent="Record Pick: "+labelA;
  document.getElementById("enginePickB").textContent="Record Pick: "+labelB;
  document.getElementById("engineSettleA").textContent="Settle Winner: "+labelA;
  document.getElementById("engineSettleB").textContent="Settle Winner: "+labelB;
- const summary=settlementEngine.result
-  ? "Settled Winner: "+(settlementEngine.result==="A"?labelA:labelB)+". Winning picks: "+settlementEngine.correct+" / "+settlementEngine.entries.length+"."
-  : "Picks recorded: "+settlementEngine.entries.length+". "+labelA+": "+a+" · "+labelB+": "+b+". Ready for result settlement.";
- document.getElementById("engineSummary").textContent=summary;
+
+ const isSettled=s.status==="SETTLED"&&s.winner_side;
+ const winnerName=s.winner_side==="A"?labelA:(s.winner_side==="B"?labelB:"None");
+ document.getElementById("engineWinnerTag").textContent=isSettled?("Winner: "+winnerName+" ("+s.winning_picks+"/"+total+")"):"Status: "+(s.status||"OPEN");
+ document.getElementById("engineSummary").textContent=isSettled
+  ? "Session #"+s.id+" Settled · Winner: "+winnerName+" · Winning Picks: "+s.winning_picks+"/"+total+" · Multiplier: "+Number(s.multiplier).toFixed(2)+"x · Settled Score: "+fmtNum(s.effective_score)+" · Exposure Units: "+fmtNum(s.exposure_units)
+  : "Session #"+s.id+" (DB Persisted) · Mode: "+(s.engine_mode||"SCORE_POOL")+" · Risk Tier: "+(s.risk_tier||3)+" ("+(s.reserve_pct||10)+"% reserve) · "+labelA+": "+a+" · "+labelB+": "+b+" · Total: "+total+" · Projected Multiplier: "+Number(s.multiplier||1).toFixed(2)+"x";
 }
-function engineAdd(side){
- if(settlementEngine.result){engineLog("This session is already settled. Reset the session before recording new picks.");return}
- if(settlementEngine.entries.length>=500){engineLog("Session limit reached (500 picks).");return}
- const label=document.getElementById(side==="A"?"engineLabelA":"engineLabelB").value.trim()||(side==="A"?"Team / Player A":"Team / Player B");
- settlementEngine.entries.push({side,label,at:new Date().toISOString()});
- engineRender();engineLog({event:"Pick recorded",selection:label,totalPicks:settlementEngine.entries.length});
+
+function getEngineFormPayload(){
+ return {
+  engine_mode:document.getElementById("engineMode").value,
+  risk_tier:Number(document.getElementById("engineDifficulty").value),
+  label_a:document.getElementById("engineLabelA").value.trim()||"Team / Player A",
+  label_b:document.getElementById("engineLabelB").value.trim()||"Team / Player B"
+ };
 }
-function engineSettle(side){
- if(!settlementEngine.entries.length){engineLog("Record at least one pick first.");return}
- if(settlementEngine.result){engineLog("This session already has a settled result. Reset to start a new session.");return}
- settlementEngine.result=side;settlementEngine.correct=settlementEngine.entries.filter(x=>x.side===side).length;
- engineRender();engineLog({event:"Match settled",winner:side==="A"?(document.getElementById("engineLabelA").value||"Team A"):(document.getElementById("engineLabelB").value||"Team B"),winningPicks:settlementEngine.correct,totalPicks:settlementEngine.entries.length});
+
+function engineLog(message){
+ document.getElementById("engineLog").textContent=typeof message==="string"?message:JSON.stringify(message,null,2);
 }
-function engineReset(){
- settlementEngine.entries=[];settlementEngine.result=null;settlementEngine.correct=0;engineRender();engineLog("Session reset.");
+
+async function loadEngineSession(){
+ const d=await api("/api/dashboard?module=gaming&action=engine_session");
+ renderEngineSession(d.session);
+ engineLog({
+  event:"Session synced from Neon PostgreSQL",
+  session_id:d.session.id,status:d.session.status,mode:d.session.engine_mode,
+  risk_tier:d.session.risk_tier,reserve_pct:d.session.reserve_pct+"%",
+  multiplier:d.session.multiplier+"x",effective_score:d.session.effective_score
+ });
 }
-document.getElementById("enginePickA").addEventListener("click",()=>engineAdd("A"));
-document.getElementById("enginePickB").addEventListener("click",()=>engineAdd("B"));
-document.getElementById("engineSettleA").addEventListener("click",()=>engineSettle("A"));
-document.getElementById("engineSettleB").addEventListener("click",()=>engineSettle("B"));
-document.getElementById("engineReset").addEventListener("click",engineReset);
-["engineLabelA","engineLabelB","engineMode","engineDifficulty"].forEach(id=>document.getElementById(id).addEventListener("change",engineRender));
+async function engineAdd(side){
+ if(activeEngineSession?.status==="SETTLED"){
+  engineLog("This session is already SETTLED in database. Click Reset Session to start a new session.");
+  return;
+ }
+ try{
+  const d=await api("/api/dashboard?module=gaming",{
+   method:"POST",
+   body:JSON.stringify({action:"engine_pick",selection_side:side,...getEngineFormPayload()})
+  });
+  renderEngineSession(d.session);
+  engineLog({event:"Pick saved to Neon PostgreSQL",side,...d.session});
+  await loadMonitoring();
+ }catch(e){engineLog("Pick error: "+e.message)}
+}
+
+async function engineSettle(side){
+ if(!activeEngineSession||(activeEngineSession.total_picks||0)<1){
+  engineLog("Record at least one pick before settling.");
+  return;
+ }
+ if(activeEngineSession.status==="SETTLED"){
+  engineLog("This session is already settled. Reset to start a new session.");
+  return;
+ }
+ try{
+  const d=await api("/api/dashboard?module=gaming",{
+   method:"POST",
+   body:JSON.stringify({action:"engine_settle",winner_side:side,...getEngineFormPayload()})
+  });
+  renderEngineSession(d.session);
+  engineLog({event:"Settlement saved to Neon PostgreSQL",winner_side:side,...d.session});
+  await loadMonitoring();
+ }catch(e){engineLog("Settlement error: "+e.message)}
+}
+
+async function engineReset(){
+ try{
+  const d=await api("/api/dashboard?module=gaming",{method:"POST",body:JSON.stringify({action:"engine_reset"})});
+  engineLabelsInitialized=false;
+  renderEngineSession(d.session);
+  engineLabelsInitialized=true;
+  engineLog({event:"Previous session archived & new session created in Neon PostgreSQL",new_session_id:d.session.id});
+  await loadMonitoring();
+ }catch(e){engineLog("Reset error: "+e.message)}
+}
+
+let latestMonitoring=null;
+async function loadMonitoring(){
+ const matchBox=document.getElementById("monitorMatchList"),auditBox=document.getElementById("monitorAuditList"),reserveLedgerBox=document.getElementById("reserveLedgerList");
+ try{
+  const d=await api("/api/dashboard?module=gaming&action=monitoring"),m=d.monitoring;
+  latestMonitoring=m;
+  const cfg=m.alert_settings||{min_predictions:5,imbalance_threshold_pct:60};
+  document.getElementById("monitorMinPredictions").value=cfg.min_predictions;
+  document.getElementById("monitorImbalanceThreshold").value=cfg.imbalance_threshold_pct;
+  document.getElementById("monAlertRule").textContent=cfg.min_predictions+"+ picks and "+cfg.imbalance_threshold_pct+"%+ largest-side share";
+  document.getElementById("monExposureTotal").textContent=fmtNum(m.exposure.total_predictions);
+  document.getElementById("monExposureAlerts").textContent=fmtNum(m.exposure.unbalanced_matches);
+  const playerBal=Number(m.liquidity.player_balance ?? m.liquidity.virtual_points ?? 0);
+  const realReserve=Number(m.liquidity.real_reserve || 0);
+  const reqReserve=Number(m.liquidity.required_tier_reserve || 0);
+  document.getElementById("monLiquidity").textContent=fmtINR(playerBal);
+  document.getElementById("engineLabelA").addEventListener("input",engineRender));
 engineRender();
 document.getElementById("menu").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
 document.querySelectorAll(".sidebar nav a").forEach(a=>a.addEventListener("click",()=>document.getElementById("sidebar").classList.remove("open")));
@@ -402,3 +389,6 @@ init();
 </script>
 </body>
 </html>
+
+
+
