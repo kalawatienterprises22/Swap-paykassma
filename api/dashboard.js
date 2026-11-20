@@ -2,7 +2,7 @@ const { getPool } = require("./_lib/db");
 const { sendJson, allowMethods } = require("./_lib/http");
 const { verifyToken } = require("./_lib/auth");
 const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
+const { createToken, verifyToken } = require("./_lib/auth");
 
 const RISK_TIER_CONFIG = {
   1: { label: "1 · Low", reservePct: 5, weight: 1.0 },
@@ -13,32 +13,23 @@ const RISK_TIER_CONFIG = {
 };
 
 function signPlayerToken(payload) {
-  const secret = process.env.JWT_SECRET || process.env.AUTH_SECRET || "parixbet-fallback-secret-key";
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const body = Buffer.from(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + 7 * 86400 })).toString("base64url");
-  const sig = crypto.createHmac("sha256", secret).update(header + "." + body).digest("base64url");
-  return header + "." + body + "." + sig;
+  return createToken({
+    id: payload.sub,
+    user_id: payload.username,
+    role: payload.role
+  });
 }
 
 function readPlayerAuth(req) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) return null;
+
   try {
     const user = verifyToken(token);
     if (user && user.role === "GAMING_PLAYER" && user.sub) return user;
   } catch {}
-  try {
-    const parts = token.split(".");
-    if (parts.length === 3) {
-      const secret = process.env.JWT_SECRET || process.env.AUTH_SECRET || "parixbet-fallback-secret-key";
-      const expected = crypto.createHmac("sha256", secret).update(parts[0] + "." + parts[1]).digest("base64url");
-      if (expected === parts[2]) {
-        const data = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
-        if (data.role === "GAMING_PLAYER" && data.sub && (!data.exp || data.exp > Math.floor(Date.now() / 1000))) return data;
-      }
-    }
-  } catch {}
+
   return null;
 }
 
@@ -278,6 +269,9 @@ module.exports = async (req, res) => {
           [authPlayer.sub]
         );
         if (!pRes.rowCount) return sendJson(res, 404, { ok: false, message: "Player not found" });
+        if (pRes.rows[0].status !== "ACTIVE") {
+          return sendJson(res, 403, { ok: false, message: "Player account is unavailable" });
+        }
         const ledger = await pool.query(
           "SELECT id, amount, entry_type, note, created_at FROM sp_game_coin_ledger WHERE player_id = $1 ORDER BY id DESC LIMIT 15",
           [authPlayer.sub]
@@ -375,6 +369,13 @@ module.exports = async (req, res) => {
     try {
       const pool = getPool();
       await ensureGamingTables(pool);
+      const activePlayer = await pool.query(
+        "SELECT id FROM sp_game_players WHERE id = $1 AND status = 'ACTIVE' LIMIT 1",
+        [authPlayer.sub]
+      );
+      if (!activePlayer.rowCount) {
+        return sendJson(res, 403, { ok: false, message: "Player account is unavailable" });
+      }
       const gamesRes = await pool.query("SELECT game_code, title, description, enabled FROM sp_game_settings ORDER BY game_code ASC");
       if (req.method === "GET") {
         const sess = await pool.query(
