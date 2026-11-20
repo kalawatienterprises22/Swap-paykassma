@@ -400,7 +400,7 @@ async function loadLiveFeeds() {
   }
   sum.textContent = statusParts.join(" · ");
   box.innerHTML = items.length
-   ? items.map(it => '<div class="row-item"><div><b>' + esc(it.title) + '</b><div class="muted">' + esc(it.sport)) + '</div></div><span class="pill">' + esc(it.meta) + '</span></div>').join("")
+   ? items.map(it => '<div class="row-item"><div><b>' + esc(it.title) + '</b><div class="muted">' + esc(it.sport) + '</div></div><span class="pill">' + esc(it.meta) + '</span></div>').join("")
    : '<p class="muted">No live provider matches active right now.</p>';
  } catch (e) {
   sum.textContent = "Feed check error: " + e.message;
