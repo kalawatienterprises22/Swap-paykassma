@@ -1,6 +1,5 @@
 const { getPool } = require("./_lib/db");
 const { sendJson, allowMethods } = require("./_lib/http");
-const { verifyToken } = require("./_lib/auth");
 const bcrypt = require("bcryptjs");
 const { createToken, verifyToken } = require("./_lib/auth");
 
