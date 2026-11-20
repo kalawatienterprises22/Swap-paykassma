@@ -97,7 +97,7 @@ html{scroll-behavior:smooth;scroll-padding-top:76px}body{background:#f2f3f5;colo
 let mode="login";const form=document.getElementById("authForm"),msg=document.getElementById("msg");
 function setMode(next){mode=next;document.getElementById("loginTab").classList.toggle("active",mode==="login");document.getElementById("registerTab").classList.toggle("active",mode==="register");document.getElementById("nameWrap").classList.toggle("hidden",mode!=="register");document.getElementById("submitBtn").textContent=mode==="login"?"Login":"Create account";msg.textContent=""}
 document.getElementById("loginTab").onclick=()=>setMode("login");document.getElementById("registerTab").onclick=()=>setMode("register");
-async function request(url,options={}){const r=await fetch(url,options);const d=await r.json().catch(()=>({ok:false,message:"Server response error"}));if(!r.ok||!d.ok)throw Error(d.message||"Request failed");return d}
+async function request(url,options={}){const r=await fetch(url,options);const d=await r.json().catch(()=>({ok:false,message:"Server response error"}));if(r.status===401||r.status===403){sessionStorage.removeItem("game_token");sessionStorage.removeItem("game_user");}if(!r.ok||!d.ok)throw Error(d.message||"Request failed");return d}
 let tapCount=0,tapActive=false,tapStarted=0,tapTimer=null;
 const tapStart=document.getElementById("tapStart"),tapButton=document.getElementById("tapButton");
 tapStart.addEventListener("click",()=>{if(tapActive)return;tapCount=0;tapActive=true;tapStarted=Date.now();document.getElementById("tapScore").textContent="0 taps";document.getElementById("tapMsg").textContent="Tap quickly!";tapStart.classList.add("hidden");tapButton.classList.remove("hidden");tapTimer=setTimeout(finishTap,10000)});
