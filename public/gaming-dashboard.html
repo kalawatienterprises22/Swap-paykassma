@@ -365,26 +365,143 @@ async function engineReset(){
  }catch(e){engineLog("Reset error: "+e.message)}
 }
 
-let latestMonitoring=null;
-async function loadMonitoring(){
- const matchBox=document.getElementById("monitorMatchList"),auditBox=document.getElementById("monitorAuditList"),reserveLedgerBox=document.getElementById("reserveLedgerList");
- try{
-  const d=await api("/api/dashboard?module=gaming&action=monitoring"),m=d.monitoring;
-  latestMonitoring=m;
-  const cfg=m.alert_settings||{min_predictions:5,imbalance_threshold_pct:60};
-  document.getElementById("monitorMinPredictions").value=cfg.min_predictions;
-  document.getElementById("monitorImbalanceThreshold").value=cfg.imbalance_threshold_pct;
-  document.getElementById("monAlertRule").textContent=cfg.min_predictions+"+ picks and "+cfg.imbalance_threshold_pct+"%+ largest-side share";
-  document.getElementById("monExposureTotal").textContent=fmtNum(m.exposure.total_predictions);
-  document.getElementById("monExposureAlerts").textContent=fmtNum(m.exposure.unbalanced_matches);
-  const playerBal=Number(m.liquidity.player_balance ?? m.liquidity.virtual_points ?? 0);
-  const realReserve=Number(m.liquidity.real_reserve || 0);
-  const reqReserve=Number(m.liquidity.required_tier_reserve || 0);
-  document.getElementById("monLiquidity").textContent=fmtINR(playerBal);
-  document.getElementById("engineLabelA").addEventListener("input",engineRender));
+let latestMonitoring = null;
+async function loadMonitoring() {
+ const matchBox = document.getElementById("monitorMatchList");
+ const auditBox = document.getElementById("monitorAuditList");
+ const reserveLedgerBox = document.getElementById("reserveLedgerList");
+ try {
+  const d = await api("/api/dashboard?module=gaming&action=monitoring");
+  const m = d.monitoring;
+  latestMonitoring = m;
+
+  const cfg = m.alert_settings || { min_predictions: 5, imbalance_threshold_pct: 60 };
+  document.getElementById("monitorMinPredictions").value = cfg.min_predictions;
+  document.getElementById("monitorImbalanceThreshold").value = cfg.imbalance_threshold_pct;
+  document.getElementById("monAlertRule").textContent = cfg.min_predictions + "+ picks and " + cfg.imbalance_threshold_pct + "%+ largest-side share";
+
+  document.getElementById("monExposureTotal").textContent = fmtNum(m.exposure.total_predictions);
+  document.getElementById("monExposureAlerts").textContent = fmtNum(m.exposure.unbalanced_matches);
+
+  const playerBal = Number(m.liquidity.player_balance ?? m.liquidity.virtual_points ?? 0);
+  const realReserve = Number(m.liquidity.real_reserve || 0);
+  const reqReserve = Number(m.liquidity.required_tier_reserve || 0);
+  document.getElementById("monLiquidity").textContent = fmtINR(playerBal);
+  document.getElementById("monReserve").textContent = fmtINR(realReserve);
+  document.getElementById("reserveOverviewCount").textContent = fmtINR(realReserve);
+  document.getElementById("monReserveReq").textContent = "Tier " + (m.liquidity.risk_tier || 3) + " (" + (m.liquidity.tier_reserve_pct || 10) + "%) target: " + fmtINR(reqReserve);
+
+  document.getElementById("monSettled").textContent = fmtNum(m.settlement.settled_matches);
+  document.getElementById("monCorrect").textContent = fmtNum(m.settlement.correct);
+
+  if (m.engine_session) {
+   renderEngineSession(m.engine_session);
+  }
+
+  const rLedger = m.liquidity.reserve_ledger || [];
+  reserveLedgerBox.innerHTML = rLedger.length
+   ? rLedger.map(x => '<div class="row"><div><b>' + safe(x.entry_type) + ' · ' + fmtINR(x.amount) + '</b><p>' + safe(x.note || "") + ' · ' + new Date(x.created_at).toLocaleString("en-IN") + '</p></div><span class="pill">Bal: ' + fmtINR(x.balance_after) + '</span></div>').join("")
+   : '<div class="notice">No reserve ledger entries yet. Use the form above to add or set real reserve balance.</div>';
+
+  matchBox.innerHTML = m.exposure.matches.length
+   ? m.exposure.matches.map(x => {
+      const alert = Number(x.prediction_count) >= Number(cfg.min_predictions) && Number(x.imbalance_percent) >= Number(cfg.imbalance_threshold_pct);
+      return '<div class="row"><div style="min-width:0;flex:1"><b>' + safe(x.title) + '</b><p>' + safe(x.side_a) + ': ' + fmtNum(x.side_a_count) + ' · ' + safe(x.side_b) + ': ' + fmtNum(x.side_b_count) + ' · Total: ' + fmtNum(x.prediction_count) + '</p><p>Largest side share: ' + fmtNum(x.imbalance_percent) + '% · ' + safe(x.status) + (x.result_label ? ' · Result: ' + safe(x.result_label) : '') + '</p></div><span class="pill">' + (alert ? 'UNBALANCED' : 'BALANCED') + '</span></div>';
+     }).join("")
+   : '<div class="notice">No match exposure records available yet.</div>';
+
+  auditBox.innerHTML = m.settlement.recent.length
+   ? m.settlement.recent.map(x => '<div class="row"><div><b>' + safe(x.event_type) + '</b><p>' + safe(x.event_note) + ' · Match #' + safe(x.match_id || "—") + '</p></div><span class="pill">' + new Date(x.created_at).toLocaleString("en-IN") + '</span></div>').join("")
+   : '<div class="notice">No settlement audit events recorded yet.</div>';
+ } catch (e) {
+  matchBox.textContent = "Monitoring unavailable: " + e.message;
+  auditBox.textContent = "Audit data unavailable.";
+ }
+}
+
+document.getElementById("saveReserveBtn").addEventListener("click", async () => {
+ const btn = document.getElementById("saveReserveBtn");
+ const msg = document.getElementById("reserveMsg");
+ btn.disabled = true;
+ msg.textContent = "Updating real reserve in Neon…";
+ try {
+  const d = await api("/api/dashboard?module=gaming", {
+   method: "POST",
+   body: JSON.stringify({
+    action: "adjust_reserve",
+    entry_type: document.getElementById("reserveActionType").value,
+    amount: Number(document.getElementById("reserveAmount").value),
+    note: document.getElementById("reserveNote").value.trim()
+   })
+  });
+  msg.textContent = d.message;
+  document.getElementById("reserveAmount").value = "";
+  document.getElementById("reserveNote").value = "";
+  await loadMonitoring();
+ } catch (e) {
+  msg.textContent = e.message;
+ } finally {
+  btn.disabled = false;
+ }
+});
+
+document.getElementById("refreshMonitoring").addEventListener("click", loadMonitoring);
+
+document.getElementById("exportMonitoring").addEventListener("click", () => {
+ if (!latestMonitoring) {
+  document.getElementById("monitorSettingsMsg").textContent = "Please click Refresh Monitor first.";
+  return;
+ }
+ const m = latestMonitoring;
+ const rows = [
+  ["Report", "ParixBet Real Match & Reserve Monitoring"],
+  ["Generated At", new Date().toISOString()],
+  ["Total Picks", m.exposure.total_predictions],
+  ["Unbalanced Matches", m.exposure.unbalanced_matches],
+  ["Real Reserve (INR)", m.liquidity.real_reserve],
+  ["Settled Matches", m.settlement.settled_matches],
+  [],
+  ["Match ID", "Sport", "Match", "Side A Picks", "Side B Picks", "Total Picks", "Largest Side Share %", "Status", "Result"]
+ ];
+ (m.exposure.matches || []).forEach(x => {
+  rows.push([x.id, x.sport, x.title, x.side_a_count, x.side_b_count, x.prediction_count, x.imbalance_percent, x.status, x.result_label || "Pending"]);
+ });
+ const csv = rows.map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n");
+ const link = document.createElement("a");
+ link.href = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(csv);
+ link.download = "parixbet-monitoring-" + new Date().toISOString().slice(0, 10) + ".csv";
+ document.body.appendChild(link);
+ link.click();
+ link.remove();
+});
+
+document.getElementById("saveMonitorSettings").addEventListener("click", async () => {
+ const button = document.getElementById("saveMonitorSettings");
+ const msg = document.getElementById("monitorSettingsMsg");
+ button.disabled = true;
+ msg.textContent = "Saving alert settings…";
+ try {
+  const d = await api("/api/dashboard?module=gaming", {
+   method: "POST",
+   body: JSON.stringify({
+    action: "update_monitor_settings",
+    min_predictions: Number(document.getElementById("monitorMinPredictions").value),
+    imbalance_threshold_pct: Number(document.getElementById("monitorImbalanceThreshold").value)
+   })
+  });
+  msg.textContent = d.message;
+  await loadMonitoring();
+ } catch (e) {
+  msg.textContent = e.message;
+ } finally {
+  button.disabled = false;
+ }
+});
+
+document.getElementById("engineLabelA").addEventListener("input", engineRender);
 engineRender();
-document.getElementById("menu").addEventListener("click",()=>document.getElementById("sidebar").classList.toggle("open"));
-document.querySelectorAll(".sidebar nav a").forEach(a=>a.addEventListener("click",()=>document.getElementById("sidebar").classList.remove("open")));
+document.getElementById("menu").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("open"));
+document.querySelectorAll(".sidebar nav a").forEach(a => a.addEventListener("click", () => document.getElementById("sidebar").classList.remove("open")));
 init();
 </script>
 </body>
