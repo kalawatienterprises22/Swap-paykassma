@@ -498,6 +498,173 @@ document.getElementById("saveMonitorSettings").addEventListener("click", async (
  }
 });
 
+async function loadPredictionMatches() {
+ const box = document.getElementById("predictionMatchList");
+ try {
+  const d = await api("/api/dashboard?module=gaming&action=prediction_matches");
+  box.innerHTML = d.matches.length
+   ? d.matches.map(m => {
+      const status = m.result_side ? "RESULT: " + safe(m.result_label || m.result_side) : "RESULT PENDING";
+      const source = m.result_source === "API" ? "Automatic API" : m.result_source === "MANUAL" ? "Manual Admin" : m.result_source === "API_REVIEW" ? "API · Manual review needed" : "—";
+      const canToggle = !m.result_side && ["UPCOMING", "LOCKED"].includes(m.status);
+      const lockButton = canToggle ? '<button class="btn" data-match-lock="' + m.id + '" data-next-status="' + (m.status === "LOCKED" ? "UPCOMING" : "LOCKED") + '">' + (m.status === "LOCKED" ? "Reopen Predictions" : "Lock Predictions") + '</button>' : "";
+      const resultButtons = m.result_side ? "" : '<button class="btn" data-result-match="' + m.id + '" data-result-side="A">' + safe(m.side_a) + ' won</button><button class="btn" data-result-match="' + m.id + '" data-result-side="B">' + safe(m.side_b) + ' won</button><button class="btn" data-result-match="' + m.id + '" data-result-side="D">Draw / No Result</button>';
+      return '<div class="row" style="align-items:flex-start"><div style="min-width:0;flex:1"><b>' + safe(m.title) + '</b><p>' + safe(m.sport) + ' · ' + safe(m.side_a) + ' vs ' + safe(m.side_b) + '</p><p>' + status + ' · ' + safe(source) + ' · Picks: ' + Number(m.prediction_count || 0) + ' · Winners: ' + Number(m.correct_count || 0) + '</p></div><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + lockButton + resultButtons + '</div></div>';
+     }).join("")
+   : '<div class="notice">No matches added yet. Add a match or sync provider results.</div>';
+
+  box.querySelectorAll("[data-match-lock]").forEach(b => b.addEventListener("click", async () => {
+   const nextStatus = b.dataset.nextStatus;
+   if (!confirm(nextStatus === "LOCKED" ? "Lock new and updated picks for this match?" : "Reopen picks for this match?")) return;
+   b.disabled = true;
+   try {
+    const d = await api("/api/dashboard?module=gaming", {
+     method: "PATCH",
+     body: JSON.stringify({ action: "prediction_match_status", match_id: Number(b.dataset.matchLock), status: nextStatus })
+    });
+    document.getElementById("predictionSyncMsg").textContent = d.message;
+    await Promise.all([loadPredictionMatches(), loadMonitoring()]);
+   } catch (e) {
+    document.getElementById("predictionSyncMsg").textContent = e.message;
+    b.disabled = false;
+   }
+  }));
+
+  box.querySelectorAll("[data-result-match]").forEach(b => b.addEventListener("click", async () => {
+   if (!confirm("Save and settle this as the final match result?")) return;
+   b.disabled = true;
+   try {
+    const d = await api("/api/dashboard?module=gaming", {
+     method: "POST",
+     body: JSON.stringify({ action: "manual_match_result", match_id: Number(b.dataset.resultMatch), result_side: b.dataset.resultSide })
+    });
+    document.getElementById("predictionSyncMsg").textContent = "Result settled. " + d.predictions.correct + " winning pick(s) out of " + d.predictions.total + ".";
+    await Promise.all([loadPredictionMatches(), loadMonitoring()]);
+   } catch (e) {
+    document.getElementById("predictionSyncMsg").textContent = e.message;
+    b.disabled = false;
+   }
+  }));
+ } catch (e) {
+  box.textContent = "Could not load match results: " + e.message;
+ }
+}
+
+document.getElementById("predictionMatchForm").addEventListener("submit", async e => {
+ e.preventDefault();
+ const form = e.currentTarget;
+ const button = form.querySelector("button[type=submit]");
+ button.disabled = true;
+ try {
+  const payload = Object.fromEntries(new FormData(form));
+  await api("/api/dashboard?module=gaming", {
+   method: "POST",
+   body: JSON.stringify({ action: "create_prediction_match", ...payload })
+  });
+  form.reset();
+  document.getElementById("predictionSyncMsg").textContent = "Match added.";
+  await Promise.all([loadPredictionMatches(), loadMonitoring()]);
+ } catch (err) {
+  document.getElementById("predictionSyncMsg").textContent = err.message;
+ } finally {
+  button.disabled = false;
+ }
+});
+
+document.getElementById("syncPredictionResults").addEventListener("click", async () => {
+ const button = document.getElementById("syncPredictionResults");
+ const msg = document.getElementById("predictionSyncMsg");
+ button.disabled = true;
+ msg.textContent = "Checking connected sports data providers…";
+ try {
+  const d = await api("/api/dashboard?module=gaming", {
+   method: "POST",
+   body: JSON.stringify({ action: "sync_match_results" })
+  });
+  msg.textContent = "Checked " + d.checked + " finished matches · Automatically updated " + d.updated + " · Need manual review " + d.needs_manual_review + (d.errors?.length ? " · " + d.errors.join(" | ") : "");
+  await Promise.all([loadPredictionMatches(), loadMonitoring()]);
+ } catch (e) {
+  msg.textContent = "Sync failed: " + e.message;
+ } finally {
+  button.disabled = false;
+ }
+});
+
+function safe(v) {
+ return String(v ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+document.getElementById("playerForm").addEventListener("submit", async e => {
+ e.preventDefault();
+ const form = e.currentTarget;
+ const button = form.querySelector("button");
+ const msg = document.getElementById("playerMsg");
+ button.disabled = true;
+ try {
+  const payload = Object.fromEntries(new FormData(form));
+  const d = await api("/api/dashboard?module=gaming", {
+   method: "POST",
+   body: JSON.stringify({ action: "create_player", ...payload })
+  });
+  form.reset();
+  msg.textContent = "Player created: " + d.player.username + " · ₹1,000 initial balance added.";
+  await loadGaming();
+ } catch (err) {
+  msg.textContent = err.message;
+ } finally {
+  button.disabled = false;
+ }
+});
+
+async function init() {
+ try {
+  const user = JSON.parse(sessionStorage.getItem("parixbet_admin_user") || "null");
+  if (!token || user?.role !== "GAMING_ADMIN") return goLogin();
+  document.getElementById("authStatus").textContent = "Signed in: " + (user.display_name || user.user_id || "ParixBet Admin") + " · Live gaming services active.";
+  await loadGaming();
+  await loadEngineSession();
+ } catch (e) {
+  document.getElementById("authStatus").textContent = "Data could not be loaded: " + e.message;
+ }
+}
+
+function engineRender() {
+ if (activeEngineSession) renderEngineSession(activeEngineSession);
+}
+
+document.getElementById("enginePickA").addEventListener("click", () => engineAdd("A"));
+document.getElementById("enginePickB").addEventListener("click", () => engineAdd("B"));
+document.getElementById("engineSettleA").addEventListener("click", () => engineSettle("A"));
+document.getElementById("engineSettleB").addEventListener("click", () => engineSettle("B"));
+document.getElementById("engineReset").addEventListener("click", engineReset);
+["engineLabelA", "engineLabelB", "engineMode", "engineDifficulty"].forEach(id => {
+ document.getElementById(id).addEventListener("change", () => {
+  if (!activeEngineSession) return;
+  const payload = getEngineFormPayload();
+  const preview = {
+   ...activeEngineSession,
+   engine_mode: payload.engine_mode,
+   risk_tier: payload.risk_tier,
+   label_a: payload.label_a,
+   label_b: payload.label_b
+  };
+  const tierCfg = { 1: 5, 2: 8, 3: 10, 4: 15, 5: 20 };
+  preview.reserve_pct = tierCfg[payload.risk_tier] || 10;
+  const a = preview.picks_a || 0, b = preview.picks_b || 0, tot = a + b;
+  if (payload.engine_mode === "SCORE_POOL") {
+   preview.multiplier = tot > 0 && a > 0 ? Number(Math.min(3.5, Math.max(1.05, tot / Math.max(1, a))).toFixed(2)) : 1.0;
+  } else if (payload.engine_mode === "DIFFICULTY") {
+   const w = { 1: 1.0, 2: 1.15, 3: 1.3, 4: 1.5, 5: 1.8 }[payload.risk_tier] || 1.3;
+   preview.multiplier = Number((w * 1.1).toFixed(2));
+  } else {
+   const w = { 1: 1.0, 2: 1.15, 3: 1.3, 4: 1.5, 5: 1.8 }[payload.risk_tier] || 1.3;
+   preview.multiplier = Number(Math.max(1.0, (1.25 + 0.5 * w)).toFixed(2));
+  }
+  renderEngineSession(preview);
+  loadMonitoring().catch(() => {});
+ });
+});
+
 document.getElementById("engineLabelA").addEventListener("input", engineRender);
 engineRender();
 document.getElementById("menu").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("open"));
