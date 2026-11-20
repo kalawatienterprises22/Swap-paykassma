@@ -288,11 +288,11 @@ module.exports = async (req, res) => {
         const phone = String(body.phone || "").trim() || null;
         const password = String(body.password || "");
 
-        if (!/^[a-z0-9_]{4,40}$/.test(username) || displayName.length < 2 || password.length < 6) {
-          return sendJson(res, 400, { ok: false, message: "Username (4-40 chars a-z, 0-9, _), display name, and password (6+ chars) required" });
+        if (!/^[a-z0-9_]{4,40}$/.test(username) || displayName.length < 2 || password.length < 8) {
+          return sendJson(res, 400, { ok: false, message: "Username (4-40 chars a-z, 0-9, _), display name, and password (8+ chars) required" });
         }
 
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(password, 12);
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
