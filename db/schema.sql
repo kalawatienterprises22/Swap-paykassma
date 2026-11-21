@@ -107,3 +107,19 @@ CREATE TABLE IF NOT EXISTS sp_user_account_options (
   updated_by UUID REFERENCES sp_users(id),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+
+-- Gaming Admin status and immediate session revocation.
+-- Apply this migration manually to the intended database before enabling this branch.
+CREATE TABLE IF NOT EXISTS sp_gaming_admins (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL DEFAULT 'ParixBet Admin',
+  status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','SUSPENDED')),
+  token_version INTEGER NOT NULL DEFAULT 1 CHECK (token_version >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS sp_gaming_admins_status_idx
+  ON sp_gaming_admins(status);
