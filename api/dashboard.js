@@ -237,15 +237,39 @@ function getGamingAdmin(req, res) {
   } catch { sendJson(res, 401, { ok: false, message: "Invalid or expired ParixBet Admin session" }); return null; }
 }
 
-function getAdmin(req, res) {
+async function getAdmin(req, res) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) { sendJson(res, 401, { ok: false, message: "Authentication required" }); return null; }
+
+  let user;
   try {
-    const user = verifyToken(token);
-    if (user.role !== "SUPER_ADMIN") { sendJson(res, 403, { ok: false, message: "Access denied" }); return null; }
+    user = verifyToken(token);
+  } catch {
+    sendJson(res, 401, { ok: false, message: "Invalid or expired session" });
+    return null;
+  }
+
+  if (user.role !== "SUPER_ADMIN" || !user.sub) {
+    sendJson(res, 403, { ok: false, message: "Access denied" });
+    return null;
+  }
+
+  try {
+    const activeAdmin = await getPool().query(
+      "SELECT id FROM sp_users WHERE id = $1 AND role = 'SUPER_ADMIN' AND status = 'ACTIVE' LIMIT 1",
+      [user.sub]
+    );
+    if (!activeAdmin.rowCount) {
+      sendJson(res, 403, { ok: false, message: "Super Admin account is inactive or unavailable" });
+      return null;
+    }
     return user;
-  } catch { sendJson(res, 401, { ok: false, message: "Invalid or expired session" }); return null; }
+  } catch (error) {
+    console.error("Super Admin authorization check failed:", error.message);
+    sendJson(res, 503, { ok: false, message: "Authorization service unavailable" });
+    return null;
+  }
 }
 module.exports = async (req, res) => {
   const mod = req.query && req.query.module;
@@ -1137,7 +1161,11 @@ module.exports = async (req, res) => {
     }
   }
 
-  const admin = getAdmin(req, res);
+  if (mod && mod !== "dashboard") {
+    return sendJson(res, 404, { ok: false, message: "Unknown dashboard module" });
+  }
+
+  const admin = await getAdmin(req, res);
   if (!admin) return;
   return sendJson(res, 200, { ok: true, module: mod || "dashboard", admin: admin.user_id || admin.username || "ADMIN" });
 };
