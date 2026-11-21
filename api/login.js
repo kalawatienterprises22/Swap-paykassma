@@ -13,14 +13,45 @@ module.exports = async (req, res) => {
       const adminUser = process.env.GAMING_ADMIN_USERNAME;
       const adminPass = process.env.GAMING_ADMIN_PASSWORD;
       if (!adminUser || !adminPass) {
-        return sendJson(res, 503, { ok: false, message: "ParixBet Admin login is not configured yet. Set GAMING_ADMIN_USERNAME and GAMING_ADMIN_PASSWORD in Vercel Environment Variables." });
+        return sendJson(res, 503, { ok: false, message: "ParixBet Admin login is not configured." });
       }
       if (typeof user_id !== "string" || typeof password !== "string" ||
           user_id.trim().toLowerCase() !== adminUser.trim().toLowerCase() || password !== adminPass) {
         return sendJson(res, 401, { ok: false, message: "Invalid ParixBet Admin username or password." });
       }
-      const admin = { id: "parixbet-admin", user_id: adminUser.trim(), display_name: "ParixBet Admin", role: "GAMING_ADMIN" };
-      return sendJson(res, 200, { ok: true, message: "ParixBet Admin login successful", token: createToken(admin), user: admin });
+
+      const pool = getPool();
+      const provisioned = await pool.query(
+        `INSERT INTO sp_gaming_admins (username, display_name)
+         VALUES ($1, 'ParixBet Admin')
+         ON CONFLICT (username) DO NOTHING`,
+        [adminUser.trim().toLowerCase()]
+      );
+      const adminResult = await pool.query(
+        `SELECT id, username, display_name, status, token_version
+         FROM sp_gaming_admins
+         WHERE username = $1
+         LIMIT 1`,
+        [adminUser.trim().toLowerCase()]
+      );
+      const adminRecord = adminResult.rows[0];
+      if (!adminRecord || adminRecord.status !== "ACTIVE") {
+        return sendJson(res, 403, { ok: false, message: "ParixBet Admin account is inactive or unavailable." });
+      }
+
+      const admin = {
+        id: adminRecord.id,
+        user_id: adminRecord.username,
+        display_name: adminRecord.display_name,
+        role: "GAMING_ADMIN",
+        token_version: Number(adminRecord.token_version)
+      };
+      return sendJson(res, 200, {
+        ok: true,
+        message: "ParixBet Admin login successful",
+        token: createToken(admin),
+        user: { id: admin.id, user_id: admin.user_id, display_name: admin.display_name, role: admin.role }
+      });
     }
     if (login_type === "gaming_register" || login_type === "gaming") {
       const pool = getPool();
