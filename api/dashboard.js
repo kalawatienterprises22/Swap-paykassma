@@ -226,15 +226,47 @@ function formatEngineSessionResponse(row) {
   };
 }
 
-function getGamingAdmin(req, res) {
+async function getGamingAdmin(req, res) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!token) { sendJson(res, 401, { ok: false, message: "ParixBet Admin login required" }); return null; }
+  if (!token) {
+    sendJson(res, 401, { ok: false, message: "ParixBet Admin login required" });
+    return null;
+  }
+
+  let user;
   try {
-    const user = verifyToken(token);
-    if (user.role !== "GAMING_ADMIN") { sendJson(res, 403, { ok: false, message: "ParixBet Admin access denied" }); return null; }
+    user = verifyToken(token);
+  } catch {
+    sendJson(res, 401, { ok: false, message: "Invalid or expired ParixBet Admin session" });
+    return null;
+  }
+
+  if (user.role !== "GAMING_ADMIN" || !user.sub ||
+      !Number.isInteger(user.tokenVersion) || user.tokenVersion < 0) {
+    sendJson(res, 403, { ok: false, message: "ParixBet Admin access denied" });
+    return null;
+  }
+
+  try {
+    const activeAdmin = await getPool().query(
+      `SELECT id, username, token_version
+       FROM sp_gaming_admins
+       WHERE id = $1 AND status = 'ACTIVE'
+       LIMIT 1`,
+      [user.sub]
+    );
+    const adminRecord = activeAdmin.rows[0];
+    if (!adminRecord || Number(adminRecord.token_version) !== user.tokenVersion) {
+      sendJson(res, 403, { ok: false, message: "ParixBet Admin session has been revoked or account is inactive" });
+      return null;
+    }
     return user;
-  } catch { sendJson(res, 401, { ok: false, message: "Invalid or expired ParixBet Admin session" }); return null; }
+  } catch (error) {
+    console.error("ParixBet Admin authorization check failed:", error.message);
+    sendJson(res, 503, { ok: false, message: "Admin authorization service unavailable" });
+    return null;
+  }
 }
 
 async function getAdmin(req, res) {
@@ -635,7 +667,7 @@ module.exports = async (req, res) => {
   }
   if (mod === "gaming") {
     if (!allowMethods(req, res, ["GET", "POST", "PATCH"])) return;
-    const admin = getGamingAdmin(req, res);
+    const admin = await getGamingAdmin(req, res);
     if (!admin) return;
     try {
       const pool = getPool();
