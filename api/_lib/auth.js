@@ -11,7 +11,8 @@ function createToken(user) {
     {
       sub: user.id,
       role: user.role,
-      userId: user.user_id
+      userId: user.user_id,
+      tokenVersion: user.token_version
     },
     secret,
     {
