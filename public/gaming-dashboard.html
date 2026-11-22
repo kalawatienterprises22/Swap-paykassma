@@ -526,12 +526,13 @@ document.querySelectorAll("#authTabs .chip").forEach(chip => chip.addEventListen
 
 document.getElementById("authForm").addEventListener("submit", async e => {
  e.preventDefault();
+ const form = e.currentTarget;
  const btn = document.getElementById("authSubmitBtn");
  const msg = document.getElementById("authMsg");
  btn.disabled = true;
  msg.textContent = authMode === "SIGNUP" ? "Creating account…" : "Signing in…";
  try {
-  const fd = Object.fromEntries(new FormData(e.currentTarget));
+  const fd = Object.fromEntries(new FormData(form));
   const d = await apiReq("/api/dashboard?module=gaming-auth", {
    method: "POST",
    body: JSON.stringify({ mode: authMode, ...fd })
@@ -539,7 +540,7 @@ document.getElementById("authForm").addEventListener("submit", async e => {
   token = d.token;
   sessionStorage.setItem(PXB_KEY, token);
   msg.textContent = d.message || "Logged in!";
-  e.currentTarget.reset();
+  form.reset();
   await Promise.all([loadMe(), loadPredictions(), loadLiveFeeds()]);
  } catch (err) {
   msg.textContent = err.message;
