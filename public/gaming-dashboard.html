@@ -110,6 +110,7 @@ button,input,select{font-family:inherit}
     </div>
     <p class="muted" id="liveFeedsSummary" style="margin-bottom:10px">Connects to your configured Cricket & Football APIs when logged in.</p>
     <div id="liveFeedsList"></div>
+    <div id="cricketScorecard" style="margin-top:12px"></div>
    </section>
 
    <section id="sec-games" class="card">
@@ -380,6 +381,52 @@ async function loadPredictions() {
  }
 }
 
+function cricketRelation(value) {
+ const item = value?.data || value || {};
+ return item;
+}
+
+function renderCricketScorecard(fixture) {
+ const box = document.getElementById("cricketScorecard");
+ const rows = value => Array.isArray(value) ? value : (Array.isArray(value?.data) ? value.data : []);
+ const team = value => cricketRelation(value).name || cricketRelation(value).fullname || "Team";
+ const innings = rows(fixture?.runs);
+ const batting = rows(fixture?.batting);
+ const bowling = rows(fixture?.bowling);
+ const venue = cricketRelation(fixture?.venue).name || "Venue not supplied";
+ const title = team(fixture?.localteam) + " vs " + team(fixture?.visitorteam);
+ const inningsHtml = innings.length
+  ? '<h4>Innings</h4><div class="table-wrap"><table><thead><tr><th>Team</th><th>Score</th><th>Wickets</th><th>Overs</th></tr></thead><tbody>' +
+    innings.map(x => '<tr><td>' + esc(cricketRelation(x.team).name || x.team_name || "—") + '</td><td>' + esc(x.score ?? "—") + '</td><td>' + esc(x.wickets ?? "—") + '</td><td>' + esc(x.overs ?? "—") + '</td></tr>').join("") +
+    '</tbody></table></div>' : '<p class="muted">Innings totals are not supplied for this match yet.</p>';
+ const battingHtml = batting.length
+  ? '<h4>Batting</h4><div class="table-wrap"><table><thead><tr><th>Batter</th><th>Runs</th><th>Balls</th><th>4s</th><th>6s</th></tr></thead><tbody>' +
+    batting.map(x => '<tr><td>' + esc(cricketRelation(x.batsman || x.player).fullname || x.batsman_name || x.player_name || "—") + '</td><td>' + esc(x.score ?? "—") + '</td><td>' + esc(x.ball ?? x.balls ?? "—") + '</td><td>' + esc(x.four_x ?? "—") + '</td><td>' + esc(x.six_x ?? "—") + '</td></tr>').join("") +
+    '</tbody></table></div>' : '<p class="muted">Batting card is not supplied for this match yet.</p>';
+ const bowlingHtml = bowling.length
+  ? '<h4>Bowling</h4><div class="table-wrap"><table><thead><tr><th>Bowler</th><th>Overs</th><th>Maidens</th><th>Runs</th><th>Wickets</th></tr></thead><tbody>' +
+    bowling.map(x => '<tr><td>' + esc(cricketRelation(x.bowler || x.player).fullname || x.bowler_name || x.player_name || "—") + '</td><td>' + esc(x.overs ?? "—") + '</td><td>' + esc(x.medians ?? x.maidens ?? "—") + '</td><td>' + esc(x.runs ?? "—") + '</td><td>' + esc(x.wickets ?? "—") + '</td></tr>').join("") +
+    '</tbody></table></div>' : '<p class="muted">Bowling card is not supplied for this match yet.</p>';
+ box.innerHTML = '<div class="card" style="padding:14px"><div class="card-head"><div><b>' + esc(title) + '</b><div class="muted">' + esc(fixture?.status || "Scorecard") + ' · ' + esc(venue) + '</div></div><button class="btn ghost" id="closeCricketScorecard">Close</button></div>' +
+  (fixture?.note ? '<p class="muted">' + esc(fixture.note) + '</p>' : '') + inningsHtml + battingHtml + bowlingHtml + '</div>';
+ document.getElementById("closeCricketScorecard").addEventListener("click", () => { box.innerHTML = ""; });
+}
+
+async function showCricketScorecard(fixtureId, button) {
+ const box = document.getElementById("cricketScorecard");
+ if (!fixtureId || !token) return;
+ if (button) { button.disabled = true; button.textContent = "Loading…"; }
+ box.innerHTML = '<p class="muted">Loading official scorecard…</p>';
+ try {
+  const d = await apiReq("/api/dashboard?module=gaming-cricket&fixture_id=" + encodeURIComponent(fixtureId));
+  renderCricketScorecard(d.fixture);
+ } catch (error) {
+  box.innerHTML = '<p class="muted">' + esc(error.message) + '</p>';
+ } finally {
+  if (button) { button.disabled = false; button.textContent = "Scorecard"; }
+ }
+}
+
 async function loadLiveFeeds() {
  const box = document.getElementById("liveFeedsList");
  const sum = document.getElementById("liveFeedsSummary");
@@ -395,25 +442,55 @@ async function loadLiveFeeds() {
    apiReq("/api/dashboard?module=gaming-football")
   ]);
   const items = [];
-  let statusParts = [];
+  const statusParts = [];
+  const teamName = value => cricketRelation(value).name || "Team";
   if (cRes.status === "fulfilled") {
-   statusParts.push("Cricket: " + (cRes.value.connected ? (cRes.value.matches?.length || 0) + " live" : "Not configured"));
-   (cRes.value.matches || []).slice(0, 5).forEach(m => items.push({ sport: "CRICKET", title: m.name || m.note || "Cricket Match", meta: m.status || m.round || "Live" }));
-  }
+   const c = cRes.value;
+   statusParts.push("Cricket: " + (c.connected ? "Connected" : "Not configured"));
+   (c.matches || []).slice(0, 8).forEach(m => items.push({
+    sport:"CRICKET", id:m.id, category:"LIVE",
+    title:m.name || (teamName(m.localteam) + " vs " + teamName(m.visitorteam)),
+    meta:m.status || m.note || "Live"
+   }));
+   (c.upcoming || []).slice(0, 6).forEach(m => items.push({
+    sport:"CRICKET", id:m.id, category:"UPCOMING",
+    title:m.name || (teamName(m.localteam) + " vs " + teamName(m.visitorteam)),
+    meta:m.starting_at || m.status || "Upcoming"
+   }));
+   (c.results || []).slice(0, 6).forEach(m => items.push({
+    sport:"CRICKET", id:m.id, category:"RESULT",
+    title:m.name || (teamName(m.localteam) + " vs " + teamName(m.visitorteam)),
+    meta:m.note || m.status || "Completed"
+   }));
+  } else statusParts.push("Cricket: unavailable");
   if (fRes.status === "fulfilled") {
-   statusParts.push("Football: " + (fRes.value.connected ? (fRes.value.matches?.length || 0) + " live" : "Not configured"));
-   (fRes.value.matches || []).slice(0, 5).forEach(m => items.push({ sport: "FOOTBALL", title: (m.homeTeam?.name || "Home") + " vs " + (m.awayTeam?.name || "Away"), meta: m.status?.description || "Live" }));
-  }
+   const f = fRes.value;
+   statusParts.push("Football: " + (f.connected ? "Connected" : "Not configured"));
+   (f.matches || []).slice(0, 8).forEach(m => items.push({
+    sport:"FOOTBALL", title:(m.home?.name || m.homeTeam?.name || "Home") + " vs " + (m.away?.name || m.awayTeam?.name || "Away"),
+    category:"LIVE", meta:m.status?.description || "Live"
+   }));
+   (f.upcoming || []).slice(0, 6).forEach(m => items.push({
+    sport:"FOOTBALL", title:(m.home?.name || m.homeTeam?.name || "Home") + " vs " + (m.away?.name || m.awayTeam?.name || "Away"),
+    category:"UPCOMING", meta:m.startTime || m.status?.description || "Upcoming"
+   }));
+   (f.results || []).slice(0, 6).forEach(m => items.push({
+    sport:"FOOTBALL", title:(m.home?.name || m.homeTeam?.name || "Home") + " vs " + (m.away?.name || m.awayTeam?.name || "Away"),
+    category:"RESULT", meta:m.status?.description || "Finished"
+   }));
+  } else statusParts.push("Football: unavailable");
   sum.textContent = statusParts.join(" · ");
   box.innerHTML = items.length
-   ? items.map(it => '<div class="row-item"><div><b>' + esc(it.title) + '</b><div class="muted">' + esc(it.sport) + '</div></div><span class="pill">' + esc(it.meta) + '</span></div>').join("")
-   : '<p class="muted">No live provider matches active right now.</p>';
+   ? items.map((it,index) => '<div class="row-item"><div><b>' + esc(it.title) + '</b><div class="muted">' + esc(it.sport) + ' · ' + esc(it.category) + '</div></div><div style="display:flex;gap:8px;align-items:center"><span class="pill">' + esc(it.meta) + '</span>' + (it.sport === "CRICKET" && it.id ? '<button class="btn ghost scorecard-btn" data-fixture="' + esc(it.id) + '">Scorecard</button>' : '') + '</div></div>').join("")
+   : '<p class="muted">No live or scheduled provider matches were returned. Check the provider plan and API key.</p>';
+  box.querySelectorAll(".scorecard-btn").forEach(button => button.addEventListener("click", () => showCricketScorecard(button.dataset.fixture, button)));
  } catch (e) {
   sum.textContent = "Feed check error: " + e.message;
  }
 }
 
 document.getElementById("refreshFeedsBtn").addEventListener("click", loadLiveFeeds);
+setInterval(() => { if (token) loadLiveFeeds(); }, 60000);
 document.getElementById("slipStake").addEventListener("input", updateSlipEst);
 
 document.getElementById("placeStakeBtn").addEventListener("click", async () => {
