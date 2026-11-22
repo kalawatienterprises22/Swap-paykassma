@@ -643,23 +643,80 @@ module.exports = async (req, res) => {
         const cached = await pool.query("SELECT payload,fetched_at FROM sp_game_cricket_cache WHERE cache_key=$1 LIMIT 1", [cacheKey]);
         const age = cached.rows[0] ? Date.now() - new Date(cached.rows[0].fetched_at).getTime() : Infinity;
         if (age < maxAge) return cached.rows[0].payload;
-        const response = await fetch(url, { headers: { Accept: "application/json" } });
-        if (!response.ok) throw new Error("Cricket provider returned HTTP " + response.status);
-        const payload = await response.json();
-        const data = Array.isArray(payload.data) ? payload.data : [];
-        await pool.query(
-          "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES($1,$2::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
-          [cacheKey, JSON.stringify(data)]
-        );
-        return data;
+        try {
+          const response = await fetch(url, { headers: { Accept: "application/json" } });
+          if (!response.ok) throw new Error("Cricket provider returned HTTP " + response.status);
+          const payload = await response.json();
+          if (payload && payload.error) throw new Error(payload.error.message || "Cricket provider API error");
+          const data = payload?.data ?? [];
+          await pool.query(
+            "INSERT INTO sp_game_cricket_cache(cache_key,payload,fetched_at) VALUES($1,$2::jsonb,NOW()) ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,fetched_at=NOW()",
+            [cacheKey, JSON.stringify(data)]
+          );
+          return data;
+        } catch (error) {
+          if (cached.rows[0]) return cached.rows[0].payload;
+          throw error;
+        }
       }
 
-      const matches = await getCricketData(
-        "cricket-livescores",
-        "https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" + encodeURIComponent(apiKey),
-        30000
-      );
-      return sendJson(res, 200, { ok: true, connected: true, matches, upcoming: [], results: [] });
+      const fixtureId = String(req.query.fixture_id || "").trim();
+      if (fixtureId) {
+        if (!/^\\d{1,12}$/.test(fixtureId)) {
+          return sendJson(res, 400, { ok: false, message: "Invalid cricket fixture ID" });
+        }
+        const fixture = await getCricketData(
+          "cricket-fixture-" + fixtureId,
+          "https://cricket.sportmonks.com/api/v2.0/fixtures/" + fixtureId +
+            "?api_token=" + encodeURIComponent(apiKey) +
+            "&include=runs,batting,bowling,lineup,venue,localteam,visitorteam,scoreboards",
+          20000
+        );
+        return sendJson(res, 200, { ok: true, connected: true, fixture });
+      }
+
+      const now = new Date();
+      const dateOnly = date => date.toISOString().slice(0, 10);
+      const fromDate = new Date(now);
+      fromDate.setUTCDate(fromDate.getUTCDate() - 3);
+      const toDate = new Date(now);
+      toDate.setUTCDate(toDate.getUTCDate() + 7);
+      const from = dateOnly(fromDate);
+      const to = dateOnly(toDate);
+
+      const [matches, fixtures] = await Promise.all([
+        getCricketData(
+          "cricket-livescores",
+          "https://cricket.sportmonks.com/api/v2.0/livescores?api_token=" +
+            encodeURIComponent(apiKey) + "&include=runs,batting,bowling,lineup,venue,localteam,visitorteam",
+          30000
+        ),
+        getCricketData(
+          "cricket-fixtures-" + from.replace(/-/g, "") + "-" + to.replace(/-/g, ""),
+          "https://cricket.sportmonks.com/api/v2.0/fixtures?api_token=" +
+            encodeURIComponent(apiKey) + "&filter%5Bstarts_between%5D=" +
+            encodeURIComponent(from + "," + to) + "&include=localteam,visitorteam,venue,runs",
+          600000
+        )
+      ]);
+
+      const fixtureList = Array.isArray(fixtures) ? fixtures : [];
+      const upcoming = fixtureList.filter(match => {
+        const start = new Date(match.starting_at || 0);
+        const status = String(match.status || "").toLowerCase();
+        return !Number.isNaN(start.getTime()) && start >= now &&
+          !["finished", "abandoned", "cancelled", "no result", "no-result"].includes(status) &&
+          !match.winner_team_id;
+      }).sort((a, b) => new Date(a.starting_at) - new Date(b.starting_at)).slice(0, 20);
+      const results = fixtureList.filter(match => {
+        const status = String(match.status || "").toLowerCase();
+        return ["finished", "abandoned", "no result", "no-result"].includes(status) || Boolean(match.winner_team_id);
+      }).sort((a, b) => new Date(b.starting_at || 0) - new Date(a.starting_at || 0)).slice(0, 20);
+
+      return sendJson(res, 200, {
+        ok: true, connected: true, matches: Array.isArray(matches) ? matches : [],
+        upcoming, results, refreshed_at: new Date().toISOString()
+      });
     } catch (error) {
       console.error("ParixBet player cricket API error:", error.message);
       return sendJson(res, 502, { ok: false, message: "Live cricket data is temporarily unavailable" });
