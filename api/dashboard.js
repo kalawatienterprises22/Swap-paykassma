@@ -662,7 +662,7 @@ module.exports = async (req, res) => {
 
       const fixtureId = String(req.query.fixture_id || "").trim();
       if (fixtureId) {
-        if (!/^\\d{1,12}$/.test(fixtureId)) {
+        if (!Number.isSafeInteger(Number(fixtureId)) || Number(fixtureId) <= 0) {
           return sendJson(res, 400, { ok: false, message: "Invalid cricket fixture ID" });
         }
         const fixture = await getCricketData(
