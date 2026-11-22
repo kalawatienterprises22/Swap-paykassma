@@ -673,13 +673,28 @@ module.exports = async (req, res) => {
       const pool = getPool();
 
       if (req.method === "GET" && req.query.action === "db-check") {
-        const identity = await pool.query(
-          "SELECT current_database() AS database, current_user AS db_user, current_schema() AS schema, to_regclass('public.sp_game_players') AS players_table"
-        );
+        const identity = await pool.query(`
+          SELECT current_database() AS database,
+                 current_user AS db_user,
+                 session_user AS session_user,
+                 current_schema() AS schema,
+                 to_regclass('public.sp_game_players') AS players_table,
+                 COALESCE(c.relrowsecurity, FALSE) AS rls_enabled,
+                 COALESCE(c.relforcerowsecurity, FALSE) AS rls_forced,
+                 CASE WHEN c.oid IS NOT NULL THEN has_table_privilege(current_user, c.oid, 'SELECT') ELSE FALSE END AS can_select,
+                 current_setting('row_security') AS row_security_setting
+          FROM (SELECT 1) AS seed
+          LEFT JOIN pg_class c ON c.oid = to_regclass('public.sp_game_players')
+        `);
         let playerCount = null;
+        let policyCount = null;
         if (identity.rows[0].players_table) {
           const count = await pool.query("SELECT COUNT(*)::int AS count FROM public.sp_game_players");
           playerCount = count.rows[0].count;
+          const policies = await pool.query(
+            "SELECT COUNT(*)::int AS count FROM pg_policies WHERE schemaname='public' AND tablename='sp_game_players'"
+          );
+          policyCount = policies.rows[0].count;
         }
         let dbHost = null;
         try {
@@ -690,10 +705,16 @@ module.exports = async (req, res) => {
           diagnostic: {
             database: identity.rows[0].database,
             db_user: identity.rows[0].db_user,
+            session_user: identity.rows[0].session_user,
             schema: identity.rows[0].schema,
             players_table: Boolean(identity.rows[0].players_table),
             player_count: playerCount,
-            db_host: dbHost
+            db_host: dbHost,
+            rls_enabled: identity.rows[0].rls_enabled,
+            rls_forced: identity.rows[0].rls_forced,
+            can_select: identity.rows[0].can_select,
+            row_security_setting: identity.rows[0].row_security_setting,
+            policy_count: policyCount
           }
         });
       }
