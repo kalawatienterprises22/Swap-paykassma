@@ -7,5 +7,6 @@
 <form id="login"><label>Admin Username</label><input name="user_id" autocomplete="username" required><label>Password</label><input name="password" type="password" autocomplete="current-password" required><button id="submit" type="submit">Login to ParixBet</button><div id="msg" role="alert"></div></form>
 <div class="foot">ParixBet Entertainment Platform · Admin Access</div></main>
 <script>
+const sessionNotice=sessionStorage.getItem("parixbet_admin_notice");if(sessionNotice){document.getElementById("msg").textContent=sessionNotice;sessionStorage.removeItem("parixbet_admin_notice");}
 document.getElementById("login").addEventListener("submit",async e=>{e.preventDefault();const f=e.currentTarget,b=document.getElementById("submit"),m=document.getElementById("msg");b.disabled=true;m.textContent="लॉगिन जांच रहे हैं…";try{const body=Object.fromEntries(new FormData(f));const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,login_type:"gaming_admin"})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||"Login failed");sessionStorage.setItem("parixbet_admin_token",d.token);sessionStorage.setItem("parixbet_admin_user",JSON.stringify(d.user));location.replace("/parixbet-admin-dashboard.html")}catch(err){m.textContent=err.message}finally{b.disabled=false}});
 </script></body></html>
