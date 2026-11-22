@@ -4,6 +4,23 @@ const { getPool } = require("./_lib/db");
 const { sendJson, allowMethods } = require("./_lib/http");
 const { createToken } = require("./_lib/auth");
 
+function isTransientDbError(error) {
+  const code = String(error && error.code || "");
+  const message = String(error && error.message || "");
+  return ["08000", "08003", "08006", "57P01", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT"].includes(code) ||
+    /connection terminated unexpectedly|socket hang up|connection reset|server closed the connection/i.test(message);
+}
+
+async function queryWithRetry(pool, sql, params) {
+  try {
+    return await pool.query(sql, params);
+  } catch (error) {
+    if (!isTransientDbError(error)) throw error;
+    await new Promise(resolve => setTimeout(resolve, 250));
+    return pool.query(sql, params);
+  }
+}
+
 module.exports = async (req, res) => {
   if (!allowMethods(req, res, ["POST"])) return;
 
@@ -21,13 +38,15 @@ module.exports = async (req, res) => {
       }
 
       const pool = getPool();
-      const provisioned = await pool.query(
+      await queryWithRetry(
+        pool,
         `INSERT INTO sp_gaming_admins (username, display_name)
          VALUES ($1, 'ParixBet Admin')
          ON CONFLICT (username) DO NOTHING`,
         [adminUser.trim().toLowerCase()]
       );
-      const adminResult = await pool.query(
+      const adminResult = await queryWithRetry(
+        pool,
         `SELECT id, username, display_name, status, token_version
          FROM sp_gaming_admins
          WHERE username = $1
