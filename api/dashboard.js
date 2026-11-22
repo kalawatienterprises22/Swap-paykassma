@@ -671,6 +671,33 @@ module.exports = async (req, res) => {
     if (!admin) return;
     try {
       const pool = getPool();
+
+      if (req.method === "GET" && req.query.action === "db-check") {
+        const identity = await pool.query(
+          "SELECT current_database() AS database, current_user AS db_user, current_schema() AS schema, to_regclass('public.sp_game_players') AS players_table"
+        );
+        let playerCount = null;
+        if (identity.rows[0].players_table) {
+          const count = await pool.query("SELECT COUNT(*)::int AS count FROM public.sp_game_players");
+          playerCount = count.rows[0].count;
+        }
+        let dbHost = null;
+        try {
+          dbHost = new URL(process.env.DATABASE_URL).hostname;
+        } catch {}
+        return sendJson(res, 200, {
+          ok: true,
+          diagnostic: {
+            database: identity.rows[0].database,
+            db_user: identity.rows[0].db_user,
+            schema: identity.rows[0].schema,
+            players_table: Boolean(identity.rows[0].players_table),
+            player_count: playerCount,
+            db_host: dbHost
+          }
+        });
+      }
+
       await ensureGamingTables(pool);
 
       if (req.method === "GET") {
