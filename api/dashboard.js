@@ -282,6 +282,12 @@ module.exports = async (req, res) => {
     }
   }
 
+  // This deployment serves Paykassma only. Gaming/ParixBet dashboard modules must run
+  // in their own project and are deliberately unavailable on this host.
+  if (mod !== "paykassma") {
+    return sendJson(res, 404, { ok: false, message: "This module is not available in the Paykassma dashboard." });
+  }
+
   if (mod === "gaming-auth") {
     if (!allowMethods(req, res, ["POST", "GET"])) return;
     try {
