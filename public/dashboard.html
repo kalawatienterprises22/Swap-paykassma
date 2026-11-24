@@ -51,6 +51,11 @@
       <a class="nav-card" href="/provider-fields.html"><span class="nav-icon">🧩</span><span><span class="nav-title">Account Form Fields</span><span class="nav-desc">Configure bank and payment app fields</span></span></a>
       <a class="nav-card" href="/staff-verification.html"><span class="nav-icon">✓</span><span><span class="nav-title">Staff Verification</span><span class="nav-desc">Verify staff and manager IDs</span></span></a>
     </nav>
+<section class="approval-card" id="merchantDeviceMonitoring">
+  <h3 class="section-title">Merchant APK Online / Offline Monitoring</h3>
+  <p id="deviceSummary" style="color:#667085;font-size:13px">Loading merchant device status…</p>
+  <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr><th align="left">Merchant</th><th align="left">APK Status</th><th align="left">Device</th><th align="left">Payment App</th><th align="left">Last Known IP</th><th align="left">Last Seen</th></tr></thead><tbody id="deviceRows"><tr><td colspan="6">Loading…</td></tr></tbody></table></div>
+</section>
     <section class="approval-card" id="accountApprovals">
       <h3 class="section-title">Merchant Account Approval Requests</h3>
       <p style="color:#667085;font-size:13px">Pending account requests are shown here. Super Admin can approve or reject each request.</p>
@@ -88,6 +93,20 @@
       sessionStorage.removeItem("superpay_user");
       window.location.replace("/super-admin-login.html");
     });
+
+
+    const deviceApps={"com.google.android.apps.nbu.paisa.user":"Google Pay","com.phonepe.app":"PhonePe","com.bharatpe.app":"BharatPe","com.paytm.business":"Paytm Business"};
+    function deviceEscape(v){return String(v??"—").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
+    async function loadMerchantDevices(){
+      const summary=document.getElementById("deviceSummary"),rows=document.getElementById("deviceRows");
+      try{
+        const r=await fetch("/api/device-events?devices=1",{headers:{Authorization:"Bearer "+token}});
+        const d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Could not load devices");
+        const items=d.devices||[],online=items.filter(x=>x.online).length;
+        summary.textContent=online+" online · "+(items.length-online)+" offline / not connected · Auto refresh every 30 seconds.";
+        rows.innerHTML=items.map(x=>"<tr><td>"+deviceEscape(x.display_name||x.user_id)+"<br><small>"+deviceEscape(x.user_id)+"</small></td><td><b style='color:"+(x.online?"#16804a":"#dc3545")+"'>"+(x.online?"ONLINE":"OFFLINE")+"</b></td><td>"+deviceEscape(x.device_model||"Not connected")+"<br><small>APK "+deviceEscape(x.app_version||"—")+"</small></td><td>"+deviceEscape(deviceApps[x.source_package]||"Not selected")+"</td><td>"+deviceEscape(x.last_ip||"—")+"</td><td>"+(x.last_seen_at?deviceEscape(new Date(x.last_seen_at).toLocaleString()):"Never connected")+"</td></tr>").join("")||"<tr><td colspan='6'>No merchants found.</td></tr>";
+      }catch(e){summary.textContent="Device status unavailable: "+e.message;rows.innerHTML="<tr><td colspan='6'>Unable to load device status.</td></tr>";}
+    }
 
     async function loadDashboard() {
       if (!token || !savedUser) {
@@ -236,6 +255,8 @@
       finally{b.disabled=false;}
     });
 
+    loadMerchantDevices();
+    setInterval(loadMerchantDevices,30000);
     loadMerchantSignups();
     loadAccountApprovals();
     setInterval(loadAccountApprovals, 30000);
