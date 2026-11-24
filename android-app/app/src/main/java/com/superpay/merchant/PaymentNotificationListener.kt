@@ -3,6 +3,8 @@ package com.superpay.merchant
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import java.util.UUID
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -19,6 +21,26 @@ class PaymentNotificationListener : NotificationListenerService() {
     )
     private val paymentSignal = Regex("(?i)(credited|received|debited|paid|payment|transfer|transaction|upi|deposit|withdraw|refund|₹|\\bINR\\b|\\bRs\\.?\\b)")
     private val sensitiveSignal = Regex("(?i)(\\bOTP\\b|one.time.password|password|\\bPIN\\b|verification code|login code)")
+    private val heartbeatHandler = Handler(Looper.getMainLooper())
+    private val heartbeatTask = object : Runnable {
+        override fun run() {
+            val prefs = getSharedPreferences("paykassma_session", MODE_PRIVATE)
+            val token = prefs.getString("token", null)
+            if (token != null) sendHeartbeat(token, prefs)
+            heartbeatHandler.postDelayed(this, 60_000)
+        }
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        heartbeatHandler.removeCallbacks(heartbeatTask)
+        heartbeatHandler.post(heartbeatTask)
+    }
+
+    override fun onListenerDisconnected() {
+        heartbeatHandler.removeCallbacks(heartbeatTask)
+        super.onListenerDisconnected()
+    }
 
     private fun sendHeartbeat(token: String, prefs: android.content.SharedPreferences) {
         val deviceId = prefs.getString("device_id", null) ?: UUID.randomUUID().toString().also {
