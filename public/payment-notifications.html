@@ -3,6 +3,7 @@
 <style>*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#172033;font:14px Arial}header{background:#101827;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}header a{color:#dbeafe}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:12px;padding:16px;margin:14px 0;box-shadow:0 2px 8px #0000000b}.muted{color:#64748b;font-size:12px;line-height:1.5}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:850px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e5eaf1;vertical-align:top;font-size:12px}button{border:0;border-radius:8px;background:#175bd5;color:#fff;padding:9px 13px;font-weight:bold;cursor:pointer}#msg{min-height:20px}</style></head><body>
 <header><b>Paykassma · Payment Notifications</b><nav><a id="back" href="/dashboard.html">Dashboard</a> &nbsp; <button id="logout">Logout</button></nav></header>
 <main class="wrap"><h2>Merchant Payment Notifications</h2><p class="muted">These are pending evidence from the one payment app selected by each Merchant. A notification alone is not proof of settlement. Do not add or deduct balance until the matching statement is reviewed.</p>
+<section class="card"><h3>Merchant Payment SMS (Consent Required)</h3><p class="muted">Only payment-filtered SMS voluntarily shared by a merchant's device appear here. OTPs, PINs, passwords and non-payment messages are filtered. SMS evidence alone does not change balances.</p><button id="refreshSms">Refresh SMS</button><p id="smsMsg">Loading…</p><div class="tablewrap"><table><thead><tr><th>Merchant</th><th>Sender</th><th>SMS Content</th><th>Received</th><th>Status</th></tr></thead><tbody id="smsRows"></tbody></table></div></section>
 <section class="card"><button id="refresh">Refresh</button><p id="msg">Loading…</p><div class="tablewrap"><table><thead><tr><th>Merchant</th><th>Payment App</th><th>Notification</th><th>Posted</th><th>Received</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div></section></main>
 <script>
 const token=sessionStorage.getItem("superpay_token");let user=null;try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
@@ -13,6 +14,18 @@ if(!token||!["ADMIN","SUPER_ADMIN"].includes(user?.role))logout();
 $("back").href=user?.role==="ADMIN"?"/admin-dashboard.html":"/dashboard.html";
 $("logout").onclick=logout;
 const appNames={"com.google.android.apps.nbu.paisa.user":"Google Pay","com.phonepe.app":"PhonePe","com.bharatpe.app":"BharatPe","com.paytm.business":"Paytm Business"};
+
+async function loadSms(){
+ $("smsMsg").textContent="Loading payment SMS…";
+ try{
+  const r=await fetch("/api/device-events?review_sms=1",{headers:{Authorization:"Bearer "+token}});
+  const d=await r.json().catch(()=>({ok:false,message:"Invalid server response"}));
+  if(r.status===401||r.status===403){logout();throw Error(d.message||"Access denied")}
+  if(!r.ok||!d.ok)throw Error(d.message||"Could not load payment SMS");
+  const items=d.messages||[];$("smsMsg").textContent=items.length+" payment SMS message(s) found.";
+  $("smsRows").innerHTML=items.map(s=>"<tr><td><b>"+esc(s.display_name||s.user_id)+"</b><div class='muted'>"+esc(s.user_id)+"</div></td><td>"+esc(s.sender)+"</td><td>"+esc(s.message_text)+"</td><td>"+esc(new Date(s.received_at).toLocaleString("en-IN"))+"</td><td>"+esc(s.status)+"</td></tr>").join("")||'<tr><td colspan="5">No payment SMS received yet.</td></tr>';
+ }catch(e){$("smsMsg").textContent=e.message}
+}
 async function load(){
  $("msg").textContent="Loading notifications…";
  try{
@@ -24,5 +37,5 @@ async function load(){
   $("rows").innerHTML=items.map(n=>"<tr><td><b>"+esc(n.display_name||n.user_id)+"</b><div class='muted'>"+esc(n.user_id)+"</div></td><td>"+esc(appNames[n.source_package]||n.source_package)+"</td><td><b>"+esc(n.notification_title)+"</b><div>"+esc(n.notification_text)+"</div></td><td>"+esc(n.posted_at?new Date(n.posted_at).toLocaleString("en-IN"):"—")+"</td><td>"+esc(new Date(n.received_at).toLocaleString("en-IN"))+"</td><td>"+esc(n.status)+"</td></tr>").join("")||'<tr><td colspan="6">No payment notifications received yet.</td></tr>';
  }catch(e){$("msg").textContent=e.message}
 }
-$("refresh").onclick=load;load();
+$("refresh").onclick=load;$("refreshSms").onclick=loadSms;load();loadSms();
 </script></body></html>

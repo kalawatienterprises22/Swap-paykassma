@@ -52,6 +52,23 @@ module.exports = async (req, res) => {
   }
 
 
+  if (req.method === "GET" && String(req.query?.review_sms || "") === "1") {
+    if (actor.role === "MERCHANT") return sendJson(res,403,{ok:false,message:"Admin SMS review access required"});
+    const scope = actor.role === "ADMIN" ? "WHERE u.parent_admin_id=$1" : "";
+    const values = actor.role === "ADMIN" ? [actor.sub] : [];
+    try {
+      const result = await pool.query(
+        `SELECT s.id,s.merchant_id,u.user_id,u.display_name,s.sender,s.message_text,s.received_at,s.status
+         FROM sp_payment_sms s JOIN sp_users u ON u.id=s.merchant_id
+         ${scope} ORDER BY s.received_at DESC LIMIT 500`, values
+      );
+      return sendJson(res,200,{ok:true,messages:result.rows});
+    } catch(error) {
+      console.error("Payment SMS review read error:",error.message);
+      return sendJson(res,500,{ok:false,message:"Unable to load payment SMS. Apply payment-sms-monitoring.sql first."});
+    }
+  }
+
   if (req.method === "GET" && String(req.query?.review || "") === "1") {
     if (actor.role === "MERCHANT") return sendJson(res,403,{ok:false,message:"Admin review access required"});
     const scope = actor.role === "ADMIN" ? "WHERE u.parent_admin_id=$1" : "";
@@ -119,6 +136,32 @@ module.exports = async (req, res) => {
     } catch(error) {
       console.error("Merchant device heartbeat error:",error.message);
       return sendJson(res,500,{ok:false,message:"Unable to update merchant device status"});
+    }
+  }
+
+  if (req.method === "POST" && body.action === "payment_sms") {
+    if (actor.role !== "MERCHANT") return sendJson(res,403,{ok:false,message:"Only merchant devices can submit payment SMS"});
+    const sender=String(body.sender||"").slice(0,100);
+    const messageText=String(body.message_text||"").replace(/\s+/g," ").trim().slice(0,2000);
+    const receivedAt=Number(body.received_at);
+    const messageHash=String(body.message_hash||"");
+    const paymentSignal=/(credited|received|deposited|debited|paid|payment|transfer|transaction|upi|deposit|withdrawal|refund|INR|Rs\.?|₹)/i;
+    const sensitiveSignal=/(\bOTP\b|one.time.password|password|\bPIN\b|verification code|login code|CVV|card number)/i;
+    if (!sender || messageText.length<8 || !Number.isFinite(receivedAt) || receivedAt<1 ||
+        !/^[a-f0-9]{64}$/i.test(messageHash) || !paymentSignal.test(messageText) || sensitiveSignal.test(messageText)) {
+      return sendJson(res,200,{ok:true,ignored:true,message:"SMS did not match the payment-only safety filter"});
+    }
+    try {
+      const result=await pool.query(
+        `INSERT INTO sp_payment_sms(merchant_id,sender,message_text,message_hash,received_at)
+         VALUES($1,$2,$3,$4,to_timestamp($5/1000.0))
+         ON CONFLICT(merchant_id,message_hash) DO NOTHING RETURNING id,status`,
+        [actor.sub,sender,messageText,messageHash.toLowerCase(),receivedAt]
+      );
+      return sendJson(res,200,{ok:true,duplicate:!result.rows.length,received:!!result.rows.length});
+    } catch(error) {
+      console.error("Payment SMS ingestion error:",error.message);
+      return sendJson(res,500,{ok:false,message:"Unable to save payment SMS"});
     }
   }
 
