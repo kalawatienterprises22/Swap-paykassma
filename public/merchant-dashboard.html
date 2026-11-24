@@ -131,7 +131,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
 const $=id=>document.getElementById(id);
 const get=(k,d)=>{try{return JSON.parse(localStorage.getItem("sp_"+k))??d}catch{return d}};
 const save=(k,v)=>localStorage.setItem("sp_"+k,JSON.stringify(v));
-let accounts=get("accounts",[]),withdrawals=get("withdrawals",[]),transactions=get("transactions",[]);
+let accounts=[],withdrawals=[],transactions=[]; // Live Paykassma data only; no browser-local financial records.
 let modalMode="";
 const pages=["dashboard","transactions","withdrawals","accounts","statement","statistics","earn","profile"];
 const titles={dashboard:"Dashboard",transactions:"Transactions",withdrawals:"Withdrawals",accounts:"Accounts",statement:"Statement",statistics:"Statistics",earn:"Earn Money",profile:"Profile & Settings"};
@@ -203,8 +203,8 @@ async function openModal(mode){
   $("modalFields").innerHTML='<div class="field"><label>Account Name</label><input id="fName" placeholder="Business account" required></div><div class="field"><label>Bank / Payment App</label><select id="fType">'+opts.map(x=>'<option value="'+x.id+'">'+x.name+'</option>').join("")+'</select></div><div id="customAccountFields"></div>';
   $("fType").onchange=renderAccountCustomFields;renderAccountCustomFields();
  }
- if(mode==="deposit"){$("modalTitle").textContent="Deposit Record";$("modalFields").innerHTML='<div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This creates a local record only. It does not add funds or contact a bank.</p>'}
- if(mode==="withdraw"){$("modalTitle").textContent="Withdrawal Request";$("modalFields").innerHTML='<div class="field"><label>Destination Account</label><select id="fAccount">'+accounts.map(a=>'<option value="'+a.id+'">'+a.name+' ('+a.type+')</option>').join("")+'</select></div><div class="field"><label>Amount (INR)</label><input id="fAmount" type="number" min="1" placeholder="Enter amount"></div><p class="small">This saves a pending request locally. No money is transferred.</p>'}
+ if(mode==="deposit"){$("modalTitle").textContent="Deposit";$("modalFields").innerHTML='<p class="small">Deposit processing is not enabled yet. No local or simulated balance entry will be created.</p>';$("modalactions")?.classList.add("hidden");}
+ if(mode==="withdraw"){$("modalTitle").textContent="Withdrawal Request";$("modalFields").innerHTML='<p class="small">Withdrawal processing is not enabled yet. No local or simulated withdrawal request will be created.</p>';}
 }
 function closeModal(){$("modal").classList.remove("show")}
 async function submitModal(){
@@ -219,15 +219,9 @@ async function submitModal(){
   catch(error){alert(error.message);if(button)button.disabled=false;return;}
   finally{if(button)button.disabled=false;}
  }
- if(modalMode==="deposit"){
-  let amount=Number($("fAmount").value);if(!amount||amount<=0)return alert("Enter a valid amount.");
-  transactions.unshift({id:id("TX"),date:new Date().toISOString().slice(0,10),accountType:"Manual",type:"Deposit",accountId:"—",amount,status:"Pending"});save("transactions",transactions);renderTransactions();refreshStats();
- }
- if(modalMode==="withdraw"){
-  let amount=Number($("fAmount").value),account=$("fAccount")?.value;
-  if(!accounts.length)return alert("Please add an account first.");
-  if(!amount||amount<=0)return alert("Enter a valid amount.");
-  withdrawals.unshift({id:id("WD"),date:new Date().toISOString().slice(0,10),account,amount,status:"Pending"});save("withdrawals",withdrawals);renderWithdrawals();
+ if(modalMode==="deposit"||modalMode==="withdraw"){
+  alert("This financial action is not enabled in the Paykassma live backend yet. No balance or transaction was created.");
+  return;
  }
  closeModal();
 }
@@ -257,7 +251,8 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
     const balance=Number(data.totals?.balance||0), credited=Number(data.totals?.deposited||0), debited=Number(data.totals?.paid||0);
     const trust=document.getElementById("trustValue"), income=document.getElementById("incomeValue");
     if(trust)trust.innerHTML=money(balance)+" <span class='small'>INR</span>";
-    if(income)income.innerHTML=money(balance)+" <span class='small'>INR</span>";
+    if(income)income.innerHTML="Not configured <span class='small'>Commission settlement pending</span>";
+    const sideIncome=document.getElementById("sideIncome");if(sideIncome)sideIncome.textContent="Not configured";
     const name=user.display_name||user.user_id||"Merchant";
     try {
       const rateResponse=await fetch("/api/admin/exchange-rates",{headers:{Authorization:"Bearer "+token}});
