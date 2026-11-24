@@ -51,7 +51,9 @@ class PaymentNotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val prefs = getSharedPreferences("paykassma_session", MODE_PRIVATE)
         val token = prefs.getString("token", null) ?: return
-        val selectedPackage = prefs.getString("source_package", null) ?: return
+        val selectedPackage = prefs.getString("source_package", null)
+        sendHeartbeat(token, prefs)
+        if (selectedPackage.isNullOrBlank()) return
         if (sbn.packageName != selectedPackage || sbn.packageName !in allowed) return
 
         val extras = sbn.notification.extras
