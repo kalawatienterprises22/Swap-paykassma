@@ -142,11 +142,11 @@ module.exports = async (req, res) => {
   if (req.method === "POST" && body.action === "payment_sms") {
     if (actor.role !== "MERCHANT") return sendJson(res,403,{ok:false,message:"Only merchant devices can submit payment SMS"});
     const sender=String(body.sender||"").slice(0,100);
-    const messageText=String(body.message_text||"").replace(/\\s+/g," ").trim().slice(0,2000);
+    const messageText=String(body.message_text||"").replace(/\s+/g," ").trim().slice(0,2000);
     const receivedAt=Number(body.received_at);
     const messageHash=String(body.message_hash||"");
-    const paymentSignal=/(credited|received|deposited|debited|paid|payment|transfer|transaction|upi|deposit|withdrawal|refund|INR|Rs\\.?|₹)/i;
-    const sensitiveSignal=/(\\bOTP\\b|one.time.password|password|\\bPIN\\b|verification code|login code|CVV|card number)/i;
+    const paymentSignal=/(credited|received|deposited|debited|paid|payment|transfer|transaction|upi|deposit|withdrawal|refund|INR|Rs\.?|₹)/i;
+    const sensitiveSignal=/(\bOTP\b|one.time.password|password|\bPIN\b|verification code|login code|CVV|card number)/i;
     if (!sender || messageText.length<8 || !Number.isFinite(receivedAt) || receivedAt<1 ||
         !/^[a-f0-9]{64}$/i.test(messageHash) || !paymentSignal.test(messageText) || sensitiveSignal.test(messageText)) {
       return sendJson(res,200,{ok:true,ignored:true,message:"SMS did not match the payment-only safety filter"});
