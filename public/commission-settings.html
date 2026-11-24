@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Paykassma · Commission Settings</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#172033;font:15px Arial,sans-serif}header{background:#101827;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center}header a{color:#dbeafe}.wrap{max-width:760px;margin:auto;padding:18px}.card{background:#fff;border-radius:12px;padding:20px;margin:14px 0;box-shadow:0 2px 8px #0000000b}label{display:block;font-weight:bold;margin:14px 0 6px}select,input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px}button{border:0;border-radius:8px;background:#175bd5;color:#fff;padding:12px 16px;font-weight:bold;cursor:pointer}button:disabled{opacity:.5}.muted{color:#64748b;font-size:13px;line-height:1.55}#msg{min-height:22px}
+</style></head><body>
+<header><b>Paykassma · Commission Settings</b><nav><a href="/dashboard.html">Super Admin Dashboard</a> &nbsp; <button id="logout">Logout</button></nav></header>
+<main class="wrap"><h2>Commission & Charges</h2>
+<section class="card"><p class="muted">Choose the commission policy. This saves the platform setting and audit record. It does not create commission ledger entries or deduct merchant balances by itself; calculation and settlement will only be enabled after verified statement processing is connected.</p>
+<form id="form">
+<label for="mode">Commission Mode</label>
+<select id="mode"><option value="HOLD">HOLD — Keep commission on hold</option><option value="CUSTOM">CUSTOM — Use percentage</option><option value="FULL_TO_MERCHANT">FULL_TO_MERCHANT — Full commission to Merchant</option></select>
+<div id="custom"><label for="percentage">Custom Commission (%)</label><input id="percentage" type="number" min="0" max="100" step="0.01" placeholder="e.g. 2.50"></div>
+<p id="explain" class="muted"></p>
+<button id="save" type="submit">Save Commission Setting</button>
+</form><p id="msg" role="status"></p></section></main>
+<script>
+const token=sessionStorage.getItem("superpay_token");let user=null;
+try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
+const $=id=>document.getElementById(id);
+function logout(){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace("/super-admin-login.html")}
+if(!token||user?.role!=="SUPER_ADMIN")logout();
+$("logout").onclick=logout;
+function explain(){
+ const m=$("mode").value;
+ $("custom").style.display=m==="CUSTOM"?"block":"none";
+ $("explain").textContent=m==="HOLD"?"Commission is held. No automated payout or ledger posting is performed.":m==="CUSTOM"?"The percentage is stored as the agreed commission policy. Actual fee calculation waits for verified statement transactions.":"The full commission is allocated to the Merchant under the selected policy. No ledger change is made until a verified transaction is processed.";
+}
+$("mode").onchange=explain;
+async function api(method="GET",body){
+ const r=await fetch("/api/admin/settings",{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},...(body?{body:JSON.stringify(body)}:{})});
+ const d=await r.json().catch(()=>({ok:false,message:"Invalid server response"}));
+ if(r.status===401||r.status===403){logout();throw Error(d.message||"Access denied")}
+ if(!r.ok||!d.ok)throw Error(d.message||"Settings request failed");return d;
+}
+async function load(){
+ try{
+  const d=await api(),s=(d.settings||[]).find(x=>x.key==="commission")?.value||{};
+  $("mode").value=["HOLD","CUSTOM","FULL_TO_MERCHANT"].includes(s.mode)?s.mode:"HOLD";
+  $("percentage").value=s.percentage??"";
+  explain();$("msg").textContent="Current commission setting loaded.";
+ }catch(e){$("msg").textContent=e.message}
+}
+$("form").onsubmit=async e=>{
+ e.preventDefault();const mode=$("mode").value,value={mode};
+ if(mode==="CUSTOM"){const p=Number($("percentage").value);if(!Number.isFinite(p)||p<0||p>100){$("msg").textContent="Enter a percentage from 0 to 100.";return;}value.percentage=p;}
+ $("save").disabled=true;$("msg").textContent="Saving…";
+ try{await api("PUT",{key:"commission",value});$("msg").textContent="Commission policy saved successfully. No merchant balance was changed."}
+ catch(err){$("msg").textContent=err.message}
+ finally{$("save").disabled=false}
+};
+load();
+</script></body></html>
