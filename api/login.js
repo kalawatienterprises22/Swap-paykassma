@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
   try {
     const { user_id, password, login_type, display_name } = req.body || {};
     // Gaming/ParixBet authentication belongs to its own deployment, never Paykassma.
-    if (["gaming_admin", "gaming_register", "gaming"].includes(login_type)) {
+    if (process.env.PAYKASSMA_ONLY === "1" && ["gaming_admin", "gaming_register", "gaming"].includes(login_type)) {
       return sendJson(res, 404, { ok: false, message: "Gaming login is not available on the Paykassma platform." });
     }
 
