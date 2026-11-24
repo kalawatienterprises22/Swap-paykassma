@@ -2,6 +2,8 @@ package com.superpay.merchant
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.os.Build
+import java.util.UUID
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -17,6 +19,34 @@ class PaymentNotificationListener : NotificationListenerService() {
     )
     private val paymentSignal = Regex("(?i)(credited|received|debited|paid|payment|transfer|transaction|upi|deposit|withdraw|refund|₹|\\bINR\\b|\\bRs\\.?\\b)")
     private val sensitiveSignal = Regex("(?i)(\\bOTP\\b|one.time.password|password|\\bPIN\\b|verification code|login code)")
+
+    private fun sendHeartbeat(token: String, prefs: android.content.SharedPreferences) {
+        val deviceId = prefs.getString("device_id", null) ?: UUID.randomUUID().toString().also {
+            prefs.edit().putString("device_id", it).apply()
+        }
+        Thread {
+            val connection = (URL("$baseUrl/api/device-events").openConnection() as HttpURLConnection)
+            try {
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.setRequestProperty("Authorization", "Bearer $token")
+                val payload = JSONObject()
+                    .put("action", "heartbeat")
+                    .put("device_id", deviceId)
+                    .put("device_model", "${Build.MANUFACTURER} ${Build.MODEL}".take(120))
+                    .put("app_version", "1.0.0")
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                connection.inputStream?.close()
+            } catch (_: Exception) {
+                // Device presence expires automatically if the server cannot be reached.
+            } finally {
+                connection.disconnect()
+            }
+        }.start()
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val prefs = getSharedPreferences("paykassma_session", MODE_PRIVATE)
