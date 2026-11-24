@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Paykassma · Withdrawal Review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#172033;font:14px Arial,sans-serif}header{background:#101827;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}header a{color:#dbeafe}.wrap{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:12px;padding:16px;margin:14px 0;box-shadow:0 2px 8px #0000000b}.muted{color:#64748b;font-size:12px;line-height:1.5}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:800px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e5eaf1;vertical-align:top;font-size:12px}button{border:0;border-radius:7px;padding:8px 11px;font-weight:bold;cursor:pointer;background:#175bd5;color:#fff;margin:2px}.reject{background:#64748b}.paid{background:#16804a}#msg{min-height:20px;color:#475569}
+</style></head><body>
+<header><div><b>Paykassma · Withdrawal Review</b><div class="muted" style="color:#cbd5e1">Review requests for merchants in your assigned scope</div></div><nav><a id="back" href="/dashboard.html">Dashboard</a> &nbsp; <button id="logout">Logout</button></nav></header>
+<main class="wrap"><h2>Withdrawal Requests</h2><p class="muted">Approve or reject pending requests. Only mark a request as Paid after the external bank / UPI transfer is actually completed. This panel does not transfer money.</p>
+<section class="card"><button id="refresh">Refresh</button><p id="msg">Loading requests…</p><div class="tablewrap"><table><thead><tr><th>Merchant</th><th>Destination account</th><th>Account details</th><th>Amount</th><th>Status</th><th>Requested</th><th>Actions</th></tr></thead><tbody id="rows"></tbody></table></div></section></main>
+<script>
+const token=sessionStorage.getItem("superpay_token");let user=null;
+try{user=JSON.parse(sessionStorage.getItem("superpay_user")||"null")}catch{}
+const $=id=>document.getElementById(id);
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function login(){location.replace(user?.role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html")}
+if(!token||!["ADMIN","SUPER_ADMIN"].includes(user?.role))login();
+$("back").href=user?.role==="ADMIN"?"/admin-dashboard.html":"/dashboard.html";
+$("logout").onclick=()=>{sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");login()};
+async function api(method="GET",body){
+ const r=await fetch("/api/ledger?resource=withdrawals",{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},...(body?{body:JSON.stringify(body)}:{})});
+ const d=await r.json().catch(()=>({ok:false,message:"Invalid server response"}));
+ if(r.status===401||r.status===403){login();throw Error(d.message||"Access denied")}
+ if(!r.ok||!d.ok)throw Error(d.message||"Withdrawal request failed");return d;
+}
+async function load(){
+ $("msg").textContent="Loading requests…";
+ try{
+  const d=await api(),items=d.requests||[];
+  $("msg").textContent=items.length+" request(s) found.";
+  $("rows").innerHTML=items.map(w=>{
+   const details=Object.entries(w.account_details||{}).map(([k,v])=>"<div><b>"+esc(k.replaceAll("_"," "))+":</b> "+esc(v)+"</div>").join("")||"—";
+   let actions="";
+   if(w.status==="PENDING")actions='<button data-action="approve" data-id="'+esc(w.id)+'">Approve</button><button class="reject" data-action="reject" data-id="'+esc(w.id)+'">Reject</button>';
+   if(w.status==="APPROVED")actions='<button class="paid" data-action="mark_paid" data-id="'+esc(w.id)+'">Mark Paid</button>';
+   return "<tr><td><b>"+esc(w.display_name||w.user_id)+"</b><div class='muted'>"+esc(w.user_id)+"</div></td><td>"+esc(w.account_name)+"<div class='muted'>"+esc(w.provider_label)+"</div></td><td>"+details+"</td><td>₹"+Number(w.amount_inr).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})+"</td><td>"+esc(w.status)+"</td><td>"+esc(new Date(w.requested_at).toLocaleString("en-IN"))+"</td><td>"+(actions||"—")+"</td></tr>";
+  }).join("")||'<tr><td colspan="7">No withdrawal requests found.</td></tr>';
+  document.querySelectorAll("[data-action]").forEach(btn=>btn.onclick=()=>review(btn.dataset.id,btn.dataset.action));
+ }catch(e){$("msg").textContent=e.message}
+}
+async function review(id,action){
+ let body={id,action};
+ if(action==="reject")body.review_note=prompt("Reason for rejection (optional):")||"";
+ if(action==="mark_paid"){
+  const ref=prompt("Enter the external bank / UPI transfer reference after completing the actual transfer:");
+  if(!ref)return;
+  body.payout_reference=ref.trim();
+  body.review_note="External payout manually completed and reference recorded.";
+ }
+ const b=document.querySelector('[data-id="'+CSS.escape(id)+'"][data-action="'+action+'"]');if(b)b.disabled=true;
+ try{await api("PATCH",body);$("msg").textContent="Request updated.";await load()}catch(e){$("msg").textContent=e.message;if(b)b.disabled=false}
+}
+$("refresh").onclick=load;load();
+</script></body></html>
