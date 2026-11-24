@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { getPool } = require("../_lib/db");
 const { sendJson, allowMethods } = require("../_lib/http");
-const { verifyToken } = require("../_lib/auth");
+const { verifyAdminToken } = require("../_lib/auth");
 
 
 async function telegramCall(method, payload) {
@@ -61,12 +61,12 @@ async function handleTelegramWebhook(req,res) {
   return sendJson(res,200,{ok:true});
 }
 
-function authenticate(req, res) {
+async function authenticate(req, res) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) { sendJson(res, 401, { ok: false, message: "Authentication required" }); return null; }
   try {
-    const user = verifyToken(token);
+    const user = await verifyAdminToken(token);
     if (!["SUPER_ADMIN", "ADMIN"].includes(user.role)) {
       sendJson(res, 403, { ok: false, message: "Admin access required" });
       return null;
@@ -148,7 +148,7 @@ module.exports = async (req, res) => {
       }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
     }
 
-  const actor = authenticate(req, res);
+  const actor = await authenticate(req, res);
   if (!actor) return;
 
   try {

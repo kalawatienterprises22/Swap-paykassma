@@ -1,8 +1,8 @@
 const { getPool } = require("../_lib/db");
 const { sendJson, allowMethods } = require("../_lib/http");
-const { verifyToken } = require("../_lib/auth");
+const { verifyAdminToken } = require("../_lib/auth");
 
-function authenticate(req, res) {
+async function authenticate(req, res) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!token) {
@@ -10,7 +10,7 @@ function authenticate(req, res) {
     return null;
   }
   try {
-    const actor = verifyToken(token);
+    const actor = await verifyAdminToken(token);
     if (!["SUPER_ADMIN", "ADMIN"].includes(actor.role)) {
       sendJson(res, 403, { ok: false, message: "Access denied" });
       return null;
@@ -24,7 +24,7 @@ function authenticate(req, res) {
 
 module.exports = async (req, res) => {
   if (!allowMethods(req, res, ["GET", "POST"])) return;
-  const actor = authenticate(req, res);
+  const actor = await authenticate(req, res);
   if (!actor) return;
 
   try {

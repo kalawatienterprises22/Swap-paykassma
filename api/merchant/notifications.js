@@ -1,6 +1,6 @@
 const { getPool } = require("../_lib/db");
 const { sendJson, allowMethods } = require("../_lib/http");
-const { verifyToken } = require("../_lib/auth");
+const { verifyAdminToken } = require("../_lib/auth");
 
 module.exports = async (req, res) => {
   if (!allowMethods(req, res, ["GET"])) return;
@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
   if (!token) return sendJson(res, 401, { ok: false, message: "Authentication required" });
 
   let actor;
-  try { actor = verifyToken(token); }
+  try { actor = await verifyAdminToken(token); }
   catch { return sendJson(res, 401, { ok: false, message: "Invalid or expired session" }); }
   if (!["MERCHANT", "ADMIN", "SUPER_ADMIN"].includes(actor.role)) {
     return sendJson(res, 403, { ok: false, message: "Access denied" });
