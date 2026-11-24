@@ -55,7 +55,8 @@ module.exports = async (req, res) => {
           [accountId, actor.sub]
         );
         if (!account.rowCount) { await client.query("ROLLBACK"); return sendJson(res, 400, { ok: false, message: "Choose an approved withdrawal account" }); }
-        await client.query("SELECT id FROM sp_users WHERE id=$1 AND role='MERCHANT' AND status='ACTIVE' FOR UPDATE", [actor.sub]);
+        const merchant = await client.query("SELECT id FROM sp_users WHERE id=$1 AND role='MERCHANT' AND status='ACTIVE' FOR UPDATE", [actor.sub]);
+        if (!merchant.rowCount) { await client.query("ROLLBACK"); return sendJson(res, 403, { ok: false, message: "Active Merchant account required" }); }
         const balance = await client.query("SELECT COALESCE(SUM(amount_inr),0)::numeric AS balance FROM sp_ledger WHERE merchant_id=$1", [actor.sub]);
         const reserved = await client.query(
           "SELECT COALESCE(SUM(amount_inr),0)::numeric AS reserved FROM sp_withdrawal_requests WHERE merchant_id=$1 AND status IN ('PENDING','APPROVED')",
