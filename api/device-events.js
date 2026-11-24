@@ -28,6 +28,30 @@ module.exports = async (req, res) => {
   const body = req.body || {};
   const pool = getPool();
 
+  if (req.method === "GET" && String(req.query?.devices || "") === "1") {
+    if (actor.role === "MERCHANT") return sendJson(res,403,{ok:false,message:"Admin device monitoring access required"});
+    const scope = actor.role === "ADMIN" ? "AND u.parent_admin_id=$1" : "";
+    const values = actor.role === "ADMIN" ? [actor.sub] : [];
+    try {
+      const result = await pool.query(
+        `SELECT u.id AS merchant_id,u.user_id,u.display_name,
+                d.device_id,d.device_model,d.app_version,d.source_package,
+                d.last_seen_at,d.last_ip,
+                (d.last_seen_at >= now() - interval '3 minutes') AS online
+         FROM sp_users u
+         LEFT JOIN sp_merchant_devices d ON d.merchant_id=u.id
+         WHERE u.role='MERCHANT' ${scope}
+         ORDER BY u.display_name NULLS LAST,u.user_id`,
+        values
+      );
+      return sendJson(res,200,{ok:true,devices:result.rows,online_count:result.rows.filter(x=>x.online).length});
+    } catch (error) {
+      console.error("Merchant device status read error:",error.message);
+      return sendJson(res,500,{ok:false,message:"Unable to load merchant device status. Run the merchant-device-presence.sql migration first."});
+    }
+  }
+
+
   if (req.method === "GET" && String(req.query?.review || "") === "1") {
     if (actor.role === "MERCHANT") return sendJson(res,403,{ok:false,message:"Admin review access required"});
     const scope = actor.role === "ADMIN" ? "WHERE u.parent_admin_id=$1" : "";
@@ -65,6 +89,36 @@ module.exports = async (req, res) => {
     } catch (error) {
       console.error("Notification source read error:", error.message);
       return sendJson(res, 500, { ok: false, message: "Unable to read notification source settings" });
+    }
+  }
+
+  if (req.method === "POST" && body.action === "heartbeat") {
+    if (actor.role !== "MERCHANT") return sendJson(res,403,{ok:false,message:"Only merchant APK sessions can send device heartbeat"});
+    const deviceId=String(body.device_id||"").slice(0,80);
+    const deviceModel=String(body.device_model||"").slice(0,120);
+    const appVersion=String(body.app_version||"").slice(0,40);
+    if (!/^[a-zA-Z0-9._:-]{8,80}$/.test(deviceId)) return sendJson(res,400,{ok:false,message:"Invalid device identifier"});
+    const forwarded=String(req.headers["x-forwarded-for"]||"").split(",")[0].trim();
+    const ip=forwarded || String(req.socket?.remoteAddress||"").slice(0,64) || null;
+    try {
+      const selected=await pool.query(
+        "SELECT source_package FROM sp_merchant_notification_sources WHERE merchant_id=$1 AND enabled=TRUE",
+        [actor.sub]
+      );
+      await pool.query(
+        `INSERT INTO sp_merchant_devices
+          (merchant_id,device_id,device_model,app_version,source_package,last_seen_at,last_ip,updated_at)
+         VALUES($1,$2,$3,$4,$5,now(),$6,now())
+         ON CONFLICT(merchant_id) DO UPDATE SET
+           device_id=EXCLUDED.device_id,device_model=EXCLUDED.device_model,
+           app_version=EXCLUDED.app_version,source_package=EXCLUDED.source_package,
+           last_seen_at=now(),last_ip=EXCLUDED.last_ip,updated_at=now()`,
+        [actor.sub,deviceId,deviceModel,appVersion,selected.rows[0]?.source_package||null,ip]
+      );
+      return sendJson(res,200,{ok:true,online:true,last_seen_at:new Date().toISOString()});
+    } catch(error) {
+      console.error("Merchant device heartbeat error:",error.message);
+      return sendJson(res,500,{ok:false,message:"Unable to update merchant device status"});
     }
   }
 
