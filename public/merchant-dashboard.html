@@ -156,7 +156,7 @@ function renderTransactions(){
 }
 function renderWithdrawals(){
  $("withdrawRows").innerHTML=withdrawals.map(w=>`<tr><td>${w.id}</td><td>${w.date}</td><td>${w.account}</td><td>${money(w.amount)}</td><td>${status(w.status)}</td></tr>`).join("")||'<tr><td colspan="5">No withdrawal requests.</td></tr>';
- $("pendingCount").textContent=withdrawals.filter(w=>w.status==="Pending").length;
+ $("pendingCount").textContent=withdrawals.filter(w=>["Pending","Approved"].includes(w.status)).length;
 }
 function renderStatement(){
  let from=$("stFrom").value,to=$("stTo").value,acct=$("stAccount").value;
@@ -204,7 +204,12 @@ async function openModal(mode){
   $("fType").onchange=renderAccountCustomFields;renderAccountCustomFields();
  }
  if(mode==="deposit"){$("modalTitle").textContent="Deposit";$("modalFields").innerHTML='<p class="small">Deposit processing is not enabled yet. No local or simulated balance entry will be created.</p>';}
- if(mode==="withdraw"){$("modalTitle").textContent="Withdrawal Request";$("modalFields").innerHTML='<p class="small">Withdrawal processing is not enabled yet. No local or simulated withdrawal request will be created.</p>';}
+ if(mode==="withdraw"){
+  const approved=(accounts||[]).filter(a=>a.status==="Approved");
+  if(!approved.length){alert("Please add a withdrawal account and wait for Super Admin approval first.");closeModal();return;}
+  $("modalTitle").textContent="Withdrawal Request";
+  $("modalFields").innerHTML='<div class="field"><label>Approved Destination Account</label><select id="fWithdrawAccount">'+approved.map(a=>'<option value="'+String(a.id).replace(/[^a-f0-9-]/gi,"")+'">'+String(a.name).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))+' ('+String(a.type).replace(/[&<>"']/g,"") +')</option>').join("")+'</select></div><div class="field"><label>Amount (INR)</label><input id="fWithdrawAmount" type="number" min="1" step="0.01" placeholder="Enter amount" required></div><p class="small">Your request will reserve this amount until Admin review. No bank transfer is started by this request.</p>';
+ }
 }
 function closeModal(){$("modal").classList.remove("show")}
 async function submitModal(){
@@ -219,8 +224,21 @@ async function submitModal(){
   catch(error){alert(error.message);if(button)button.disabled=false;return;}
   finally{if(button)button.disabled=false;}
  }
- if(modalMode==="deposit"||modalMode==="withdraw"){
-  alert("This financial action is not enabled in the Paykassma live backend yet. No balance or transaction was created.");
+ if(modalMode==="withdraw"){
+  const amount=Number($("fWithdrawAmount")?.value);
+  const account_id=$("fWithdrawAccount")?.value||"";
+  if(!Number.isFinite(amount)||amount<=0)return alert("Enter a valid withdrawal amount.");
+  const token=sessionStorage.getItem("superpay_token"),button=document.querySelector(".modalactions .blue");
+  if(button)button.disabled=true;
+  try{
+   const response=await fetch("/api/ledger?resource=withdrawals",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({account_id,amount_inr:amount})});
+   const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Withdrawal request failed");
+   closeModal();alert(data.message||"Withdrawal request submitted.");location.reload();
+  }catch(error){alert(error.message);if(button)button.disabled=false;return;}
+  finally{if(button)button.disabled=false;}
+ }
+ if(modalMode==="deposit"){
+  alert("Deposit processing is not enabled yet. No local or simulated balance entry was created.");
   return;
  }
  closeModal();
@@ -242,6 +260,12 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
   if(!token||!user){location.replace("/login.html");return;}if(user.role==="ADMIN"){location.replace("/admin-dashboard.html");return;}if(user.role==="SUPER_ADMIN"){location.replace("/dashboard.html");return;}if(user.role!=="MERCHANT"){sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace("/login.html");return;}
   const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
   window.loadLiveAccounts=async function(){const token=sessionStorage.getItem("superpay_token");const response=await fetch("/api/admin/provider-fields",{headers:{Authorization:"Bearer "+token}});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Could not load account requests");accounts=(data.accounts||[]).map(a=>{const details=a.account_details||{};const identifier=Object.values(details).filter(v=>v!==null&&v!==undefined&&String(v).trim()).map(v=>String(v)).join(" · ")||"—";return {id:a.id,name:a.account_name,type:a.provider_label,provider_id:a.provider_key,details,identifier,status:a.status==="APPROVED"?"Approved":a.status==="REJECTED"?"Rejected":"Pending"};});renderAccounts();}
+  window.loadLiveWithdrawals=async function(){
+    const response=await fetch("/api/ledger?resource=withdrawals",{headers:{Authorization:"Bearer "+token}});
+    const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.message||"Could not load withdrawal requests");
+    withdrawals=(data.requests||[]).map(w=>({id:String(w.id).slice(0,8),date:new Date(w.requested_at).toISOString().slice(0,10),account:w.account_name,amount:Number(w.amount_inr),status:w.status==="PAID"?"Paid":w.status==="APPROVED"?"Approved":w.status==="REJECTED"?"Rejected":"Pending"}));
+    renderWithdrawals();
+  };
 
   const logout=document.getElementById("merchantLogout");if(logout)logout.onclick=()=>{const role=user?.role;sessionStorage.removeItem("superpay_token");sessionStorage.removeItem("superpay_user");location.replace(role==="SUPER_ADMIN"?"/super-admin-login.html":"/login.html")};
   try{
@@ -267,9 +291,10 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
     renderTransactions();
     refreshStats();
     const title=document.querySelector(".logo");if(title)title.textContent="Paykassma — "+name;
-    document.querySelectorAll("button").forEach(b=>{if(/^(Deposit|Withdraw|Request Withdrawal)$/i.test(b.textContent.trim())){b.disabled=true;b.title="This action is not connected to the live merchant backend yet";}});
+    document.querySelectorAll("button").forEach(b=>{if(/^Deposit$/i.test(b.textContent.trim())){b.disabled=true;b.title="Deposit processing is not connected yet";}});
     const note=document.createElement("p");note.className="small";note.textContent="Live balance and ledger data loaded from Paykassma. Account requests are sent to Super Admin for approval.";document.querySelector(".content")?.prepend(note);
     await window.loadLiveAccounts();
+    await window.loadLiveWithdrawals();
   }catch(e){document.body.innerHTML="<main style='padding:24px;font-family:Arial'><h2>Merchant dashboard could not load</h2><p>"+String(e.message)+"</p><a href='/login.html'>Back to login</a></main>";}
 })();
 </script>
