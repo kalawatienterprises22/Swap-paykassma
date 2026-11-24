@@ -1,16 +1,16 @@
 const { getPool } = require("./_lib/db");
 const { sendJson, allowMethods } = require("./_lib/http");
-const { verifyToken } = require("./_lib/auth");
+const { verifyAdminToken } = require("./_lib/auth");
 
-function authenticate(req,res) {
+async function authenticate(req,res) {
   const h=req.headers.authorization||"", token=h.startsWith("Bearer ")?h.slice(7):"";
   if(!token){sendJson(res,401,{ok:false,message:"Authentication required"});return null;}
-  try{return verifyToken(token);}catch{sendJson(res,401,{ok:false,message:"Invalid or expired session"});return null;}
+  try{return await verifyAdminToken(token);}catch{sendJson(res,401,{ok:false,message:"Invalid or expired session"});return null;}
 }
 
 module.exports = async (req,res) => {
   if(!allowMethods(req,res,["GET","POST","PATCH"])) return;
-  const actor=authenticate(req,res);
+  const actor=await authenticate(req,res);
   if(!actor) return;
   if(!["SUPER_ADMIN","ADMIN","MERCHANT"].includes(actor.role)) return sendJson(res,403,{ok:false,message:"Access denied"});
   const pool=getPool();
