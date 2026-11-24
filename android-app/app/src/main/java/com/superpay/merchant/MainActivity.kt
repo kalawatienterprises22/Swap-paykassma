@@ -1,6 +1,9 @@
 package com.superpay.merchant
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -69,6 +72,21 @@ class MainActivity : Activity() {
             setOnClickListener { configureSource() }
         })
         root.addView(Button(this).apply {
+            text = "Enable Payment SMS Monitoring (Optional)"
+            setOnClickListener { enablePaymentSmsMonitoring() }
+        })
+        root.addView(TextView(this).apply {
+            text = "Optional: with your permission, Paykassma processes incoming SMS on this phone locally and sends only payment-related messages. OTPs, PINs, passwords and non-payment SMS are filtered out. You can turn this off in Android App Settings."
+            textSize = 12f
+        })
+        root.addView(Button(this).apply {
+            text = "Disable Payment SMS Monitoring"
+            setOnClickListener {
+                prefs.edit().putBoolean("sms_monitoring_enabled", false).apply()
+                status.text = "Payment SMS monitoring is disabled on this device."
+            }
+        })
+        root.addView(Button(this).apply {
             text = "Enable Notification Access"
             setOnClickListener { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
         })
@@ -82,6 +100,36 @@ class MainActivity : Activity() {
         if (prefs.getString("token", null) != null) {
             userId.setText(prefs.getString("user_id", ""))
             status.text = "Merchant session saved. Select the payment app and save it."
+        }
+    }
+
+
+    private fun enablePaymentSmsMonitoring() {
+        AlertDialog.Builder(this)
+            .setTitle("Enable payment-only SMS monitoring?")
+            .setMessage("If you agree, Paykassma will inspect incoming SMS on this device to identify payment transaction messages. Only messages matching payment keywords are sent to your Paykassma Admin/Super Admin review panel. OTP, PIN, password and other non-payment messages are filtered and not uploaded. Do not enable this on a phone unless you are authorized to share its payment messages.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("I agree — continue") { _, _ ->
+                if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED) {
+                    prefs.edit().putBoolean("sms_monitoring_enabled", true).apply()
+                    status.text = "Payment SMS monitoring enabled. Only filtered payment SMS can be uploaded."
+                } else {
+                    requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), 4207)
+                }
+            }
+            .show()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 4207) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            prefs.edit().putBoolean("sms_monitoring_enabled", granted).apply()
+            status.text = if (granted) {
+                "Payment SMS monitoring enabled. Only filtered payment SMS can be uploaded."
+            } else {
+                "SMS permission not granted. Payment SMS monitoring remains disabled."
+            }
         }
     }
 
