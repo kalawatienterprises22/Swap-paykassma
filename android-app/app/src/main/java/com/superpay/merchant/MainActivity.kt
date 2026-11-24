@@ -36,7 +36,7 @@ class MainActivity : Activity() {
             text = "Sign in with your Paykassma Merchant account. Choose only one payment app to monitor."
             textSize = 14f
         })
-        userId = EditText(this).apply { hint = "Merchant User ID"; singleLine = true }
+        userId = EditText(this).apply { hint = "Merchant User ID"; isSingleLine = true }
         password = EditText(this).apply {
             hint = "Password"
             inputType = 129
