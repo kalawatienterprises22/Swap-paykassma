@@ -1,17 +1,17 @@
 const { getPool } = require("../_lib/db");
 const { sendJson, allowMethods } = require("../_lib/http");
-const { verifyToken } = require("../_lib/auth");
+const { verifyAdminToken } = require("../_lib/auth");
 
 const forbidden=/password|passcode|otp|pin|cvv|security.?code|net.?banking.?login/i;
-function auth(req,res){
+async function auth(req,res){
  const h=req.headers.authorization||"",t=h.startsWith("Bearer ")?h.slice(7):"";
  if(!t){sendJson(res,401,{ok:false,message:"Authentication required"});return null;}
- try{const u=verifyToken(t);if(!["SUPER_ADMIN","ADMIN","MERCHANT"].includes(u.role)){sendJson(res,403,{ok:false,message:"Access denied"});return null;}return u;}
+ try{const u=await verifyAdminToken(t);if(!["SUPER_ADMIN","ADMIN","MERCHANT"].includes(u.role)){sendJson(res,403,{ok:false,message:"Access denied"});return null;}return u;}
  catch{sendJson(res,401,{ok:false,message:"Invalid or expired session"});return null;}
 }
 module.exports=async(req,res)=>{
  if(!allowMethods(req,res,["GET","POST","PATCH"]))return;
- const actor=auth(req,res);if(!actor)return;
+ const actor=await auth(req,res);if(!actor)return;
  try{
   const pool=getPool();
   if(req.method==="GET"){
