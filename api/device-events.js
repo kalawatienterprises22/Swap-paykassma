@@ -1,6 +1,6 @@
 const { getPool } = require("./_lib/db");
 const { sendJson, allowMethods } = require("./_lib/http");
-const { verifyToken } = require("./_lib/auth");
+const { verifyAdminToken } = require("./_lib/auth");
 
 const ALLOWED_PACKAGES = new Set([
   "com.google.android.apps.nbu.paisa.user",
@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
 
   let actor;
   try {
-    actor = verifyToken(token);
+    actor = await verifyAdminToken(token);
   } catch {
     return sendJson(res, 401, { ok: false, message: "Invalid or expired session" });
   }
