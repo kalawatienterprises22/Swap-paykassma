@@ -25,7 +25,9 @@ module.exports = async (req,res) => {
           `SELECT u.id AS merchant_id,u.user_id,u.display_name,
              COALESCE(SUM(l.amount_inr),0)::numeric(20,2) AS balance_inr,
              COALESCE(SUM(l.amount_inr) FILTER (WHERE l.amount_inr>0),0)::numeric(20,2) AS total_credited,
-             COALESCE(-SUM(l.amount_inr) FILTER (WHERE l.amount_inr<0),0)::numeric(20,2) AS total_debited
+             COALESCE(-SUM(l.amount_inr) FILTER (WHERE l.amount_inr<0),0)::numeric(20,2) AS total_debited,
+             COALESCE(-SUM(l.amount_inr) FILTER (WHERE l.entry_type='COMMISSION' AND l.amount_inr<0),0)::numeric(20,2) AS total_commission,
+             COALESCE(-SUM(l.amount_inr) FILTER (WHERE l.entry_type='CHARGE' AND l.amount_inr<0),0)::numeric(20,2) AS total_charges
            FROM sp_users u LEFT JOIN sp_ledger l ON l.merchant_id=u.id
            WHERE ${scope} AND u.role='MERCHANT'
            GROUP BY u.id,u.user_id,u.display_name ORDER BY u.display_name`,
@@ -43,8 +45,10 @@ module.exports = async (req,res) => {
       const totals=summary.rows.reduce((a,r)=>({
         deposited:a.deposited+Number(r.total_credited),
         paid:a.paid+Number(r.total_debited),
+        commission:a.commission+Number(r.total_commission),
+        charges:a.charges+Number(r.total_charges),
         balance:a.balance+Number(r.balance_inr)
-      }),{deposited:0,paid:0,balance:0});
+      }),{deposited:0,paid:0,commission:0,charges:0,balance:0});
       return sendJson(res,200,{ok:true,merchants:summary.rows,entries:entries.rows,totals});
     }catch(e){
       console.error("Balance read error:",e.message);
@@ -54,7 +58,7 @@ module.exports = async (req,res) => {
 
   if(actor.role==="MERCHANT") return sendJson(res,403,{ok:false,message:"Merchant payment entries require a verified payment notification; manual balance changes are disabled"});
   const {merchant_id,type,amount,reference,description}=req.body||{};
-  const allowed=["DEPOSIT","PAYMENT","MANUAL_CREDIT","MANUAL_DEBIT"];
+  const allowed=["DEPOSIT","PAYMENT","MANUAL_CREDIT","MANUAL_DEBIT","COMMISSION","CHARGE"];
   const value=Number(amount);
   if(!allowed.includes(type)||!Number.isFinite(value)||value<=0||value>100000000000||
      typeof reference!=="string"||reference.trim().length<4||reference.trim().length>120){

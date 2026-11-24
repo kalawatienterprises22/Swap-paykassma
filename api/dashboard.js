@@ -250,6 +250,38 @@ function getAdmin(req, res) {
 module.exports = async (req, res) => {
   const mod = req.query && req.query.module;
 
+  // Paykassma financial dashboard: intentionally isolated from all gaming tables and wallets.
+  // The gaming modules below remain separate and cannot supply Paykassma merchant balances.
+  if (!mod || mod === "paykassma") {
+    if (!allowMethods(req, res, ["GET"])) return;
+    const admin = getAdmin(req, res);
+    if (!admin) return;
+    try {
+      const pool = getPool();
+      const [merchants, transactions, deposits, debits, pendingAccounts] = await Promise.all([
+        pool.query("SELECT COUNT(*)::int AS c FROM sp_users WHERE role='MERCHANT'"),
+        pool.query("SELECT COUNT(*)::int AS c FROM sp_ledger"),
+        pool.query("SELECT COUNT(*)::int AS c FROM sp_deposits"),
+        pool.query("SELECT COUNT(*)::int AS c FROM sp_ledger WHERE entry_type IN ('PAYMENT','MANUAL_DEBIT','COMMISSION','CHARGE')"),
+        pool.query("SELECT COUNT(*)::int AS c FROM sp_merchant_accounts WHERE status='PENDING'")
+      ]);
+      return sendJson(res, 200, {
+        ok: true,
+        module: "paykassma",
+        stats: {
+          merchants: merchants.rows[0].c,
+          transactions: transactions.rows[0].c,
+          deposits: deposits.rows[0].c,
+          payments_debits: debits.rows[0].c,
+          pending_account_requests: pendingAccounts.rows[0].c
+        }
+      });
+    } catch (error) {
+      console.error("Paykassma dashboard stats error:", error.message);
+      return sendJson(res, 500, { ok: false, message: "Paykassma dashboard data is unavailable. Verify the latest Paykassma database migrations." });
+    }
+  }
+
   if (mod === "gaming-auth") {
     if (!allowMethods(req, res, ["POST", "GET"])) return;
     try {
