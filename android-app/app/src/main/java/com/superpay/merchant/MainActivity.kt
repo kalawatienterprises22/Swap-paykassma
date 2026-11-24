@@ -4,6 +4,10 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import java.util.UUID
 import android.provider.Settings
 import android.view.View
 import android.widget.*
@@ -18,6 +22,13 @@ class MainActivity : Activity() {
     private lateinit var password: EditText
     private lateinit var source: Spinner
     private lateinit var status: TextView
+    private val heartbeatHandler = Handler(Looper.getMainLooper())
+    private val heartbeatTask = object : Runnable {
+        override fun run() {
+            sendHeartbeat()
+            heartbeatHandler.postDelayed(this, 60_000)
+        }
+    }
     private val packages = listOf(
         "Google Pay" to "com.google.android.apps.nbu.paisa.user",
         "PhonePe" to "com.phonepe.app",
@@ -123,6 +134,35 @@ class MainActivity : Activity() {
                 runOnUiThread { status.text = "Saved. Enable Paykassma notification access in Android Settings." }
             } catch (e: Exception) {
                 runOnUiThread { status.text = e.message ?: "Could not save payment app." }
+            }
+        }.start()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        heartbeatHandler.removeCallbacks(heartbeatTask)
+        heartbeatHandler.post(heartbeatTask)
+    }
+
+    override fun onPause() {
+        heartbeatHandler.removeCallbacks(heartbeatTask)
+        super.onPause()
+    }
+
+    private fun sendHeartbeat() {
+        val token = prefs.getString("token", null) ?: return
+        val deviceId = prefs.getString("device_id", null) ?: UUID.randomUUID().toString().also {
+            prefs.edit().putString("device_id", it).apply()
+        }
+        Thread {
+            try {
+                request("/api/device-events", JSONObject()
+                    .put("action", "heartbeat")
+                    .put("device_id", deviceId)
+                    .put("device_model", "${Build.MANUFACTURER} ${Build.MODEL}".take(120))
+                    .put("app_version", "1.0.0"), token)
+            } catch (_: Exception) {
+                // Dashboard marks the device offline when heartbeats stop.
             }
         }.start()
     }
