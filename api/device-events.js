@@ -27,6 +27,24 @@ module.exports = async (req, res) => {
 
   const body = req.body || {};
   const pool = getPool();
+
+  if (req.method === "GET" && String(req.query?.review || "") === "1") {
+    if (actor.role === "MERCHANT") return sendJson(res,403,{ok:false,message:"Admin review access required"});
+    const scope = actor.role === "ADMIN" ? "WHERE u.parent_admin_id=$1" : "";
+    const values = actor.role === "ADMIN" ? [actor.sub] : [];
+    const result = await pool.query(
+      `SELECT n.id,n.merchant_id,u.user_id,u.display_name,n.source_package,
+              n.notification_title,n.notification_text,n.posted_at,n.received_at,
+              n.status,n.review_note,n.reviewed_at
+       FROM sp_payment_notifications n
+       JOIN sp_users u ON u.id=n.merchant_id
+       ${scope}
+       ORDER BY n.received_at DESC LIMIT 300`,
+      values
+    );
+    return sendJson(res,200,{ok:true,notifications:result.rows});
+  }
+
   let targetMerchantId = actor.sub;
   if (actor.role === "SUPER_ADMIN" || actor.role === "ADMIN") {
     targetMerchantId = String(req.method === "GET" ? req.query?.merchant_id || "" : body.merchant_id || "");
