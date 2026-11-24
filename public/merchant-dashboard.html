@@ -203,7 +203,7 @@ async function openModal(mode){
   $("modalFields").innerHTML='<div class="field"><label>Account Name</label><input id="fName" placeholder="Business account" required></div><div class="field"><label>Bank / Payment App</label><select id="fType">'+opts.map(x=>'<option value="'+x.id+'">'+x.name+'</option>').join("")+'</select></div><div id="customAccountFields"></div>';
   $("fType").onchange=renderAccountCustomFields;renderAccountCustomFields();
  }
- if(mode==="deposit"){$("modalTitle").textContent="Deposit";$("modalFields").innerHTML='<p class="small">Deposit processing is not enabled yet. No local or simulated balance entry will be created.</p>';$("modalactions")?.classList.add("hidden");}
+ if(mode==="deposit"){$("modalTitle").textContent="Deposit";$("modalFields").innerHTML='<p class="small">Deposit processing is not enabled yet. No local or simulated balance entry will be created.</p>';}
  if(mode==="withdraw"){$("modalTitle").textContent="Withdrawal Request";$("modalFields").innerHTML='<p class="small">Withdrawal processing is not enabled yet. No local or simulated withdrawal request will be created.</p>';}
 }
 function closeModal(){$("modal").classList.remove("show")}
