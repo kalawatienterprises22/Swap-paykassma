@@ -47,7 +47,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
   <button data-page="earn">✦ &nbsp; Earn Money</button>
   <small>BALANCES</small>
   <div class="balance-mini">Trust balance<strong id="sideTrust">0.00 INR</strong></div>
-  <div class="balance-mini">Income balance<strong id="sideIncome">0.00 INR</strong></div>
+  <div class="balance-mini">Commission & charges<strong id="sideIncome">Not configured</strong></div>
   <small>ACCOUNT</small>
   <button data-page="profile">⚙ &nbsp; Profile & Settings</button>
  </nav>
@@ -63,7 +63,7 @@ table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10p
     <div class="small" style="text-align:right">Allowable minimum trust balance<br><b>100,000 INR</b></div>
    </div>
    <div class="card">
-    <div class="card-head"><span style="color:#3478e5">⌁ &nbsp; Income balance</span><label class="small">Deduct from income <input class="toggle" id="deductToggle" type="checkbox" checked></label></div>
+    <div class="card-head"><span style="color:#3478e5">⌁ &nbsp; Commission & charges</span><label class="small">Deduct from income <input class="toggle" id="deductToggle" type="checkbox" checked></label></div>
     <div class="value" id="incomeValue">0.00 <span class="small">INR</span></div>
    </div>
    <div class="card">
@@ -251,8 +251,8 @@ renderAccounts();renderTransactions();renderWithdrawals();refreshStats();updateB
     const balance=Number(data.totals?.balance||0), credited=Number(data.totals?.deposited||0), debited=Number(data.totals?.paid||0);
     const trust=document.getElementById("trustValue"), income=document.getElementById("incomeValue");
     if(trust)trust.innerHTML=money(balance)+" <span class='small'>INR</span>";
-    if(income)income.innerHTML="Not configured <span class='small'>Commission settlement pending</span>";
-    const sideIncome=document.getElementById("sideIncome");if(sideIncome)sideIncome.textContent="Not configured";
+    if(income)income.innerHTML="<span class='small'>Commission: "+money(data.totals?.commission||0)+"<br>Charges: "+money(data.totals?.charges||0)+"</span>";
+    const sideIncome=document.getElementById("sideIncome");if(sideIncome)sideIncome.textContent="C "+money(data.totals?.commission||0)+" · Ch "+money(data.totals?.charges||0);
     const name=user.display_name||user.user_id||"Merchant";
     try {
       const rateResponse=await fetch("/api/admin/exchange-rates",{headers:{Authorization:"Bearer "+token}});
