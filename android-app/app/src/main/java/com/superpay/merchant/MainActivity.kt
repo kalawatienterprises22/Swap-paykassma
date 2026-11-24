@@ -40,7 +40,7 @@ class MainActivity : Activity() {
         password = EditText(this).apply {
             hint = "Password"
             inputType = 129
-            singleLine = true
+            isSingleLine = true
         }
         root.addView(userId)
         root.addView(password)
